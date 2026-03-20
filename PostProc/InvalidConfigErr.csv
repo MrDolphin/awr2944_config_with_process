@@ -1,0 +1,12 @@
+BitVal,	Error
+0,	No Error
+1,	Frame config has not been programmed.
+2,	The chirps selected in the frame config have not been programmed.
+4,	The profiles selected in the chirp config (used for the current frame) have not been programmed.
+8,	0 samples per real chain have been programmed. Please check the profile config for errors. 
+16,	Less than 4096 samples per real chain have been programmed for collection through LVDS. HSDC Pro will only collect a mininmum of 4096 samples. Please increase the number of frames.
+32,	More than 32000000 samples per real chain have been programmed for collection through LVDS. HSDC Pro has only 500MB of RAM, and cannot collect any more than 32000000 samples. 
+64,	Frame time is greater than the frame periodicity
+128,	LVDS rate is lesser than ADC rate. 
+256,	A single frame with a size (in real samples per real chain) that is not a multiple of 4096 has been programmed. Please increase the number of frames so that at least two frames are collected.
+512, 	Less than 8192 samples per real chain have been programmed for collection through LVDS. HSDC Pro will only collect a mininmum of 8192 samples. Please increase the number of frames.
