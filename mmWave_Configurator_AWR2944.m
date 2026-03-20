@@ -650,7 +650,10 @@ function toggleRealTimeProcessing(~, ~)
     end
 
     % 保存更新后的数据
-    guidata(hFig, guiData);
+    % 增加句柄校验，防止崩溃
+    if ishandle(hFig)
+        guidata(hFig, guiData);
+    end
 end
 
 % 定时器错误回调函数
@@ -1028,8 +1031,10 @@ end
         disp(['处理帧时出错: ' ME.message]);
     end
     
-    % 更新guiData
-    guidata(hFig, guiData);
+    % 更新guiData，增加防崩校验
+    if ishandle(hFig)
+        guidata(hFig, guiData);
+    end
     end
 
 function updateDisplay(guiData, frame_idx, range_azimuth, peaks, radar_cube, doppler_spectrum, ranges_m, azimuths_rad)
@@ -1174,12 +1179,14 @@ function updateDisplay(guiData, frame_idx, range_azimuth, peaks, radar_cube, dop
             scatter(guiData.ax4, current_x, current_y, 100, 'r', 'filled');
             
             % 添加ID标签
-            % 添加ID和坐标文本 (cm)
+            % 添加精细化的 ID 和坐标文本 (cm)
             for i = 1:length(current_x)
                 x_cm = current_x(i) * 100;
                 y_cm = current_y(i) * 100;
-                text(guiData.ax4, current_x(i), current_y(i) + 0.45, ...
-                     sprintf('ID:%d (%.0f, %.0f)cm', current_ids(i), x_cm, y_cm), ...
+                % 修复：确保显示完整的 (X, Y) 坐标
+                label_str = sprintf('ID:%d x:%.1f y:%.1f cm', current_ids(i), x_cm, y_cm);
+                text(guiData.ax4, current_x(i), current_y(i) + 0.3, ...
+                     label_str, ...
                      'FontSize', 9, 'FontWeight', 'bold', ...
                      'HorizontalAlignment', 'center', ...
                      'BackgroundColor', 'w', 'EdgeColor', 'k');
