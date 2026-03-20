@@ -1276,3573 +1276,2938 @@ Reset FPGA command : Success
 Mon Feb 23 17:04:39 2026
 Return status : 0
 
-Fri Feb 27 15:56:28 2026
+Mon Feb 23 23:28:34 2026
 Reset FPGA Command (req)
 
-Fri Feb 27 15:56:28 2026
+Mon Feb 23 23:28:34 2026
 Reset FPGA command : Success
 
-Fri Feb 27 15:56:28 2026
+Mon Feb 23 23:28:34 2026
 Return status : 0
 
-Fri Feb 27 15:56:28 2026
+Mon Feb 23 23:28:34 2026
 FPGA Configuration Command (req)
 
-Fri Feb 27 15:56:28 2026
+Mon Feb 23 23:28:34 2026
 FPGA Configuration command : Success
 
-Fri Feb 27 15:56:28 2026
+Mon Feb 23 23:28:34 2026
 Return status : 0
 
-Fri Feb 27 15:56:28 2026
+Mon Feb 23 23:28:34 2026
 Configure Record Command (req)
 
-Fri Feb 27 15:56:28 2026
+Mon Feb 23 23:28:34 2026
 Configure Record command : Success
 
-Fri Feb 27 15:56:28 2026
+Mon Feb 23 23:28:34 2026
 Return status : 0
 
-Fri Feb 27 16:02:17 2026
+Mon Feb 23 23:28:34 2026
+Start Record Command (req)
+
+Mon Feb 23 23:28:34 2026
+Start Record Command (req)
+
+Mon Feb 23 23:28:34 2026
+Start Record command : Success
+
+Mon Feb 23 23:28:34 2026
+Start Record command : Success
+
+Mon Feb 23 23:30:09 2026
 Reset FPGA Command (req)
 
-Fri Feb 27 16:02:17 2026
+Mon Feb 23 23:30:09 2026
 Reset FPGA command : Success
 
-Fri Feb 27 16:02:17 2026
+Mon Feb 23 23:30:09 2026
 Return status : 0
 
-Fri Feb 27 16:03:58 2026
+Mon Feb 23 23:31:34 2026
 Reset FPGA Command (req)
 
-Fri Feb 27 16:03:58 2026
+Mon Feb 23 23:31:34 2026
 Reset FPGA command : Success
 
-Fri Feb 27 16:03:58 2026
+Mon Feb 23 23:31:34 2026
 Return status : 0
 
-Fri Feb 27 16:03:58 2026
+Mon Feb 23 23:31:34 2026
 FPGA Configuration Command (req)
 
-Fri Feb 27 16:03:58 2026
+Mon Feb 23 23:31:34 2026
 FPGA Configuration command : Success
 
-Fri Feb 27 16:03:58 2026
+Mon Feb 23 23:31:34 2026
 Return status : 0
 
-Fri Feb 27 16:03:58 2026
+Mon Feb 23 23:31:34 2026
 Configure Record Command (req)
 
-Fri Feb 27 16:03:58 2026
+Mon Feb 23 23:31:34 2026
 Configure Record command : Success
 
-Fri Feb 27 16:03:58 2026
+Mon Feb 23 23:31:34 2026
 Return status : 0
 
-Fri Feb 27 16:04:07 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 16:04:07 2026
-Reset FPGA command : Success
-
-Fri Feb 27 16:04:07 2026
-Return status : 0
-
-Fri Feb 27 16:09:15 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 16:09:15 2026
-Reset FPGA command : Success
-
-Fri Feb 27 16:09:15 2026
-Return status : 0
-
-Fri Feb 27 16:09:15 2026
-FPGA Configuration Command (req)
-
-Fri Feb 27 16:09:15 2026
-FPGA Configuration command : Success
-
-Fri Feb 27 16:09:15 2026
-Return status : 0
-
-Fri Feb 27 16:09:15 2026
-Configure Record Command (req)
-
-Fri Feb 27 16:09:15 2026
-Configure Record command : Success
-
-Fri Feb 27 16:09:15 2026
-Return status : 0
-
-Fri Feb 27 16:09:23 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 16:09:23 2026
-Reset FPGA command : Success
-
-Fri Feb 27 16:09:23 2026
-Return status : 0
-
-Fri Feb 27 16:18:20 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 16:18:20 2026
-Reset FPGA command : Success
-
-Fri Feb 27 16:18:20 2026
-Return status : 0
-
-Fri Feb 27 16:18:20 2026
-FPGA Configuration Command (req)
-
-Fri Feb 27 16:18:20 2026
-FPGA Configuration command : Success
-
-Fri Feb 27 16:18:20 2026
-Return status : 0
-
-Fri Feb 27 16:18:20 2026
-Configure Record Command (req)
-
-Fri Feb 27 16:18:20 2026
-Configure Record command : Success
-
-Fri Feb 27 16:18:20 2026
-Return status : 0
-
-Fri Feb 27 16:18:43 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 16:18:43 2026
-Reset FPGA command : Success
-
-Fri Feb 27 16:18:43 2026
-Return status : 0
-
-Fri Feb 27 16:18:44 2026
-FPGA Configuration Command (req)
-
-Fri Feb 27 16:18:44 2026
-FPGA Configuration command : Success
-
-Fri Feb 27 16:18:44 2026
-Return status : 0
-
-Fri Feb 27 16:18:44 2026
-Configure Record Command (req)
-
-Fri Feb 27 16:18:44 2026
-Configure Record command : Success
-
-Fri Feb 27 16:18:44 2026
-Return status : 0
-
-Fri Feb 27 16:29:07 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 16:29:07 2026
-Reset FPGA command : Success
-
-Fri Feb 27 16:29:07 2026
-Return status : 0
-
-Fri Feb 27 16:29:07 2026
-FPGA Configuration Command (req)
-
-Fri Feb 27 16:29:07 2026
-FPGA Configuration command : Success
-
-Fri Feb 27 16:29:07 2026
-Return status : 0
-
-Fri Feb 27 16:29:07 2026
-Configure Record Command (req)
-
-Fri Feb 27 16:29:07 2026
-Configure Record command : Success
-
-Fri Feb 27 16:29:07 2026
-Return status : 0
-
-Fri Feb 27 16:29:07 2026
+Mon Feb 23 23:31:34 2026
 Start Record Command (req)
 
-Fri Feb 27 16:29:09 2026
+Mon Feb 23 23:31:35 2026
 Start Record Command (req)
 
-Fri Feb 27 16:29:09 2026
+Mon Feb 23 23:31:35 2026
 Start Record command : Success
 
-Fri Feb 27 16:29:09 2026
+Mon Feb 23 23:31:35 2026
+Return status : 0
+
+Mon Feb 23 23:31:35 2026
 Start Record command : Success
 
-Fri Feb 27 16:29:09 2026
-Return status : 0
-
-Fri Feb 27 16:30:06 2026
+Mon Feb 23 23:33:16 2026
 Reset FPGA Command (req)
 
-Fri Feb 27 16:30:06 2026
+Mon Feb 23 23:33:16 2026
 Reset FPGA command : Success
 
-Fri Feb 27 16:30:06 2026
+Mon Feb 23 23:33:16 2026
 Return status : 0
 
-Fri Feb 27 16:33:08 2026
+Tue Feb 24 14:05:10 2026
 Reset FPGA Command (req)
 
-Fri Feb 27 16:33:08 2026
-Reset FPGA command : Success
-
-Fri Feb 27 16:33:08 2026
-Return status : 0
-
-Fri Feb 27 16:33:08 2026
-FPGA Configuration Command (req)
-
-Fri Feb 27 16:33:08 2026
-FPGA Configuration command : Success
-
-Fri Feb 27 16:33:08 2026
-Return status : 0
-
-Fri Feb 27 16:33:08 2026
-Configure Record Command (req)
-
-Fri Feb 27 16:33:08 2026
-Configure Record command : Success
-
-Fri Feb 27 16:33:08 2026
-Return status : 0
-
-Fri Feb 27 16:33:08 2026
-Start Record Command (req)
-
-Fri Feb 27 16:33:09 2026
-Start Record Command (req)
-
-Fri Feb 27 16:33:09 2026
-Start Record command : Success
-
-Fri Feb 27 16:33:09 2026
-Return status : 0
-
-Fri Feb 27 16:33:09 2026
-Start Record command : Success
-
-Fri Feb 27 16:34:13 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 16:34:13 2026
-Reset FPGA command : Success
-
-Fri Feb 27 16:34:13 2026
-Return status : 0
-
-Fri Feb 27 16:35:58 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 16:35:58 2026
-Reset FPGA command : Success
-
-Fri Feb 27 16:35:58 2026
-Return status : 0
-
-Fri Feb 27 16:35:58 2026
-FPGA Configuration Command (req)
-
-Fri Feb 27 16:35:58 2026
-FPGA Configuration command : Success
-
-Fri Feb 27 16:35:58 2026
-Return status : 0
-
-Fri Feb 27 16:35:58 2026
-Configure Record Command (req)
-
-Fri Feb 27 16:35:58 2026
-Configure Record command : Success
-
-Fri Feb 27 16:35:58 2026
-Return status : 0
-
-Fri Feb 27 16:35:58 2026
-Start Record Command (req)
-
-Fri Feb 27 16:35:59 2026
-Start Record Command (req)
-
-Fri Feb 27 16:35:59 2026
-Start Record command : Success
-
-Fri Feb 27 16:35:59 2026
-Return status : 0
-
-Fri Feb 27 16:35:59 2026
-Start Record command : Success
-
-Fri Feb 27 16:36:22 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 16:36:22 2026
-Reset FPGA command : Success
-
-Fri Feb 27 16:36:22 2026
-Return status : 0
-
-Fri Feb 27 16:36:47 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 16:36:47 2026
-Reset FPGA command : Success
-
-Fri Feb 27 16:36:47 2026
-Return status : 0
-
-Fri Feb 27 16:36:47 2026
-FPGA Configuration Command (req)
-
-Fri Feb 27 16:36:47 2026
-FPGA Configuration command : Success
-
-Fri Feb 27 16:36:47 2026
-Return status : 0
-
-Fri Feb 27 16:36:48 2026
-Configure Record Command (req)
-
-Fri Feb 27 16:36:48 2026
-Configure Record command : Success
-
-Fri Feb 27 16:36:48 2026
-Return status : 0
-
-Fri Feb 27 16:36:48 2026
-Start Record Command (req)
-
-Fri Feb 27 16:36:48 2026
-Start Record Command (req)
-
-Fri Feb 27 16:36:48 2026
-Start Record command : Success
-
-Fri Feb 27 16:36:48 2026
-Return status : 0
-
-Fri Feb 27 16:36:49 2026
-Start Record command : Success
-
-Fri Feb 27 16:48:58 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 16:48:58 2026
-Reset FPGA command : Success
-
-Fri Feb 27 16:48:58 2026
-Return status : 0
-
-Fri Feb 27 16:48:58 2026
-FPGA Configuration Command (req)
-
-Fri Feb 27 16:48:58 2026
-FPGA Configuration command : Success
-
-Fri Feb 27 16:48:58 2026
-Return status : 0
-
-Fri Feb 27 16:48:58 2026
-Configure Record Command (req)
-
-Fri Feb 27 16:48:58 2026
-Configure Record command : Success
-
-Fri Feb 27 16:48:58 2026
-Return status : 0
-
-Fri Feb 27 16:48:58 2026
-Start Record Command (req)
-
-Fri Feb 27 16:48:59 2026
-Ethernet connection (req)
-
-Fri Feb 27 16:48:59 2026
-Ethernet connection failed. [error -4051]
-
-Fri Feb 27 16:49:06 2026
-Start Record command : Timeout Error! Couldnt read the record process status. [error 4071]
-
-Fri Feb 27 16:49:13 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 16:49:13 2026
-Reset FPGA command : Success
-
-Fri Feb 27 16:49:13 2026
-Return status : 0
-
-Fri Feb 27 16:50:46 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 16:50:46 2026
-Reset FPGA command : Success
-
-Fri Feb 27 16:50:46 2026
-Return status : 0
-
-Fri Feb 27 16:50:46 2026
-FPGA Configuration Command (req)
-
-Fri Feb 27 16:50:46 2026
-FPGA Configuration command : Success
-
-Fri Feb 27 16:50:46 2026
-Return status : 0
-
-Fri Feb 27 16:50:46 2026
-Configure Record Command (req)
-
-Fri Feb 27 16:50:46 2026
-Configure Record command : Success
-
-Fri Feb 27 16:50:46 2026
-Return status : 0
-
-Fri Feb 27 16:50:47 2026
-Start Record Command (req)
-
-Fri Feb 27 16:50:47 2026
-Start Record Command (req)
-
-Fri Feb 27 16:50:47 2026
-Start Record command : Success
-
-Fri Feb 27 16:50:47 2026
-Return status : 0
-
-Fri Feb 27 16:50:48 2026
-Start Record command : Success
-
-Fri Feb 27 16:51:07 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 16:51:07 2026
-Reset FPGA command : Success
-
-Fri Feb 27 16:51:07 2026
-Return status : 0
-
-Fri Feb 27 16:56:00 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 16:56:00 2026
-Reset FPGA command : Success
-
-Fri Feb 27 16:56:00 2026
-Return status : 0
-
-Fri Feb 27 16:56:00 2026
-FPGA Configuration Command (req)
-
-Fri Feb 27 16:56:00 2026
-FPGA Configuration command : Success
-
-Fri Feb 27 16:56:00 2026
-Return status : 0
-
-Fri Feb 27 16:56:00 2026
-Configure Record Command (req)
-
-Fri Feb 27 16:56:00 2026
-Configure Record command : Success
-
-Fri Feb 27 16:56:00 2026
-Return status : 0
-
-Fri Feb 27 16:56:00 2026
-Start Record Command (req)
-
-Fri Feb 27 16:56:01 2026
-Start Record Command (req)
-
-Fri Feb 27 16:56:01 2026
-Start Record command : Success
-
-Fri Feb 27 16:56:01 2026
-Return status : 0
-
-Fri Feb 27 16:56:02 2026
-Start Record command : Success
-
-Fri Feb 27 16:57:19 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 16:57:19 2026
-Reset FPGA command : Success
-
-Fri Feb 27 16:57:19 2026
-Return status : 0
-
-Fri Feb 27 17:01:50 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 17:01:50 2026
-Reset FPGA command : Success
-
-Fri Feb 27 17:01:50 2026
-Return status : 0
-
-Fri Feb 27 17:01:50 2026
-FPGA Configuration Command (req)
-
-Fri Feb 27 17:01:50 2026
-FPGA Configuration command : Success
-
-Fri Feb 27 17:01:50 2026
-Return status : 0
-
-Fri Feb 27 17:01:50 2026
-Configure Record Command (req)
-
-Fri Feb 27 17:01:50 2026
-Configure Record command : Success
-
-Fri Feb 27 17:01:50 2026
-Return status : 0
-
-Fri Feb 27 17:01:50 2026
-Start Record Command (req)
-
-Fri Feb 27 17:01:51 2026
-Start Record Command (req)
-
-Fri Feb 27 17:01:51 2026
-Start Record command : Success
-
-Fri Feb 27 17:01:51 2026
-Return status : 0
-
-Fri Feb 27 17:01:51 2026
-Start Record command : Success
-
-Fri Feb 27 17:07:04 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 17:07:04 2026
-Reset FPGA command : Success
-
-Fri Feb 27 17:07:04 2026
-Return status : 0
-
-Fri Feb 27 17:07:04 2026
-FPGA Configuration Command (req)
-
-Fri Feb 27 17:07:04 2026
-FPGA Configuration command : Success
-
-Fri Feb 27 17:07:04 2026
-Return status : 0
-
-Fri Feb 27 17:07:04 2026
-Configure Record Command (req)
-
-Fri Feb 27 17:07:04 2026
-Configure Record command : Success
-
-Fri Feb 27 17:07:04 2026
-Return status : 0
-
-Fri Feb 27 17:07:04 2026
-Start Record Command (req)
-
-Fri Feb 27 17:07:05 2026
-Ethernet connection (req)
-
-Fri Feb 27 17:07:05 2026
-Ethernet connection failed. [error -4051]
-
-Fri Feb 27 17:07:11 2026
-Start Record command : Timeout Error! Couldnt read the record process status. [error 4071]
-
-Fri Feb 27 17:07:16 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 17:07:16 2026
-Reset FPGA command : Success
-
-Fri Feb 27 17:07:16 2026
-Return status : 0
-
-Fri Feb 27 17:07:16 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 17:07:16 2026
-Reset FPGA command : Success
-
-Fri Feb 27 17:07:16 2026
-Return status : 0
-
-Fri Feb 27 17:07:16 2026
-FPGA Configuration Command (req)
-
-Fri Feb 27 17:07:16 2026
-FPGA Configuration command : Success
-
-Fri Feb 27 17:07:16 2026
-Return status : 0
-
-Fri Feb 27 17:07:16 2026
-Configure Record Command (req)
-
-Fri Feb 27 17:07:16 2026
-Configure Record command : Success
-
-Fri Feb 27 17:07:16 2026
-Return status : 0
-
-Fri Feb 27 17:07:17 2026
-Start Record Command (req)
-
-Fri Feb 27 17:07:17 2026
-Start Record Command (req)
-
-Fri Feb 27 17:07:17 2026
-Start Record command : Success
-
-Fri Feb 27 17:07:17 2026
-Return status : 0
-
-Fri Feb 27 17:07:18 2026
-Start Record command : Success
-
-Fri Feb 27 17:07:48 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 17:07:48 2026
-Reset FPGA command : Success
-
-Fri Feb 27 17:07:48 2026
-Return status : 0
-
-Fri Feb 27 17:07:54 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 17:07:54 2026
-Reset FPGA command : Success
-
-Fri Feb 27 17:07:54 2026
-Return status : 0
-
-Fri Feb 27 17:07:55 2026
-FPGA Configuration Command (req)
-
-Fri Feb 27 17:07:55 2026
-FPGA Configuration command : Success
-
-Fri Feb 27 17:07:55 2026
-Return status : 0
-
-Fri Feb 27 17:07:55 2026
-Configure Record Command (req)
-
-Fri Feb 27 17:07:55 2026
-Configure Record command : Success
-
-Fri Feb 27 17:07:55 2026
-Return status : 0
-
-Fri Feb 27 17:07:55 2026
-Start Record Command (req)
-
-Fri Feb 27 17:07:55 2026
-Start Record Command (req)
-
-Fri Feb 27 17:07:55 2026
-Start Record command : Success
-
-Fri Feb 27 17:07:55 2026
-Return status : 0
-
-Fri Feb 27 17:07:56 2026
-Start Record command : Success
-
-Fri Feb 27 17:08:26 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 17:08:26 2026
-Reset FPGA command : Success
-
-Fri Feb 27 17:08:26 2026
-Return status : 0
-
-Fri Feb 27 17:08:30 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 17:08:30 2026
-Reset FPGA command : Success
-
-Fri Feb 27 17:08:30 2026
-Return status : 0
-
-Fri Feb 27 17:08:30 2026
-FPGA Configuration Command (req)
-
-Fri Feb 27 17:08:30 2026
-FPGA Configuration command : Success
-
-Fri Feb 27 17:08:30 2026
-Return status : 0
-
-Fri Feb 27 17:08:30 2026
-Configure Record Command (req)
-
-Fri Feb 27 17:08:30 2026
-Configure Record command : Success
-
-Fri Feb 27 17:08:30 2026
-Return status : 0
-
-Fri Feb 27 17:08:30 2026
-Start Record Command (req)
-
-Fri Feb 27 17:08:31 2026
-Start Record Command (req)
-
-Fri Feb 27 17:08:31 2026
-Start Record command : Success
-
-Fri Feb 27 17:08:31 2026
-Return status : 0
-
-Fri Feb 27 17:08:31 2026
-Start Record command : Success
-
-Fri Feb 27 17:09:02 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 17:09:02 2026
-Reset FPGA command : Success
-
-Fri Feb 27 17:09:02 2026
-Return status : 0
-
-Fri Feb 27 17:09:07 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 17:09:07 2026
-Reset FPGA command : Success
-
-Fri Feb 27 17:09:07 2026
-Return status : 0
-
-Fri Feb 27 17:09:07 2026
-FPGA Configuration Command (req)
-
-Fri Feb 27 17:09:07 2026
-FPGA Configuration command : Success
-
-Fri Feb 27 17:09:07 2026
-Return status : 0
-
-Fri Feb 27 17:09:07 2026
-Configure Record Command (req)
-
-Fri Feb 27 17:09:07 2026
-Configure Record command : Success
-
-Fri Feb 27 17:09:07 2026
-Return status : 0
-
-Fri Feb 27 17:09:07 2026
-Start Record Command (req)
-
-Fri Feb 27 17:09:08 2026
-Start Record Command (req)
-
-Fri Feb 27 17:09:08 2026
-Start Record command : Success
-
-Fri Feb 27 17:09:08 2026
-Return status : 0
-
-Fri Feb 27 17:09:08 2026
-Start Record command : Success
-
-Fri Feb 27 17:09:48 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 17:09:58 2026
+Tue Feb 24 14:05:20 2026
 Reset FPGA : 
 Timeout Error! System disconnected
 
-Fri Feb 27 17:09:58 2026
+Tue Feb 24 14:05:20 2026
 Return status : -5
 
-Fri Feb 27 17:09:59 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 17:09:59 2026
-Reset FPGA command : Success
-
-Fri Feb 27 17:09:59 2026
-Return status : 0
-
-Fri Feb 27 17:09:59 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 17:09:59 2026
-Reset FPGA command : Success
-
-Fri Feb 27 17:09:59 2026
-Return status : 0
-
-Fri Feb 27 17:09:59 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 17:09:59 2026
-Reset FPGA command : Success
-
-Fri Feb 27 17:09:59 2026
-Return status : 0
-
-Fri Feb 27 17:10:03 2026
-Reset FPGA Command (req)
-
-Fri Feb 27 17:10:03 2026
-Reset FPGA command : Success
-
-Fri Feb 27 17:10:03 2026
-Return status : 0
-
-Fri Feb 27 17:10:03 2026
+Tue Feb 24 14:05:20 2026
 FPGA Configuration Command (req)
 
-Fri Feb 27 17:10:03 2026
+Tue Feb 24 14:05:20 2026
 FPGA Configuration command : Success
 
-Fri Feb 27 17:10:03 2026
+Tue Feb 24 14:05:20 2026
 Return status : 0
 
-Fri Feb 27 17:10:04 2026
+Tue Feb 24 14:05:20 2026
 Configure Record Command (req)
 
-Fri Feb 27 17:10:04 2026
+Tue Feb 24 14:05:20 2026
 Configure Record command : Success
 
-Fri Feb 27 17:10:04 2026
+Tue Feb 24 14:05:20 2026
 Return status : 0
 
-Fri Feb 27 17:10:04 2026
+Tue Feb 24 14:05:20 2026
 Start Record Command (req)
 
-Fri Feb 27 17:10:04 2026
+Tue Feb 24 14:05:21 2026
 Start Record Command (req)
 
-Fri Feb 27 17:10:04 2026
+Tue Feb 24 14:05:21 2026
 Start Record command : Success
 
-Fri Feb 27 17:10:04 2026
-Return status : 0
-
-Fri Feb 27 17:10:05 2026
-Start Record command : Success
-
-Fri Feb 27 17:10:54 2026
+Tue Feb 24 14:05:46 2026
 Reset FPGA Command (req)
 
-Fri Feb 27 17:10:54 2026
+Tue Feb 24 14:05:46 2026
 Reset FPGA command : Success
 
-Fri Feb 27 17:10:54 2026
+Tue Feb 24 14:05:46 2026
 Return status : 0
 
-Fri Feb 27 17:21:17 2026
+Tue Feb 24 14:06:21 2026
 Reset FPGA Command (req)
 
-Fri Feb 27 17:21:17 2026
+Tue Feb 24 14:06:21 2026
 Reset FPGA command : Success
 
-Fri Feb 27 17:21:17 2026
+Tue Feb 24 14:06:21 2026
 Return status : 0
 
-Fri Feb 27 17:21:17 2026
+Tue Feb 24 14:06:21 2026
 FPGA Configuration Command (req)
 
-Fri Feb 27 17:21:17 2026
+Tue Feb 24 14:06:21 2026
 FPGA Configuration command : Success
 
-Fri Feb 27 17:21:17 2026
+Tue Feb 24 14:06:21 2026
 Return status : 0
 
-Fri Feb 27 17:21:17 2026
+Tue Feb 24 14:06:21 2026
 Configure Record Command (req)
 
-Fri Feb 27 17:21:17 2026
+Tue Feb 24 14:06:21 2026
 Configure Record command : Success
 
-Fri Feb 27 17:21:17 2026
+Tue Feb 24 14:06:21 2026
 Return status : 0
 
-Fri Feb 27 17:21:17 2026
+Tue Feb 24 14:06:21 2026
 Start Record Command (req)
 
-Fri Feb 27 17:21:18 2026
+Tue Feb 24 14:06:22 2026
 Start Record Command (req)
 
-Fri Feb 27 17:21:18 2026
+Tue Feb 24 14:06:22 2026
 Start Record command : Success
 
-Fri Feb 27 17:21:18 2026
+Tue Feb 24 14:06:22 2026
 Return status : 0
 
-Fri Feb 27 17:21:18 2026
+Tue Feb 24 14:06:22 2026
 Start Record command : Success
 
-Sat Feb 28 15:49:01 2026
+Tue Feb 24 14:06:33 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 15:49:01 2026
+Tue Feb 24 14:06:33 2026
 Reset FPGA command : Success
 
-Sat Feb 28 15:49:01 2026
+Tue Feb 24 14:06:33 2026
 Return status : 0
 
-Sat Feb 28 15:49:01 2026
+Tue Feb 24 14:08:10 2026
+Reset FPGA Command (req)
+
+Tue Feb 24 14:08:10 2026
+Reset FPGA command : Success
+
+Tue Feb 24 14:08:10 2026
+Return status : 0
+
+Tue Feb 24 14:08:10 2026
 FPGA Configuration Command (req)
 
-Sat Feb 28 15:49:01 2026
+Tue Feb 24 14:08:10 2026
 FPGA Configuration command : Success
 
-Sat Feb 28 15:49:01 2026
+Tue Feb 24 14:08:10 2026
 Return status : 0
 
-Sat Feb 28 15:49:01 2026
+Tue Feb 24 14:08:10 2026
 Configure Record Command (req)
 
-Sat Feb 28 15:49:01 2026
+Tue Feb 24 14:08:10 2026
 Configure Record command : Success
 
-Sat Feb 28 15:49:01 2026
+Tue Feb 24 14:08:11 2026
 Return status : 0
 
-Sat Feb 28 15:49:01 2026
+Tue Feb 24 14:08:11 2026
 Start Record Command (req)
 
-Sat Feb 28 15:49:03 2026
-Ethernet connection (req)
+Tue Feb 24 14:08:11 2026
+Start Record Command (req)
 
-Sat Feb 28 15:49:03 2026
-Ethernet connection failed. [error -4051]
+Tue Feb 24 14:08:11 2026
+Start Record command : Success
 
-Sat Feb 28 15:49:09 2026
-Start Record command : Timeout Error! Couldnt read the record process status. [error 4071]
-
-Sat Feb 28 15:49:34 2026
-Reset FPGA Command (req)
-
-Sat Feb 28 15:49:34 2026
-Reset FPGA command : Success
-
-Sat Feb 28 15:49:34 2026
+Tue Feb 24 14:08:11 2026
 Return status : 0
 
-Sat Feb 28 15:49:35 2026
+Tue Feb 24 14:08:11 2026
+Start Record command : Success
+
+Tue Feb 24 14:08:40 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 15:49:35 2026
+Tue Feb 24 14:08:40 2026
 Reset FPGA command : Success
 
-Sat Feb 28 15:49:35 2026
+Tue Feb 24 14:08:40 2026
 Return status : 0
 
-Sat Feb 28 15:49:35 2026
+Tue Feb 24 14:11:31 2026
+Reset FPGA Command (req)
+
+Tue Feb 24 14:11:31 2026
+Reset FPGA command : Success
+
+Tue Feb 24 14:11:31 2026
+Return status : 0
+
+Tue Feb 24 14:11:31 2026
 FPGA Configuration Command (req)
 
-Sat Feb 28 15:49:35 2026
+Tue Feb 24 14:11:31 2026
 FPGA Configuration command : Success
 
-Sat Feb 28 15:49:35 2026
+Tue Feb 24 14:11:31 2026
 Return status : 0
 
-Sat Feb 28 15:49:35 2026
+Tue Feb 24 14:11:31 2026
 Configure Record Command (req)
 
-Sat Feb 28 15:49:35 2026
+Tue Feb 24 14:11:31 2026
 Configure Record command : Success
 
-Sat Feb 28 15:49:35 2026
+Tue Feb 24 14:11:31 2026
 Return status : 0
 
-Sat Feb 28 15:49:35 2026
+Tue Feb 24 14:11:31 2026
 Start Record Command (req)
 
-Sat Feb 28 15:49:36 2026
+Tue Feb 24 14:11:32 2026
 Start Record Command (req)
 
-Sat Feb 28 15:49:36 2026
+Tue Feb 24 14:11:32 2026
 Start Record command : Success
 
-Sat Feb 28 15:49:36 2026
+Tue Feb 24 14:11:32 2026
 Return status : 0
 
-Sat Feb 28 15:49:36 2026
+Tue Feb 24 14:11:32 2026
 Start Record command : Success
 
-Sat Feb 28 15:50:11 2026
+Tue Feb 24 14:11:47 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 15:50:11 2026
+Tue Feb 24 14:11:47 2026
 Reset FPGA command : Success
 
-Sat Feb 28 15:50:11 2026
+Tue Feb 24 14:11:48 2026
 Return status : 0
 
-Sat Feb 28 15:50:12 2026
+Tue Feb 24 14:13:49 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 15:50:12 2026
+Tue Feb 24 14:13:49 2026
 Reset FPGA command : Success
 
-Sat Feb 28 15:50:12 2026
+Tue Feb 24 14:13:49 2026
 Return status : 0
 
-Sat Feb 28 15:50:12 2026
+Tue Feb 24 14:13:49 2026
 FPGA Configuration Command (req)
 
-Sat Feb 28 15:50:12 2026
+Tue Feb 24 14:13:49 2026
 FPGA Configuration command : Success
 
-Sat Feb 28 15:50:12 2026
+Tue Feb 24 14:13:49 2026
 Return status : 0
 
-Sat Feb 28 15:50:12 2026
+Tue Feb 24 14:13:49 2026
 Configure Record Command (req)
 
-Sat Feb 28 15:50:12 2026
+Tue Feb 24 14:13:49 2026
 Configure Record command : Success
 
-Sat Feb 28 15:50:12 2026
+Tue Feb 24 14:13:49 2026
 Return status : 0
 
-Sat Feb 28 15:50:12 2026
+Tue Feb 24 14:13:49 2026
 Start Record Command (req)
 
-Sat Feb 28 15:50:13 2026
+Tue Feb 24 14:13:49 2026
 Start Record Command (req)
 
-Sat Feb 28 15:50:13 2026
+Tue Feb 24 14:13:49 2026
 Start Record command : Success
 
-Sat Feb 28 15:50:13 2026
+Tue Feb 24 14:13:49 2026
 Return status : 0
 
-Sat Feb 28 15:50:13 2026
+Tue Feb 24 14:13:50 2026
 Start Record command : Success
 
-Sat Feb 28 15:50:22 2026
+Tue Feb 24 14:14:04 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 15:50:22 2026
+Tue Feb 24 14:14:04 2026
 Reset FPGA command : Success
 
-Sat Feb 28 15:50:22 2026
+Tue Feb 24 14:14:04 2026
 Return status : 0
 
-Sat Feb 28 15:50:45 2026
+Tue Feb 24 14:18:32 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 15:50:45 2026
+Tue Feb 24 14:18:32 2026
 Reset FPGA command : Success
 
-Sat Feb 28 15:50:45 2026
+Tue Feb 24 14:18:32 2026
 Return status : 0
 
-Sat Feb 28 15:50:45 2026
+Tue Feb 24 14:18:32 2026
 FPGA Configuration Command (req)
 
-Sat Feb 28 15:50:45 2026
+Tue Feb 24 14:18:32 2026
 FPGA Configuration command : Success
 
-Sat Feb 28 15:50:45 2026
+Tue Feb 24 14:18:32 2026
 Return status : 0
 
-Sat Feb 28 15:50:45 2026
+Tue Feb 24 14:18:33 2026
 Configure Record Command (req)
 
-Sat Feb 28 15:50:45 2026
+Tue Feb 24 14:18:33 2026
 Configure Record command : Success
 
-Sat Feb 28 15:50:45 2026
+Tue Feb 24 14:18:33 2026
 Return status : 0
 
-Sat Feb 28 15:50:45 2026
+Tue Feb 24 14:18:33 2026
 Start Record Command (req)
 
-Sat Feb 28 15:50:46 2026
+Tue Feb 24 14:18:33 2026
 Start Record Command (req)
 
-Sat Feb 28 15:50:46 2026
+Tue Feb 24 14:18:33 2026
 Start Record command : Success
 
-Sat Feb 28 15:50:46 2026
+Tue Feb 24 14:18:33 2026
 Return status : 0
 
-Sat Feb 28 15:50:46 2026
+Tue Feb 24 14:18:33 2026
 Start Record command : Success
 
-Sat Feb 28 15:50:52 2026
+Tue Feb 24 14:18:42 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 15:50:52 2026
+Tue Feb 24 14:18:42 2026
 Reset FPGA command : Success
 
-Sat Feb 28 15:50:52 2026
+Tue Feb 24 14:18:42 2026
 Return status : 0
 
-Sat Feb 28 15:51:10 2026
+Tue Feb 24 14:19:23 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 15:51:10 2026
+Tue Feb 24 14:19:23 2026
 Reset FPGA command : Success
 
-Sat Feb 28 15:51:10 2026
+Tue Feb 24 14:19:23 2026
 Return status : 0
 
-Sat Feb 28 15:51:10 2026
+Tue Feb 24 14:19:24 2026
 FPGA Configuration Command (req)
 
-Sat Feb 28 15:51:10 2026
+Tue Feb 24 14:19:24 2026
 FPGA Configuration command : Success
 
-Sat Feb 28 15:51:10 2026
+Tue Feb 24 14:19:24 2026
 Return status : 0
 
-Sat Feb 28 15:51:10 2026
+Tue Feb 24 14:19:24 2026
 Configure Record Command (req)
 
-Sat Feb 28 15:51:10 2026
+Tue Feb 24 14:19:24 2026
 Configure Record command : Success
 
-Sat Feb 28 15:51:10 2026
+Tue Feb 24 14:19:24 2026
 Return status : 0
 
-Sat Feb 28 15:51:10 2026
+Tue Feb 24 14:19:24 2026
 Start Record Command (req)
 
-Sat Feb 28 15:51:11 2026
+Tue Feb 24 14:19:24 2026
 Start Record Command (req)
 
-Sat Feb 28 15:51:11 2026
+Tue Feb 24 14:19:24 2026
 Start Record command : Success
 
-Sat Feb 28 15:51:11 2026
+Tue Feb 24 14:19:24 2026
 Return status : 0
 
-Sat Feb 28 15:51:11 2026
+Tue Feb 24 14:19:24 2026
 Start Record command : Success
 
-Sat Feb 28 15:51:16 2026
+Tue Feb 24 14:19:42 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 15:51:16 2026
+Tue Feb 24 14:19:42 2026
 Reset FPGA command : Success
 
-Sat Feb 28 15:51:16 2026
+Tue Feb 24 14:19:42 2026
 Return status : 0
 
-Sat Feb 28 15:51:49 2026
+Tue Feb 24 14:22:49 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 15:51:49 2026
+Tue Feb 24 14:22:49 2026
 Reset FPGA command : Success
 
-Sat Feb 28 15:51:49 2026
+Tue Feb 24 14:22:49 2026
 Return status : 0
 
-Sat Feb 28 15:51:49 2026
+Tue Feb 24 14:22:49 2026
 FPGA Configuration Command (req)
 
-Sat Feb 28 15:51:49 2026
+Tue Feb 24 14:22:49 2026
 FPGA Configuration command : Success
 
-Sat Feb 28 15:51:49 2026
+Tue Feb 24 14:22:49 2026
 Return status : 0
 
-Sat Feb 28 15:51:49 2026
+Tue Feb 24 14:22:49 2026
 Configure Record Command (req)
 
-Sat Feb 28 15:51:49 2026
+Tue Feb 24 14:22:49 2026
 Configure Record command : Success
 
-Sat Feb 28 15:51:49 2026
+Tue Feb 24 14:22:49 2026
 Return status : 0
 
-Sat Feb 28 15:51:49 2026
+Tue Feb 24 14:22:49 2026
 Start Record Command (req)
 
-Sat Feb 28 15:51:50 2026
+Tue Feb 24 14:22:49 2026
 Start Record Command (req)
 
-Sat Feb 28 15:51:50 2026
+Tue Feb 24 14:22:49 2026
 Start Record command : Success
 
-Sat Feb 28 15:51:50 2026
+Tue Feb 24 14:22:49 2026
 Return status : 0
 
-Sat Feb 28 15:51:50 2026
+Tue Feb 24 14:22:49 2026
 Start Record command : Success
 
-Sat Feb 28 15:51:56 2026
+Tue Feb 24 14:23:28 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 15:51:56 2026
+Tue Feb 24 14:23:28 2026
 Reset FPGA command : Success
 
-Sat Feb 28 15:51:56 2026
+Tue Feb 24 14:23:28 2026
 Return status : 0
 
-Sat Feb 28 15:52:15 2026
+Tue Feb 24 14:28:01 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 15:52:15 2026
+Tue Feb 24 14:28:01 2026
 Reset FPGA command : Success
 
-Sat Feb 28 15:52:15 2026
+Tue Feb 24 14:28:01 2026
 Return status : 0
 
-Sat Feb 28 15:52:15 2026
+Tue Feb 24 14:28:01 2026
 FPGA Configuration Command (req)
 
-Sat Feb 28 15:52:15 2026
+Tue Feb 24 14:28:01 2026
 FPGA Configuration command : Success
 
-Sat Feb 28 15:52:15 2026
+Tue Feb 24 14:28:01 2026
 Return status : 0
 
-Sat Feb 28 15:52:15 2026
+Tue Feb 24 14:28:01 2026
 Configure Record Command (req)
 
-Sat Feb 28 15:52:15 2026
+Tue Feb 24 14:28:01 2026
 Configure Record command : Success
 
-Sat Feb 28 15:52:15 2026
+Tue Feb 24 14:28:01 2026
 Return status : 0
 
-Sat Feb 28 15:52:15 2026
+Tue Feb 24 14:28:01 2026
 Start Record Command (req)
 
-Sat Feb 28 15:52:16 2026
+Tue Feb 24 14:28:02 2026
 Start Record Command (req)
 
-Sat Feb 28 15:52:16 2026
+Tue Feb 24 14:28:02 2026
 Start Record command : Success
 
-Sat Feb 28 15:52:16 2026
+Tue Feb 24 14:28:02 2026
 Return status : 0
 
-Sat Feb 28 15:52:16 2026
+Tue Feb 24 14:28:02 2026
 Start Record command : Success
 
-Sat Feb 28 15:52:51 2026
+Tue Feb 24 14:28:10 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 15:52:51 2026
+Tue Feb 24 14:28:10 2026
 Reset FPGA command : Success
 
-Sat Feb 28 15:52:51 2026
+Tue Feb 24 14:28:10 2026
 Return status : 0
 
-Sat Feb 28 15:52:52 2026
+Tue Feb 24 14:28:49 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 15:52:52 2026
+Tue Feb 24 14:28:49 2026
 Reset FPGA command : Success
 
-Sat Feb 28 15:52:52 2026
+Tue Feb 24 14:28:49 2026
 Return status : 0
 
-Sat Feb 28 15:52:52 2026
+Tue Feb 24 14:28:49 2026
 FPGA Configuration Command (req)
 
-Sat Feb 28 15:52:52 2026
+Tue Feb 24 14:28:49 2026
 FPGA Configuration command : Success
 
-Sat Feb 28 15:52:52 2026
+Tue Feb 24 14:28:50 2026
 Return status : 0
 
-Sat Feb 28 15:52:52 2026
+Tue Feb 24 14:28:50 2026
 Configure Record Command (req)
 
-Sat Feb 28 15:52:52 2026
+Tue Feb 24 14:28:50 2026
 Configure Record command : Success
 
-Sat Feb 28 15:52:52 2026
+Tue Feb 24 14:28:50 2026
 Return status : 0
 
-Sat Feb 28 15:52:52 2026
+Tue Feb 24 14:28:50 2026
 Start Record Command (req)
 
-Sat Feb 28 15:52:53 2026
+Tue Feb 24 14:28:50 2026
 Start Record Command (req)
 
-Sat Feb 28 15:52:53 2026
+Tue Feb 24 14:28:50 2026
 Start Record command : Success
 
-Sat Feb 28 15:52:53 2026
+Tue Feb 24 14:28:50 2026
 Return status : 0
 
-Sat Feb 28 15:52:53 2026
+Tue Feb 24 14:28:50 2026
 Start Record command : Success
 
-Sat Feb 28 15:53:19 2026
+Tue Feb 24 14:29:49 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 15:53:19 2026
+Tue Feb 24 14:29:49 2026
 Reset FPGA command : Success
 
-Sat Feb 28 15:53:19 2026
+Tue Feb 24 14:29:49 2026
 Return status : 0
 
-Sat Feb 28 15:53:22 2026
+Tue Feb 24 14:30:10 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 15:53:22 2026
+Tue Feb 24 14:30:10 2026
 Reset FPGA command : Success
 
-Sat Feb 28 15:53:22 2026
+Tue Feb 24 14:30:10 2026
 Return status : 0
 
-Sat Feb 28 15:53:22 2026
+Tue Feb 24 14:30:10 2026
 FPGA Configuration Command (req)
 
-Sat Feb 28 15:53:22 2026
+Tue Feb 24 14:30:10 2026
 FPGA Configuration command : Success
 
-Sat Feb 28 15:53:22 2026
+Tue Feb 24 14:30:10 2026
 Return status : 0
 
-Sat Feb 28 15:53:22 2026
+Tue Feb 24 14:30:10 2026
 Configure Record Command (req)
 
-Sat Feb 28 15:53:22 2026
+Tue Feb 24 14:30:10 2026
 Configure Record command : Success
 
-Sat Feb 28 15:53:22 2026
+Tue Feb 24 14:30:10 2026
 Return status : 0
 
-Sat Feb 28 15:53:23 2026
+Tue Feb 24 14:30:10 2026
 Start Record Command (req)
 
-Sat Feb 28 15:53:23 2026
+Tue Feb 24 14:30:10 2026
 Start Record Command (req)
 
-Sat Feb 28 15:53:23 2026
+Tue Feb 24 14:30:10 2026
 Start Record command : Success
 
-Sat Feb 28 15:53:23 2026
+Tue Feb 24 14:30:10 2026
 Return status : 0
 
-Sat Feb 28 15:53:24 2026
+Tue Feb 24 14:30:11 2026
 Start Record command : Success
 
-Sat Feb 28 15:53:32 2026
+Tue Feb 24 14:30:27 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 15:53:32 2026
+Tue Feb 24 14:30:27 2026
 Reset FPGA command : Success
 
-Sat Feb 28 15:53:32 2026
+Tue Feb 24 14:30:27 2026
 Return status : 0
 
-Sat Feb 28 15:53:46 2026
+Tue Feb 24 14:30:31 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 15:53:46 2026
+Tue Feb 24 14:30:31 2026
 Reset FPGA command : Success
 
-Sat Feb 28 15:53:46 2026
+Tue Feb 24 14:30:31 2026
 Return status : 0
 
-Sat Feb 28 15:53:46 2026
+Tue Feb 24 14:30:31 2026
 FPGA Configuration Command (req)
 
-Sat Feb 28 15:53:46 2026
+Tue Feb 24 14:30:31 2026
 FPGA Configuration command : Success
 
-Sat Feb 28 15:53:46 2026
+Tue Feb 24 14:30:31 2026
 Return status : 0
 
-Sat Feb 28 15:53:46 2026
+Tue Feb 24 14:30:31 2026
 Configure Record Command (req)
 
-Sat Feb 28 15:53:46 2026
+Tue Feb 24 14:30:31 2026
 Configure Record command : Success
 
-Sat Feb 28 15:53:46 2026
+Tue Feb 24 14:30:31 2026
 Return status : 0
 
-Sat Feb 28 15:53:46 2026
+Tue Feb 24 14:30:31 2026
 Start Record Command (req)
 
-Sat Feb 28 15:53:47 2026
+Tue Feb 24 14:30:31 2026
 Start Record Command (req)
 
-Sat Feb 28 15:53:47 2026
+Tue Feb 24 14:30:31 2026
 Start Record command : Success
 
-Sat Feb 28 15:53:47 2026
+Tue Feb 24 14:30:31 2026
 Return status : 0
 
-Sat Feb 28 15:53:47 2026
+Tue Feb 24 14:30:31 2026
 Start Record command : Success
 
-Sat Feb 28 15:53:53 2026
+Tue Feb 24 14:30:58 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 15:53:53 2026
+Tue Feb 24 14:30:58 2026
 Reset FPGA command : Success
 
-Sat Feb 28 15:53:53 2026
+Tue Feb 24 14:30:58 2026
 Return status : 0
 
-Sat Feb 28 15:53:54 2026
+Tue Feb 24 14:31:21 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 15:53:54 2026
+Tue Feb 24 14:31:21 2026
 Reset FPGA command : Success
 
-Sat Feb 28 15:53:54 2026
+Tue Feb 24 14:31:21 2026
 Return status : 0
 
-Sat Feb 28 15:53:54 2026
+Tue Feb 24 14:31:21 2026
 FPGA Configuration Command (req)
 
-Sat Feb 28 15:53:54 2026
+Tue Feb 24 14:31:21 2026
 FPGA Configuration command : Success
 
-Sat Feb 28 15:53:54 2026
+Tue Feb 24 14:31:21 2026
 Return status : 0
 
-Sat Feb 28 15:53:54 2026
+Tue Feb 24 14:31:21 2026
 Configure Record Command (req)
 
-Sat Feb 28 15:53:54 2026
+Tue Feb 24 14:31:21 2026
 Configure Record command : Success
 
-Sat Feb 28 15:53:54 2026
+Tue Feb 24 14:31:21 2026
 Return status : 0
 
-Sat Feb 28 15:53:54 2026
+Tue Feb 24 14:31:21 2026
 Start Record Command (req)
 
-Sat Feb 28 15:53:55 2026
+Tue Feb 24 14:31:22 2026
 Start Record Command (req)
 
-Sat Feb 28 15:53:55 2026
+Tue Feb 24 14:31:22 2026
 Start Record command : Success
 
-Sat Feb 28 15:53:55 2026
+Tue Feb 24 14:31:22 2026
 Return status : 0
 
-Sat Feb 28 15:53:55 2026
+Tue Feb 24 14:31:22 2026
 Start Record command : Success
 
-Sat Feb 28 15:54:08 2026
+Tue Feb 24 14:31:34 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 15:54:08 2026
+Tue Feb 24 14:31:34 2026
 Reset FPGA command : Success
 
-Sat Feb 28 15:54:08 2026
+Tue Feb 24 14:31:34 2026
 Return status : 0
 
-Sat Feb 28 15:54:17 2026
+Tue Feb 24 14:31:37 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 15:54:17 2026
+Tue Feb 24 14:31:37 2026
 Reset FPGA command : Success
 
-Sat Feb 28 15:54:17 2026
+Tue Feb 24 14:31:37 2026
 Return status : 0
 
-Sat Feb 28 15:54:17 2026
+Tue Feb 24 14:31:37 2026
 FPGA Configuration Command (req)
 
-Sat Feb 28 15:54:17 2026
+Tue Feb 24 14:31:37 2026
 FPGA Configuration command : Success
 
-Sat Feb 28 15:54:17 2026
+Tue Feb 24 14:31:37 2026
 Return status : 0
 
-Sat Feb 28 15:54:17 2026
+Tue Feb 24 14:31:37 2026
 Configure Record Command (req)
 
-Sat Feb 28 15:54:17 2026
+Tue Feb 24 14:31:37 2026
 Configure Record command : Success
 
-Sat Feb 28 15:54:17 2026
+Tue Feb 24 14:31:37 2026
 Return status : 0
 
-Sat Feb 28 15:54:17 2026
+Tue Feb 24 14:31:37 2026
 Start Record Command (req)
 
-Sat Feb 28 15:54:17 2026
+Tue Feb 24 14:31:38 2026
 Start Record Command (req)
 
-Sat Feb 28 15:54:18 2026
+Tue Feb 24 14:31:38 2026
 Start Record command : Success
 
-Sat Feb 28 15:54:18 2026
+Tue Feb 24 14:31:38 2026
 Return status : 0
 
-Sat Feb 28 15:54:18 2026
+Tue Feb 24 14:31:38 2026
 Start Record command : Success
 
-Sat Feb 28 15:54:29 2026
+Tue Feb 24 14:31:43 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 15:54:29 2026
+Tue Feb 24 14:31:43 2026
 Reset FPGA command : Success
 
-Sat Feb 28 15:54:29 2026
+Tue Feb 24 14:31:43 2026
 Return status : 0
 
-Sat Feb 28 16:05:28 2026
+Tue Feb 24 22:37:36 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 16:05:28 2026
+Tue Feb 24 22:37:36 2026
 Reset FPGA command : Success
 
-Sat Feb 28 16:05:28 2026
+Tue Feb 24 22:37:36 2026
 Return status : 0
 
-Sat Feb 28 16:05:28 2026
+Tue Feb 24 22:37:36 2026
 FPGA Configuration Command (req)
 
-Sat Feb 28 16:05:28 2026
+Tue Feb 24 22:37:36 2026
 FPGA Configuration command : Success
 
-Sat Feb 28 16:05:28 2026
+Tue Feb 24 22:37:36 2026
 Return status : 0
 
-Sat Feb 28 16:05:28 2026
+Tue Feb 24 22:37:36 2026
 Configure Record Command (req)
 
-Sat Feb 28 16:05:28 2026
+Tue Feb 24 22:37:36 2026
 Configure Record command : Success
 
-Sat Feb 28 16:05:28 2026
+Tue Feb 24 22:37:36 2026
 Return status : 0
 
-Sat Feb 28 16:05:28 2026
+Tue Feb 24 22:37:36 2026
 Start Record Command (req)
 
-Sat Feb 28 16:05:29 2026
+Tue Feb 24 22:37:37 2026
 Start Record Command (req)
 
-Sat Feb 28 16:05:29 2026
+Tue Feb 24 22:37:37 2026
 Start Record command : Success
 
-Sat Feb 28 16:05:29 2026
+Tue Feb 24 22:37:37 2026
 Return status : 0
 
-Sat Feb 28 16:05:29 2026
+Tue Feb 24 22:37:37 2026
 Start Record command : Success
 
-Sat Feb 28 16:07:24 2026
+Tue Feb 24 22:38:28 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 16:07:24 2026
+Tue Feb 24 22:38:28 2026
 Reset FPGA command : Success
 
-Sat Feb 28 16:07:24 2026
+Tue Feb 24 22:38:28 2026
 Return status : 0
 
-Sat Feb 28 16:15:20 2026
+Tue Feb 24 22:39:01 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 16:15:20 2026
+Tue Feb 24 22:39:01 2026
 Reset FPGA command : Success
 
-Sat Feb 28 16:15:20 2026
+Tue Feb 24 22:39:01 2026
 Return status : 0
 
-Sat Feb 28 16:15:20 2026
+Tue Feb 24 22:39:01 2026
 FPGA Configuration Command (req)
 
-Sat Feb 28 16:15:20 2026
+Tue Feb 24 22:39:01 2026
 FPGA Configuration command : Success
 
-Sat Feb 28 16:15:20 2026
+Tue Feb 24 22:39:01 2026
 Return status : 0
 
-Sat Feb 28 16:15:20 2026
+Tue Feb 24 22:39:01 2026
 Configure Record Command (req)
 
-Sat Feb 28 16:15:20 2026
+Tue Feb 24 22:39:01 2026
 Configure Record command : Success
 
-Sat Feb 28 16:15:20 2026
+Tue Feb 24 22:39:01 2026
 Return status : 0
 
-Sat Feb 28 16:15:20 2026
+Tue Feb 24 22:39:01 2026
 Start Record Command (req)
 
-Sat Feb 28 16:15:21 2026
+Tue Feb 24 22:39:02 2026
 Start Record Command (req)
 
-Sat Feb 28 16:15:21 2026
+Tue Feb 24 22:39:02 2026
 Start Record command : Success
 
-Sat Feb 28 16:15:21 2026
+Tue Feb 24 22:39:02 2026
 Return status : 0
 
-Sat Feb 28 16:15:21 2026
+Tue Feb 24 22:39:02 2026
 Start Record command : Success
 
-Sat Feb 28 16:15:26 2026
+Tue Feb 24 22:41:33 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 16:15:26 2026
+Tue Feb 24 22:41:33 2026
 Reset FPGA command : Success
 
-Sat Feb 28 16:15:26 2026
+Tue Feb 24 22:41:33 2026
 Return status : 0
 
-Sat Feb 28 16:24:58 2026
+Tue Feb 24 22:43:48 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 16:24:58 2026
+Tue Feb 24 22:43:48 2026
 Reset FPGA command : Success
 
-Sat Feb 28 16:24:58 2026
+Tue Feb 24 22:43:48 2026
 Return status : 0
 
-Sat Feb 28 16:24:58 2026
+Tue Feb 24 22:43:48 2026
 FPGA Configuration Command (req)
 
-Sat Feb 28 16:24:58 2026
+Tue Feb 24 22:43:48 2026
 FPGA Configuration command : Success
 
-Sat Feb 28 16:24:58 2026
+Tue Feb 24 22:43:48 2026
 Return status : 0
 
-Sat Feb 28 16:24:58 2026
+Tue Feb 24 22:43:48 2026
 Configure Record Command (req)
 
-Sat Feb 28 16:24:58 2026
+Tue Feb 24 22:43:48 2026
 Configure Record command : Success
 
-Sat Feb 28 16:24:58 2026
+Tue Feb 24 22:43:48 2026
 Return status : 0
 
-Sat Feb 28 16:24:58 2026
+Tue Feb 24 22:43:48 2026
 Start Record Command (req)
 
-Sat Feb 28 16:24:59 2026
+Tue Feb 24 22:43:49 2026
 Start Record Command (req)
 
-Sat Feb 28 16:24:59 2026
+Tue Feb 24 22:43:49 2026
 Start Record command : Success
 
-Sat Feb 28 16:24:59 2026
+Tue Feb 24 22:43:49 2026
 Return status : 0
 
-Sat Feb 28 16:25:00 2026
+Tue Feb 24 22:43:49 2026
 Start Record command : Success
 
-Sat Feb 28 16:25:16 2026
+Tue Feb 24 22:46:20 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 16:25:16 2026
+Tue Feb 24 22:46:20 2026
 Reset FPGA command : Success
 
-Sat Feb 28 16:25:16 2026
+Tue Feb 24 22:46:20 2026
 Return status : 0
 
-Sat Feb 28 16:25:37 2026
+Tue Feb 24 23:46:00 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 16:25:37 2026
+Tue Feb 24 23:46:00 2026
 Reset FPGA command : Success
 
-Sat Feb 28 16:25:37 2026
+Tue Feb 24 23:46:00 2026
 Return status : 0
 
-Sat Feb 28 16:25:38 2026
+Tue Feb 24 23:46:00 2026
 FPGA Configuration Command (req)
 
-Sat Feb 28 16:25:38 2026
+Tue Feb 24 23:46:00 2026
 FPGA Configuration command : Success
 
-Sat Feb 28 16:25:38 2026
+Tue Feb 24 23:46:00 2026
 Return status : 0
 
-Sat Feb 28 16:25:38 2026
+Tue Feb 24 23:46:00 2026
 Configure Record Command (req)
 
-Sat Feb 28 16:25:38 2026
+Tue Feb 24 23:46:00 2026
 Configure Record command : Success
 
-Sat Feb 28 16:25:38 2026
+Tue Feb 24 23:46:00 2026
 Return status : 0
 
-Sat Feb 28 16:25:38 2026
+Tue Feb 24 23:46:00 2026
 Start Record Command (req)
 
-Sat Feb 28 16:25:38 2026
+Tue Feb 24 23:46:01 2026
 Start Record Command (req)
 
-Sat Feb 28 16:25:38 2026
+Tue Feb 24 23:46:01 2026
 Start Record command : Success
 
-Sat Feb 28 16:25:38 2026
+Tue Feb 24 23:46:01 2026
 Return status : 0
 
-Sat Feb 28 16:25:39 2026
+Tue Feb 24 23:46:01 2026
 Start Record command : Success
 
-Sat Feb 28 16:27:20 2026
+Tue Feb 24 23:48:32 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 16:27:20 2026
+Tue Feb 24 23:48:32 2026
 Reset FPGA command : Success
 
-Sat Feb 28 16:27:20 2026
+Tue Feb 24 23:48:32 2026
 Return status : 0
 
-Sat Feb 28 16:32:45 2026
+Tue Feb 24 23:49:23 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 16:32:55 2026
+Tue Feb 24 23:49:23 2026
+Reset FPGA command : Success
+
+Tue Feb 24 23:49:23 2026
+Return status : 0
+
+Tue Feb 24 23:49:23 2026
+FPGA Configuration Command (req)
+
+Tue Feb 24 23:49:23 2026
+FPGA Configuration command : Success
+
+Tue Feb 24 23:49:23 2026
+Return status : 0
+
+Tue Feb 24 23:49:23 2026
+Configure Record Command (req)
+
+Tue Feb 24 23:49:23 2026
+Configure Record command : Success
+
+Tue Feb 24 23:49:23 2026
+Return status : 0
+
+Tue Feb 24 23:49:23 2026
+Start Record Command (req)
+
+Tue Feb 24 23:49:24 2026
+Start Record Command (req)
+
+Tue Feb 24 23:49:24 2026
+Start Record command : Success
+
+Tue Feb 24 23:49:24 2026
+Return status : 0
+
+Tue Feb 24 23:49:24 2026
+Start Record command : Success
+
+Tue Feb 24 23:49:55 2026
+Reset FPGA Command (req)
+
+Tue Feb 24 23:49:55 2026
+Reset FPGA command : Success
+
+Tue Feb 24 23:49:55 2026
+Return status : 0
+
+Wed Feb 25 00:09:29 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 00:09:29 2026
+Reset FPGA command : Success
+
+Wed Feb 25 00:09:29 2026
+Return status : 0
+
+Wed Feb 25 00:09:29 2026
+FPGA Configuration Command (req)
+
+Wed Feb 25 00:09:29 2026
+FPGA Configuration command : Success
+
+Wed Feb 25 00:09:29 2026
+Return status : 0
+
+Wed Feb 25 00:09:29 2026
+Configure Record Command (req)
+
+Wed Feb 25 00:09:29 2026
+Configure Record command : Success
+
+Wed Feb 25 00:09:29 2026
+Return status : 0
+
+Wed Feb 25 00:09:29 2026
+Start Record Command (req)
+
+Wed Feb 25 00:09:30 2026
+Start Record Command (req)
+
+Wed Feb 25 00:09:30 2026
+Start Record command : Success
+
+Wed Feb 25 00:09:30 2026
+Return status : 0
+
+Wed Feb 25 00:09:30 2026
+Start Record command : Success
+
+Wed Feb 25 00:09:37 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 00:09:37 2026
+Reset FPGA command : Success
+
+Wed Feb 25 00:09:37 2026
+Return status : 0
+
+Wed Feb 25 00:16:50 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 00:16:50 2026
+Reset FPGA command : Success
+
+Wed Feb 25 00:16:50 2026
+Return status : 0
+
+Wed Feb 25 00:16:50 2026
+FPGA Configuration Command (req)
+
+Wed Feb 25 00:16:50 2026
+FPGA Configuration command : Success
+
+Wed Feb 25 00:16:50 2026
+Return status : 0
+
+Wed Feb 25 00:16:50 2026
+Configure Record Command (req)
+
+Wed Feb 25 00:16:50 2026
+Configure Record command : Success
+
+Wed Feb 25 00:16:50 2026
+Return status : 0
+
+Wed Feb 25 00:16:50 2026
+Start Record Command (req)
+
+Wed Feb 25 00:16:51 2026
+Start Record Command (req)
+
+Wed Feb 25 00:16:51 2026
+Start Record command : Success
+
+Wed Feb 25 00:16:51 2026
+Return status : 0
+
+Wed Feb 25 00:16:51 2026
+Start Record command : Success
+
+Wed Feb 25 00:17:11 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 00:17:11 2026
+Reset FPGA command : Success
+
+Wed Feb 25 00:17:11 2026
+Return status : 0
+
+Wed Feb 25 00:17:26 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 00:17:26 2026
+Reset FPGA command : Success
+
+Wed Feb 25 00:17:26 2026
+Return status : 0
+
+Wed Feb 25 00:17:26 2026
+FPGA Configuration Command (req)
+
+Wed Feb 25 00:17:26 2026
+FPGA Configuration command : Success
+
+Wed Feb 25 00:17:26 2026
+Return status : 0
+
+Wed Feb 25 00:17:26 2026
+Configure Record Command (req)
+
+Wed Feb 25 00:17:26 2026
+Configure Record command : Success
+
+Wed Feb 25 00:17:26 2026
+Return status : 0
+
+Wed Feb 25 00:17:26 2026
+Start Record Command (req)
+
+Wed Feb 25 00:17:26 2026
+Start Record Command (req)
+
+Wed Feb 25 00:17:27 2026
+Start Record command : Success
+
+Wed Feb 25 00:17:27 2026
+Return status : 0
+
+Wed Feb 25 00:17:27 2026
+Start Record command : Success
+
+Wed Feb 25 00:17:57 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 00:17:57 2026
+Reset FPGA command : Success
+
+Wed Feb 25 00:17:57 2026
+Return status : 0
+
+Wed Feb 25 00:21:31 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 00:21:31 2026
+Reset FPGA command : Success
+
+Wed Feb 25 00:21:31 2026
+Return status : 0
+
+Wed Feb 25 00:21:31 2026
+FPGA Configuration Command (req)
+
+Wed Feb 25 00:21:31 2026
+FPGA Configuration command : Success
+
+Wed Feb 25 00:21:31 2026
+Return status : 0
+
+Wed Feb 25 00:21:31 2026
+Configure Record Command (req)
+
+Wed Feb 25 00:21:31 2026
+Configure Record command : Success
+
+Wed Feb 25 00:21:31 2026
+Return status : 0
+
+Wed Feb 25 00:21:31 2026
+Start Record Command (req)
+
+Wed Feb 25 00:21:31 2026
+Start Record Command (req)
+
+Wed Feb 25 00:21:31 2026
+Start Record command : Success
+
+Wed Feb 25 00:21:31 2026
+Return status : 0
+
+Wed Feb 25 00:21:31 2026
+Start Record command : Success
+
+Wed Feb 25 00:21:53 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 00:21:53 2026
+Reset FPGA command : Success
+
+Wed Feb 25 00:21:53 2026
+Return status : 0
+
+Wed Feb 25 14:40:57 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 14:40:57 2026
+Reset FPGA command : Success
+
+Wed Feb 25 14:40:57 2026
+Return status : 0
+
+Wed Feb 25 14:40:57 2026
+FPGA Configuration Command (req)
+
+Wed Feb 25 14:40:57 2026
+FPGA Configuration command : Success
+
+Wed Feb 25 14:40:57 2026
+Return status : 0
+
+Wed Feb 25 14:40:57 2026
+Configure Record Command (req)
+
+Wed Feb 25 14:40:57 2026
+Configure Record command : Success
+
+Wed Feb 25 14:40:57 2026
+Return status : 0
+
+Wed Feb 25 14:40:57 2026
+Start Record Command (req)
+
+Wed Feb 25 14:40:57 2026
+Start Record Command (req)
+
+Wed Feb 25 14:40:57 2026
+Start Record command : Success
+
+Wed Feb 25 14:40:57 2026
+Return status : 0
+
+Wed Feb 25 14:40:58 2026
+Start Record command : Success
+
+Wed Feb 25 14:41:31 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 14:41:31 2026
+Reset FPGA command : Success
+
+Wed Feb 25 14:41:31 2026
+Return status : 0
+
+Wed Feb 25 14:41:31 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 14:41:32 2026
+Reset FPGA command : Success
+
+Wed Feb 25 14:41:32 2026
+Return status : 0
+
+Wed Feb 25 14:41:32 2026
+FPGA Configuration Command (req)
+
+Wed Feb 25 14:41:32 2026
+FPGA Configuration command : Success
+
+Wed Feb 25 14:41:32 2026
+Return status : 0
+
+Wed Feb 25 14:41:32 2026
+Configure Record Command (req)
+
+Wed Feb 25 14:41:32 2026
+Configure Record command : Success
+
+Wed Feb 25 14:41:32 2026
+Return status : 0
+
+Wed Feb 25 14:41:32 2026
+Start Record Command (req)
+
+Wed Feb 25 14:41:32 2026
+Start Record Command (req)
+
+Wed Feb 25 14:41:32 2026
+Start Record command : Success
+
+Wed Feb 25 14:41:32 2026
+Return status : 0
+
+Wed Feb 25 14:41:32 2026
+Start Record command : Success
+
+Wed Feb 25 14:41:38 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 14:41:38 2026
+Reset FPGA command : Success
+
+Wed Feb 25 14:41:38 2026
+Return status : 0
+
+Wed Feb 25 14:48:10 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 14:48:10 2026
+Reset FPGA command : Success
+
+Wed Feb 25 14:48:10 2026
+Return status : 0
+
+Wed Feb 25 14:48:10 2026
+FPGA Configuration Command (req)
+
+Wed Feb 25 14:48:10 2026
+FPGA Configuration command : Success
+
+Wed Feb 25 14:48:10 2026
+Return status : 0
+
+Wed Feb 25 14:48:10 2026
+Configure Record Command (req)
+
+Wed Feb 25 14:48:10 2026
+Configure Record command : Success
+
+Wed Feb 25 14:48:10 2026
+Return status : 0
+
+Wed Feb 25 14:48:10 2026
+Start Record Command (req)
+
+Wed Feb 25 14:48:11 2026
+Start Record Command (req)
+
+Wed Feb 25 14:48:11 2026
+Start Record command : Success
+
+Wed Feb 25 14:48:11 2026
+Return status : 0
+
+Wed Feb 25 14:48:11 2026
+Start Record command : Success
+
+Wed Feb 25 14:48:32 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 14:48:32 2026
+Reset FPGA command : Success
+
+Wed Feb 25 14:48:32 2026
+Return status : 0
+
+Wed Feb 25 14:50:43 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 14:50:43 2026
+Reset FPGA command : Success
+
+Wed Feb 25 14:50:43 2026
+Return status : 0
+
+Wed Feb 25 14:50:43 2026
+FPGA Configuration Command (req)
+
+Wed Feb 25 14:50:43 2026
+FPGA Configuration command : Success
+
+Wed Feb 25 14:50:43 2026
+Return status : 0
+
+Wed Feb 25 14:50:43 2026
+Configure Record Command (req)
+
+Wed Feb 25 14:50:43 2026
+Configure Record command : Success
+
+Wed Feb 25 14:50:43 2026
+Return status : 0
+
+Wed Feb 25 14:50:43 2026
+Start Record Command (req)
+
+Wed Feb 25 14:50:43 2026
+Start Record Command (req)
+
+Wed Feb 25 14:50:43 2026
+Start Record command : Success
+
+Wed Feb 25 14:50:43 2026
+Return status : 0
+
+Wed Feb 25 14:50:43 2026
+Start Record command : Success
+
+Wed Feb 25 14:50:56 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 14:50:56 2026
+Reset FPGA command : Success
+
+Wed Feb 25 14:50:56 2026
+Return status : 0
+
+Wed Feb 25 14:51:14 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 14:51:14 2026
+Reset FPGA command : Success
+
+Wed Feb 25 14:51:14 2026
+Return status : 0
+
+Wed Feb 25 14:51:14 2026
+FPGA Configuration Command (req)
+
+Wed Feb 25 14:51:14 2026
+FPGA Configuration command : Success
+
+Wed Feb 25 14:51:14 2026
+Return status : 0
+
+Wed Feb 25 14:51:14 2026
+Configure Record Command (req)
+
+Wed Feb 25 14:51:14 2026
+Configure Record command : Success
+
+Wed Feb 25 14:51:14 2026
+Return status : 0
+
+Wed Feb 25 14:51:14 2026
+Start Record Command (req)
+
+Wed Feb 25 14:51:15 2026
+Start Record Command (req)
+
+Wed Feb 25 14:51:15 2026
+Start Record command : Success
+
+Wed Feb 25 14:51:15 2026
+Return status : 0
+
+Wed Feb 25 14:51:15 2026
+Start Record command : Success
+
+Wed Feb 25 14:51:25 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 14:51:25 2026
+Reset FPGA command : Success
+
+Wed Feb 25 14:51:25 2026
+Return status : 0
+
+Wed Feb 25 14:53:14 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 14:53:14 2026
+Reset FPGA command : Success
+
+Wed Feb 25 14:53:14 2026
+Return status : 0
+
+Wed Feb 25 14:53:14 2026
+FPGA Configuration Command (req)
+
+Wed Feb 25 14:53:14 2026
+FPGA Configuration command : Success
+
+Wed Feb 25 14:53:14 2026
+Return status : 0
+
+Wed Feb 25 14:53:14 2026
+Configure Record Command (req)
+
+Wed Feb 25 14:53:14 2026
+Configure Record command : Success
+
+Wed Feb 25 14:53:14 2026
+Return status : 0
+
+Wed Feb 25 14:53:14 2026
+Start Record Command (req)
+
+Wed Feb 25 14:53:15 2026
+Start Record Command (req)
+
+Wed Feb 25 14:53:15 2026
+Start Record command : Success
+
+Wed Feb 25 14:53:15 2026
+Return status : 0
+
+Wed Feb 25 14:53:15 2026
+Start Record command : Success
+
+Wed Feb 25 14:53:18 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 14:53:18 2026
+Reset FPGA command : Success
+
+Wed Feb 25 14:53:18 2026
+Return status : 0
+
+Wed Feb 25 14:55:35 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 14:55:35 2026
+Reset FPGA command : Success
+
+Wed Feb 25 14:55:35 2026
+Return status : 0
+
+Wed Feb 25 14:55:35 2026
+FPGA Configuration Command (req)
+
+Wed Feb 25 14:55:35 2026
+FPGA Configuration command : Success
+
+Wed Feb 25 14:55:35 2026
+Return status : 0
+
+Wed Feb 25 14:55:35 2026
+Configure Record Command (req)
+
+Wed Feb 25 14:55:35 2026
+Configure Record command : Success
+
+Wed Feb 25 14:55:35 2026
+Return status : 0
+
+Wed Feb 25 14:55:35 2026
+Start Record Command (req)
+
+Wed Feb 25 14:55:35 2026
+Start Record Command (req)
+
+Wed Feb 25 14:55:36 2026
+Start Record command : Success
+
+Wed Feb 25 14:55:36 2026
+Return status : 0
+
+Wed Feb 25 14:55:36 2026
+Start Record command : Success
+
+Wed Feb 25 14:55:42 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 14:55:42 2026
+Reset FPGA command : Success
+
+Wed Feb 25 14:55:42 2026
+Return status : 0
+
+Wed Feb 25 15:09:44 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 15:09:44 2026
+Reset FPGA command : Success
+
+Wed Feb 25 15:09:44 2026
+Return status : 0
+
+Wed Feb 25 15:09:44 2026
+FPGA Configuration Command (req)
+
+Wed Feb 25 15:09:44 2026
+FPGA Configuration command : Success
+
+Wed Feb 25 15:09:45 2026
+Return status : 0
+
+Wed Feb 25 15:09:45 2026
+Configure Record Command (req)
+
+Wed Feb 25 15:09:45 2026
+Configure Record command : Success
+
+Wed Feb 25 15:09:45 2026
+Return status : 0
+
+Wed Feb 25 15:09:45 2026
+Start Record Command (req)
+
+Wed Feb 25 15:09:45 2026
+Start Record Command (req)
+
+Wed Feb 25 15:09:45 2026
+Start Record command : Success
+
+Wed Feb 25 15:09:45 2026
+Return status : 0
+
+Wed Feb 25 15:09:45 2026
+Start Record command : Success
+
+Wed Feb 25 15:10:08 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 15:10:08 2026
+Reset FPGA command : Success
+
+Wed Feb 25 15:10:08 2026
+Return status : 0
+
+Wed Feb 25 15:10:50 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 15:10:50 2026
+Reset FPGA command : Success
+
+Wed Feb 25 15:10:50 2026
+Return status : 0
+
+Wed Feb 25 15:10:50 2026
+FPGA Configuration Command (req)
+
+Wed Feb 25 15:10:50 2026
+FPGA Configuration command : Success
+
+Wed Feb 25 15:10:50 2026
+Return status : 0
+
+Wed Feb 25 15:10:50 2026
+Configure Record Command (req)
+
+Wed Feb 25 15:10:50 2026
+Configure Record command : Success
+
+Wed Feb 25 15:10:50 2026
+Return status : 0
+
+Wed Feb 25 15:10:50 2026
+Start Record Command (req)
+
+Wed Feb 25 15:10:51 2026
+Start Record Command (req)
+
+Wed Feb 25 15:10:51 2026
+Start Record command : Success
+
+Wed Feb 25 15:10:51 2026
+Return status : 0
+
+Wed Feb 25 15:10:51 2026
+Start Record command : Success
+
+Wed Feb 25 15:10:59 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 15:10:59 2026
+Reset FPGA command : Success
+
+Wed Feb 25 15:10:59 2026
+Return status : 0
+
+Wed Feb 25 15:24:47 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 15:24:47 2026
+Reset FPGA command : Success
+
+Wed Feb 25 15:24:47 2026
+Return status : 0
+
+Wed Feb 25 15:24:47 2026
+FPGA Configuration Command (req)
+
+Wed Feb 25 15:24:47 2026
+FPGA Configuration command : Success
+
+Wed Feb 25 15:24:47 2026
+Return status : 0
+
+Wed Feb 25 15:24:47 2026
+Configure Record Command (req)
+
+Wed Feb 25 15:24:47 2026
+Configure Record command : Success
+
+Wed Feb 25 15:24:47 2026
+Return status : 0
+
+Wed Feb 25 15:24:48 2026
+Start Record Command (req)
+
+Wed Feb 25 15:24:48 2026
+Start Record Command (req)
+
+Wed Feb 25 15:24:48 2026
+Start Record command : Success
+
+Wed Feb 25 15:24:48 2026
+Return status : 0
+
+Wed Feb 25 15:24:48 2026
+Start Record command : Success
+
+Wed Feb 25 15:24:56 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 15:24:56 2026
+Reset FPGA command : Success
+
+Wed Feb 25 15:24:56 2026
+Return status : 0
+
+Wed Feb 25 15:43:42 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 15:43:42 2026
+Reset FPGA command : Success
+
+Wed Feb 25 15:43:42 2026
+Return status : 0
+
+Wed Feb 25 15:43:42 2026
+FPGA Configuration Command (req)
+
+Wed Feb 25 15:43:42 2026
+FPGA Configuration command : Success
+
+Wed Feb 25 15:43:42 2026
+Return status : 0
+
+Wed Feb 25 15:43:42 2026
+Configure Record Command (req)
+
+Wed Feb 25 15:43:42 2026
+Configure Record command : Success
+
+Wed Feb 25 15:43:42 2026
+Return status : 0
+
+Wed Feb 25 15:43:43 2026
+Start Record Command (req)
+
+Wed Feb 25 15:43:43 2026
+Start Record Command (req)
+
+Wed Feb 25 15:43:43 2026
+Start Record command : Success
+
+Wed Feb 25 15:43:43 2026
+Start Record command : Success
+
+Wed Feb 25 15:43:43 2026
+Return status : 0
+
+Wed Feb 25 15:44:12 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 15:44:12 2026
+Reset FPGA command : Success
+
+Wed Feb 25 15:44:12 2026
+Return status : 0
+
+Wed Feb 25 15:50:47 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 15:50:47 2026
+Reset FPGA command : Success
+
+Wed Feb 25 15:50:47 2026
+Return status : 0
+
+Wed Feb 25 15:50:47 2026
+FPGA Configuration Command (req)
+
+Wed Feb 25 15:50:47 2026
+FPGA Configuration command : Success
+
+Wed Feb 25 15:50:48 2026
+Return status : 0
+
+Wed Feb 25 15:50:48 2026
+Configure Record Command (req)
+
+Wed Feb 25 15:50:48 2026
+Configure Record command : Success
+
+Wed Feb 25 15:50:48 2026
+Return status : 0
+
+Wed Feb 25 15:50:48 2026
+Start Record Command (req)
+
+Wed Feb 25 15:50:48 2026
+Start Record Command (req)
+
+Wed Feb 25 15:50:48 2026
+Start Record command : Success
+
+Wed Feb 25 15:50:48 2026
+Return status : 0
+
+Wed Feb 25 15:50:48 2026
+Start Record command : Success
+
+Wed Feb 25 15:50:56 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 15:50:56 2026
+Reset FPGA command : Success
+
+Wed Feb 25 15:50:56 2026
+Return status : 0
+
+Wed Feb 25 15:51:15 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 15:51:15 2026
+Reset FPGA command : Success
+
+Wed Feb 25 15:51:15 2026
+Return status : 0
+
+Wed Feb 25 15:51:15 2026
+FPGA Configuration Command (req)
+
+Wed Feb 25 15:51:15 2026
+FPGA Configuration command : Success
+
+Wed Feb 25 15:51:15 2026
+Return status : 0
+
+Wed Feb 25 15:51:15 2026
+Configure Record Command (req)
+
+Wed Feb 25 15:51:15 2026
+Configure Record command : Success
+
+Wed Feb 25 15:51:15 2026
+Return status : 0
+
+Wed Feb 25 15:51:15 2026
+Start Record Command (req)
+
+Wed Feb 25 15:51:16 2026
+Start Record Command (req)
+
+Wed Feb 25 15:51:16 2026
+Start Record command : Success
+
+Wed Feb 25 15:51:16 2026
+Return status : 0
+
+Wed Feb 25 15:51:16 2026
+Start Record command : Success
+
+Wed Feb 25 15:51:47 2026
+Reset FPGA Command (req)
+
+Wed Feb 25 15:51:47 2026
+Reset FPGA command : Success
+
+Wed Feb 25 15:51:47 2026
+Return status : 0
+
+Fri Feb 27 23:52:29 2026
+Reset FPGA Command (req)
+
+Fri Feb 27 23:52:29 2026
+Reset FPGA command : Success
+
+Fri Feb 27 23:52:29 2026
+Return status : 0
+
+Fri Feb 27 23:52:29 2026
+FPGA Configuration Command (req)
+
+Fri Feb 27 23:52:29 2026
+FPGA Configuration command : Success
+
+Fri Feb 27 23:52:29 2026
+Return status : 0
+
+Fri Feb 27 23:52:29 2026
+Configure Record Command (req)
+
+Fri Feb 27 23:52:29 2026
+Configure Record command : Success
+
+Fri Feb 27 23:52:29 2026
+Return status : 0
+
+Fri Feb 27 23:52:29 2026
+Start Record Command (req)
+
+Fri Feb 27 23:52:30 2026
+Start Record Command (req)
+
+Fri Feb 27 23:52:30 2026
+Start Record command : Success
+
+Fri Feb 27 23:52:30 2026
+Return status : 0
+
+Fri Feb 27 23:52:30 2026
+Start Record command : Success
+
+Fri Feb 27 23:52:43 2026
+Reset FPGA Command (req)
+
+Fri Feb 27 23:52:43 2026
+Reset FPGA command : Success
+
+Fri Feb 27 23:52:43 2026
+Return status : 0
+
+Fri Feb 27 23:53:28 2026
+Reset FPGA Command (req)
+
+Fri Feb 27 23:53:28 2026
+Reset FPGA command : Success
+
+Fri Feb 27 23:53:28 2026
+Return status : 0
+
+Fri Feb 27 23:53:28 2026
+FPGA Configuration Command (req)
+
+Fri Feb 27 23:53:28 2026
+FPGA Configuration command : Success
+
+Fri Feb 27 23:53:28 2026
+Return status : 0
+
+Fri Feb 27 23:53:28 2026
+Configure Record Command (req)
+
+Fri Feb 27 23:53:28 2026
+Configure Record command : Success
+
+Fri Feb 27 23:53:28 2026
+Return status : 0
+
+Fri Feb 27 23:53:29 2026
+Start Record Command (req)
+
+Fri Feb 27 23:53:29 2026
+Start Record Command (req)
+
+Fri Feb 27 23:53:29 2026
+Start Record command : Success
+
+Fri Feb 27 23:53:29 2026
+Return status : 0
+
+Fri Feb 27 23:53:29 2026
+Start Record command : Success
+
+Fri Feb 27 23:53:41 2026
+Reset FPGA Command (req)
+
+Fri Feb 27 23:53:41 2026
+Reset FPGA command : Success
+
+Fri Feb 27 23:53:41 2026
+Return status : 0
+
+Fri Feb 27 23:54:03 2026
+Reset FPGA Command (req)
+
+Fri Feb 27 23:54:03 2026
+Reset FPGA command : Success
+
+Fri Feb 27 23:54:03 2026
+Return status : 0
+
+Fri Feb 27 23:54:03 2026
+FPGA Configuration Command (req)
+
+Fri Feb 27 23:54:03 2026
+FPGA Configuration command : Success
+
+Fri Feb 27 23:54:03 2026
+Return status : 0
+
+Fri Feb 27 23:54:04 2026
+Configure Record Command (req)
+
+Fri Feb 27 23:54:04 2026
+Configure Record command : Success
+
+Fri Feb 27 23:54:04 2026
+Return status : 0
+
+Fri Feb 27 23:54:04 2026
+Start Record Command (req)
+
+Fri Feb 27 23:54:04 2026
+Start Record Command (req)
+
+Fri Feb 27 23:54:04 2026
+Start Record command : Success
+
+Fri Feb 27 23:54:04 2026
+Return status : 0
+
+Fri Feb 27 23:54:04 2026
+Start Record command : Success
+
+Fri Feb 27 23:54:29 2026
+Reset FPGA Command (req)
+
+Fri Feb 27 23:54:29 2026
+Reset FPGA command : Success
+
+Fri Feb 27 23:54:29 2026
+Return status : 0
+
+Sat Feb 28 00:00:30 2026
+Reset FPGA Command (req)
+
+Sat Feb 28 00:00:30 2026
+Reset FPGA command : Success
+
+Sat Feb 28 00:00:30 2026
+Return status : 0
+
+Sat Feb 28 00:00:30 2026
+FPGA Configuration Command (req)
+
+Sat Feb 28 00:00:30 2026
+FPGA Configuration command : Success
+
+Sat Feb 28 00:00:30 2026
+Return status : 0
+
+Sat Feb 28 00:00:30 2026
+Configure Record Command (req)
+
+Sat Feb 28 00:00:30 2026
+Configure Record command : Success
+
+Sat Feb 28 00:00:30 2026
+Return status : 0
+
+Sat Feb 28 00:00:30 2026
+Start Record Command (req)
+
+Sat Feb 28 00:00:31 2026
+Start Record Command (req)
+
+Sat Feb 28 00:00:31 2026
+Start Record command : Success
+
+Sat Feb 28 00:00:31 2026
+Return status : 0
+
+Sat Feb 28 00:00:31 2026
+Start Record command : Success
+
+Sat Feb 28 00:00:57 2026
+Reset FPGA Command (req)
+
+Sat Feb 28 00:00:57 2026
+Reset FPGA command : Success
+
+Sat Feb 28 00:00:57 2026
+Return status : 0
+
+Mon Mar 02 23:14:57 2026
+Reset FPGA Command (req)
+
+Mon Mar 02 23:14:57 2026
+Reset FPGA command : Success
+
+Mon Mar 02 23:14:57 2026
+Return status : 0
+
+Mon Mar 02 23:14:57 2026
+FPGA Configuration Command (req)
+
+Mon Mar 02 23:14:57 2026
+FPGA Configuration command : Success
+
+Mon Mar 02 23:14:57 2026
+Return status : 0
+
+Mon Mar 02 23:14:57 2026
+Configure Record Command (req)
+
+Mon Mar 02 23:14:57 2026
+Configure Record command : Success
+
+Mon Mar 02 23:14:57 2026
+Return status : 0
+
+Mon Mar 02 23:14:58 2026
+Start Record Command (req)
+
+Mon Mar 02 23:14:58 2026
+Start Record Command (req)
+
+Mon Mar 02 23:14:58 2026
+Start Record command : Success
+
+Mon Mar 02 23:14:58 2026
+Return status : 0
+
+Mon Mar 02 23:14:58 2026
+Start Record command : Success
+
+Mon Mar 02 23:15:27 2026
+Reset FPGA Command (req)
+
+Mon Mar 02 23:15:27 2026
+Reset FPGA command : Success
+
+Mon Mar 02 23:15:27 2026
+Return status : 0
+
+Mon Mar 02 23:15:35 2026
+Reset FPGA Command (req)
+
+Mon Mar 02 23:15:35 2026
+Reset FPGA command : Success
+
+Mon Mar 02 23:15:35 2026
+Return status : 0
+
+Mon Mar 02 23:15:35 2026
+FPGA Configuration Command (req)
+
+Mon Mar 02 23:15:35 2026
+FPGA Configuration command : Success
+
+Mon Mar 02 23:15:35 2026
+Return status : 0
+
+Mon Mar 02 23:15:35 2026
+Configure Record Command (req)
+
+Mon Mar 02 23:15:35 2026
+Configure Record command : Success
+
+Mon Mar 02 23:15:35 2026
+Return status : 0
+
+Mon Mar 02 23:15:36 2026
+Start Record Command (req)
+
+Mon Mar 02 23:15:36 2026
+Start Record Command (req)
+
+Mon Mar 02 23:15:36 2026
+Start Record command : Success
+
+Mon Mar 02 23:15:36 2026
+Return status : 0
+
+Mon Mar 02 23:15:36 2026
+Start Record command : Success
+
+Mon Mar 02 23:15:59 2026
+Reset FPGA Command (req)
+
+Mon Mar 02 23:15:59 2026
+Reset FPGA command : Success
+
+Mon Mar 02 23:15:59 2026
+Return status : 0
+
+Mon Mar 02 23:16:26 2026
+Reset FPGA Command (req)
+
+Mon Mar 02 23:16:26 2026
+Reset FPGA command : Success
+
+Mon Mar 02 23:16:26 2026
+Return status : 0
+
+Mon Mar 02 23:16:26 2026
+FPGA Configuration Command (req)
+
+Mon Mar 02 23:16:26 2026
+FPGA Configuration command : Success
+
+Mon Mar 02 23:16:26 2026
+Return status : 0
+
+Mon Mar 02 23:16:27 2026
+Configure Record Command (req)
+
+Mon Mar 02 23:16:27 2026
+Configure Record command : Success
+
+Mon Mar 02 23:16:27 2026
+Return status : 0
+
+Mon Mar 02 23:16:27 2026
+Start Record Command (req)
+
+Mon Mar 02 23:16:27 2026
+Start Record Command (req)
+
+Mon Mar 02 23:16:27 2026
+Start Record command : Success
+
+Mon Mar 02 23:16:27 2026
+Return status : 0
+
+Mon Mar 02 23:16:27 2026
+Start Record command : Success
+
+Mon Mar 02 23:16:59 2026
+Reset FPGA Command (req)
+
+Mon Mar 02 23:16:59 2026
+Reset FPGA command : Success
+
+Mon Mar 02 23:16:59 2026
+Return status : 0
+
+Mon Mar 02 23:17:47 2026
+Reset FPGA Command (req)
+
+Mon Mar 02 23:17:47 2026
+Reset FPGA command : Success
+
+Mon Mar 02 23:17:47 2026
+Return status : 0
+
+Mon Mar 02 23:17:47 2026
+FPGA Configuration Command (req)
+
+Mon Mar 02 23:17:47 2026
+FPGA Configuration command : Success
+
+Mon Mar 02 23:17:47 2026
+Return status : 0
+
+Mon Mar 02 23:17:47 2026
+Configure Record Command (req)
+
+Mon Mar 02 23:17:47 2026
+Configure Record command : Success
+
+Mon Mar 02 23:17:47 2026
+Return status : 0
+
+Mon Mar 02 23:17:47 2026
+Start Record Command (req)
+
+Mon Mar 02 23:17:47 2026
+Start Record Command (req)
+
+Mon Mar 02 23:17:47 2026
+Start Record command : Success
+
+Mon Mar 02 23:17:47 2026
+Return status : 0
+
+Mon Mar 02 23:17:47 2026
+Start Record command : Success
+
+Mon Mar 02 23:18:11 2026
+Reset FPGA Command (req)
+
+Mon Mar 02 23:18:11 2026
+Reset FPGA command : Success
+
+Mon Mar 02 23:18:11 2026
+Return status : 0
+
+Mon Mar 02 23:18:29 2026
+Reset FPGA Command (req)
+
+Mon Mar 02 23:18:29 2026
+Reset FPGA command : Success
+
+Mon Mar 02 23:18:29 2026
+Return status : 0
+
+Mon Mar 02 23:18:29 2026
+FPGA Configuration Command (req)
+
+Mon Mar 02 23:18:29 2026
+FPGA Configuration command : Success
+
+Mon Mar 02 23:18:29 2026
+Return status : 0
+
+Mon Mar 02 23:18:29 2026
+Configure Record Command (req)
+
+Mon Mar 02 23:18:29 2026
+Configure Record command : Success
+
+Mon Mar 02 23:18:29 2026
+Return status : 0
+
+Mon Mar 02 23:18:29 2026
+Start Record Command (req)
+
+Mon Mar 02 23:18:29 2026
+Start Record Command (req)
+
+Mon Mar 02 23:18:29 2026
+Start Record command : Success
+
+Mon Mar 02 23:18:29 2026
+Return status : 0
+
+Mon Mar 02 23:18:30 2026
+Start Record command : Success
+
+Mon Mar 02 23:18:53 2026
+Reset FPGA Command (req)
+
+Mon Mar 02 23:18:53 2026
+Reset FPGA command : Success
+
+Mon Mar 02 23:18:53 2026
+Return status : 0
+
+Thu Mar 19 21:00:00 2026
+Reset FPGA Command (req)
+
+Thu Mar 19 21:00:10 2026
 Reset FPGA : 
 Timeout Error! System disconnected
 
-Sat Feb 28 16:32:55 2026
+Thu Mar 19 21:00:10 2026
 Return status : -5
 
-Sat Feb 28 16:32:55 2026
+Thu Mar 19 21:00:11 2026
 FPGA Configuration Command (req)
 
-Sat Feb 28 16:33:05 2026
-FPGA Configuration : 
-Timeout Error! System disconnected
-
-Sat Feb 28 16:33:05 2026
-Return status : -5
-
-Sat Feb 28 16:33:05 2026
-Configure Record Command (req)
-
-Sat Feb 28 16:33:15 2026
-Configure Record : 
-Timeout Error! System disconnected
-
-Sat Feb 28 16:33:15 2026
-Return status : -5
-
-Sat Feb 28 16:33:16 2026
-Start Record Command (req)
-
-Sat Feb 28 16:33:26 2026
-System is disconnected.
-
-Sat Feb 28 16:33:26 2026
-Return status : -5
-
-Sat Feb 28 16:33:57 2026
-Reset FPGA Command (req)
-
-Sat Feb 28 16:34:07 2026
-Reset FPGA : 
-Timeout Error! System disconnected
-
-Sat Feb 28 16:34:07 2026
-Return status : -5
-
-Sat Feb 28 16:34:49 2026
-Reset FPGA Command (req)
-
-Sat Feb 28 16:34:59 2026
-Reset FPGA : 
-Timeout Error! System disconnected
-
-Sat Feb 28 16:34:59 2026
-Return status : -5
-
-Sat Feb 28 16:34:59 2026
-FPGA Configuration Command (req)
-
-Sat Feb 28 16:36:13 2026
-Reset FPGA Command (req)
-
-Sat Feb 28 16:36:23 2026
-Reset FPGA : 
-Timeout Error! System disconnected
-
-Sat Feb 28 16:36:23 2026
-Return status : -5
-
-Sat Feb 28 16:36:23 2026
-FPGA Configuration Command (req)
-
-Sat Feb 28 16:36:33 2026
-FPGA Configuration : 
-Timeout Error! System disconnected
-
-Sat Feb 28 16:36:33 2026
-Return status : -5
-
-Sat Feb 28 16:36:34 2026
-Configure Record Command (req)
-
-Sat Feb 28 16:36:44 2026
-Configure Record : 
-Timeout Error! System disconnected
-
-Sat Feb 28 16:36:44 2026
-Return status : -5
-
-Sat Feb 28 16:36:44 2026
-Start Record Command (req)
-
-Sat Feb 28 16:36:54 2026
-System is disconnected.
-
-Sat Feb 28 16:36:54 2026
-Return status : -5
-
-Sat Feb 28 16:36:58 2026
-Reset FPGA Command (req)
-
-Sat Feb 28 16:37:08 2026
-Reset FPGA : 
-Timeout Error! System disconnected
-
-Sat Feb 28 16:37:08 2026
-Return status : -5
-
-Sat Feb 28 16:38:00 2026
-Reset FPGA Command (req)
-
-Sat Feb 28 16:38:10 2026
-Reset FPGA : 
-Timeout Error! System disconnected
-
-Sat Feb 28 16:38:10 2026
-Return status : -5
-
-Sat Feb 28 16:38:11 2026
-FPGA Configuration Command (req)
-
-Sat Feb 28 16:38:21 2026
-FPGA Configuration : 
-Timeout Error! System disconnected
-
-Sat Feb 28 16:38:21 2026
-Return status : -5
-
-Sat Feb 28 16:38:21 2026
-Configure Record Command (req)
-
-Sat Feb 28 16:38:31 2026
-Configure Record : 
-Timeout Error! System disconnected
-
-Sat Feb 28 16:38:31 2026
-Return status : -5
-
-Sat Feb 28 16:38:31 2026
-Start Record Command (req)
-
-Sat Feb 28 16:38:41 2026
-System is disconnected.
-
-Sat Feb 28 16:38:41 2026
-Return status : -5
-
-Sat Feb 28 16:39:07 2026
-Reset FPGA Command (req)
-
-Sat Feb 28 16:39:17 2026
-Reset FPGA : 
-Timeout Error! System disconnected
-
-Sat Feb 28 16:39:17 2026
-Return status : -5
-
-Sat Feb 28 16:43:01 2026
-Reset FPGA Command (req)
-
-Sat Feb 28 16:43:11 2026
-Reset FPGA : 
-Timeout Error! System disconnected
-
-Sat Feb 28 16:43:11 2026
-Return status : -5
-
-Sat Feb 28 16:43:11 2026
-FPGA Configuration Command (req)
-
-Sat Feb 28 16:43:21 2026
-FPGA Configuration : 
-Timeout Error! System disconnected
-
-Sat Feb 28 16:43:21 2026
-Return status : -5
-
-Sat Feb 28 16:43:22 2026
-Configure Record Command (req)
-
-Sat Feb 28 16:43:32 2026
-Configure Record : 
-Timeout Error! System disconnected
-
-Sat Feb 28 16:43:32 2026
-Return status : -5
-
-Sat Feb 28 17:00:25 2026
-Reset FPGA Command (req)
-
-Sat Feb 28 17:00:25 2026
-Reset FPGA command : Success
-
-Sat Feb 28 17:00:25 2026
-Return status : 0
-
-Sat Feb 28 17:00:26 2026
-FPGA Configuration Command (req)
-
-Sat Feb 28 17:00:26 2026
+Thu Mar 19 21:00:11 2026
 FPGA Configuration command : Success
 
-Sat Feb 28 17:00:26 2026
+Thu Mar 19 21:00:11 2026
 Return status : 0
 
-Sat Feb 28 17:00:26 2026
+Thu Mar 19 21:00:11 2026
 Configure Record Command (req)
 
-Sat Feb 28 17:00:26 2026
+Thu Mar 19 21:00:11 2026
 Configure Record command : Success
 
-Sat Feb 28 17:00:26 2026
+Thu Mar 19 21:00:11 2026
 Return status : 0
 
-Sat Feb 28 17:00:26 2026
+Thu Mar 19 21:00:11 2026
 Start Record Command (req)
 
-Sat Feb 28 17:00:26 2026
+Thu Mar 19 21:00:11 2026
 Start Record Command (req)
 
-Sat Feb 28 17:00:26 2026
+Thu Mar 19 21:00:12 2026
 Start Record command : Success
 
-Sat Feb 28 17:00:26 2026
-Return status : 0
-
-Sat Feb 28 17:00:27 2026
-Start Record command : Success
-
-Sat Feb 28 17:00:52 2026
+Thu Mar 19 21:00:41 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 17:00:52 2026
+Thu Mar 19 21:00:41 2026
 Reset FPGA command : Success
 
-Sat Feb 28 17:00:52 2026
+Thu Mar 19 21:00:41 2026
 Return status : 0
 
-Sat Feb 28 17:01:41 2026
+Thu Mar 19 21:00:48 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 17:01:41 2026
+Thu Mar 19 21:00:48 2026
 Reset FPGA command : Success
 
-Sat Feb 28 17:01:41 2026
+Thu Mar 19 21:00:48 2026
 Return status : 0
 
-Sat Feb 28 17:01:41 2026
+Thu Mar 19 21:00:48 2026
 FPGA Configuration Command (req)
 
-Sat Feb 28 17:01:41 2026
+Thu Mar 19 21:00:48 2026
 FPGA Configuration command : Success
 
-Sat Feb 28 17:01:41 2026
+Thu Mar 19 21:00:48 2026
 Return status : 0
 
-Sat Feb 28 17:01:41 2026
+Thu Mar 19 21:00:49 2026
 Configure Record Command (req)
 
-Sat Feb 28 17:01:41 2026
+Thu Mar 19 21:00:49 2026
 Configure Record command : Success
 
-Sat Feb 28 17:01:41 2026
+Thu Mar 19 21:00:49 2026
 Return status : 0
 
-Sat Feb 28 17:01:41 2026
+Thu Mar 19 21:00:49 2026
 Start Record Command (req)
 
-Sat Feb 28 17:01:42 2026
+Thu Mar 19 21:00:49 2026
 Start Record Command (req)
 
-Sat Feb 28 17:01:42 2026
+Thu Mar 19 21:00:49 2026
 Start Record command : Success
 
-Sat Feb 28 17:01:42 2026
+Thu Mar 19 21:00:49 2026
 Return status : 0
 
-Sat Feb 28 17:01:42 2026
+Thu Mar 19 21:00:49 2026
 Start Record command : Success
 
-Sat Feb 28 17:01:53 2026
+Thu Mar 19 21:01:12 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 17:01:53 2026
+Thu Mar 19 21:01:12 2026
 Reset FPGA command : Success
 
-Sat Feb 28 17:01:53 2026
+Thu Mar 19 21:01:12 2026
 Return status : 0
 
-Sat Feb 28 17:05:51 2026
+Thu Mar 19 21:16:10 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 17:05:51 2026
+Thu Mar 19 21:16:10 2026
 Reset FPGA command : Success
 
-Sat Feb 28 17:05:51 2026
+Thu Mar 19 21:16:10 2026
 Return status : 0
 
-Sat Feb 28 17:05:51 2026
+Thu Mar 19 21:16:10 2026
 FPGA Configuration Command (req)
 
-Sat Feb 28 17:05:51 2026
+Thu Mar 19 21:16:10 2026
 FPGA Configuration command : Success
 
-Sat Feb 28 17:05:51 2026
+Thu Mar 19 21:16:10 2026
 Return status : 0
 
-Sat Feb 28 17:05:51 2026
+Thu Mar 19 21:16:10 2026
 Configure Record Command (req)
 
-Sat Feb 28 17:05:51 2026
+Thu Mar 19 21:16:10 2026
 Configure Record command : Success
 
-Sat Feb 28 17:05:51 2026
+Thu Mar 19 21:16:10 2026
 Return status : 0
 
-Sat Feb 28 17:05:51 2026
+Thu Mar 19 21:16:10 2026
 Start Record Command (req)
 
-Sat Feb 28 17:05:52 2026
+Thu Mar 19 21:16:10 2026
 Start Record Command (req)
 
-Sat Feb 28 17:05:52 2026
+Thu Mar 19 21:16:10 2026
 Start Record command : Success
 
-Sat Feb 28 17:05:52 2026
+Thu Mar 19 21:16:10 2026
 Return status : 0
 
-Sat Feb 28 17:05:52 2026
+Thu Mar 19 21:16:11 2026
 Start Record command : Success
 
-Sat Feb 28 17:05:59 2026
+Thu Mar 19 21:16:35 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 17:05:59 2026
+Thu Mar 19 21:16:35 2026
 Reset FPGA command : Success
 
-Sat Feb 28 17:05:59 2026
+Thu Mar 19 21:16:35 2026
 Return status : 0
 
-Sat Feb 28 17:08:19 2026
+Thu Mar 19 21:18:17 2026
 Reset FPGA Command (req)
 
-Sat Feb 28 17:08:19 2026
+Thu Mar 19 21:18:17 2026
 Reset FPGA command : Success
 
-Sat Feb 28 17:08:19 2026
+Thu Mar 19 21:18:17 2026
 Return status : 0
 
-Sat Feb 28 17:08:19 2026
+Thu Mar 19 21:18:17 2026
 FPGA Configuration Command (req)
 
-Sat Feb 28 17:08:19 2026
+Thu Mar 19 21:18:17 2026
 FPGA Configuration command : Success
 
-Sat Feb 28 17:08:19 2026
+Thu Mar 19 21:18:17 2026
 Return status : 0
 
-Sat Feb 28 17:08:19 2026
+Thu Mar 19 21:18:17 2026
 Configure Record Command (req)
 
-Sat Feb 28 17:08:19 2026
+Thu Mar 19 21:18:17 2026
 Configure Record command : Success
 
-Sat Feb 28 17:08:19 2026
+Thu Mar 19 21:18:17 2026
 Return status : 0
 
-Sat Feb 28 17:08:19 2026
+Thu Mar 19 21:18:17 2026
 Start Record Command (req)
 
-Sat Feb 28 17:08:20 2026
+Thu Mar 19 21:18:18 2026
 Start Record Command (req)
 
-Sat Feb 28 17:08:20 2026
+Thu Mar 19 21:18:18 2026
 Start Record command : Success
 
-Sat Feb 28 17:08:20 2026
+Thu Mar 19 21:18:18 2026
 Return status : 0
 
-Sat Feb 28 17:08:20 2026
+Thu Mar 19 21:18:18 2026
 Start Record command : Success
 
-Mon Mar 02 09:36:16 2026
+Thu Mar 19 21:18:43 2026
 Reset FPGA Command (req)
 
-Mon Mar 02 09:36:26 2026
-Reset FPGA : 
-Timeout Error! System disconnected
-
-Mon Mar 02 09:36:26 2026
-Return status : -5
-
-Thu Mar 05 11:47:45 2026
-Reset FPGA Command (req)
-
-Thu Mar 05 11:47:45 2026
+Thu Mar 19 21:18:43 2026
 Reset FPGA command : Success
 
-Thu Mar 05 11:47:45 2026
+Thu Mar 19 21:18:43 2026
 Return status : 0
 
-Thu Mar 05 11:47:45 2026
+Thu Mar 19 21:22:55 2026
+Reset FPGA Command (req)
+
+Thu Mar 19 21:22:55 2026
+Reset FPGA command : Success
+
+Thu Mar 19 21:22:55 2026
+Return status : 0
+
+Thu Mar 19 21:22:55 2026
 FPGA Configuration Command (req)
 
-Thu Mar 05 11:47:45 2026
+Thu Mar 19 21:22:55 2026
 FPGA Configuration command : Success
 
-Thu Mar 05 11:47:45 2026
+Thu Mar 19 21:22:55 2026
 Return status : 0
 
-Thu Mar 05 11:47:46 2026
+Thu Mar 19 21:22:55 2026
 Configure Record Command (req)
 
-Thu Mar 05 11:47:46 2026
+Thu Mar 19 21:22:55 2026
 Configure Record command : Success
 
-Thu Mar 05 11:47:46 2026
+Thu Mar 19 21:22:55 2026
 Return status : 0
 
-Thu Mar 05 11:47:46 2026
+Thu Mar 19 21:22:55 2026
 Start Record Command (req)
 
-Thu Mar 05 11:47:49 2026
+Thu Mar 19 21:22:56 2026
 Start Record Command (req)
 
-Thu Mar 05 11:47:49 2026
+Thu Mar 19 21:22:56 2026
 Start Record command : Success
 
-Thu Mar 05 11:47:49 2026
+Thu Mar 19 21:22:56 2026
 Return status : 0
 
-Thu Mar 05 11:47:50 2026
+Thu Mar 19 21:22:56 2026
 Start Record command : Success
 
-Thu Mar 05 11:48:05 2026
+Thu Mar 19 21:23:08 2026
 Reset FPGA Command (req)
 
-Thu Mar 05 11:48:05 2026
+Thu Mar 19 21:23:08 2026
 Reset FPGA command : Success
 
-Thu Mar 05 11:48:05 2026
+Thu Mar 19 21:23:08 2026
 Return status : 0
 
-Thu Mar 05 11:49:06 2026
+Thu Mar 19 21:24:42 2026
 Reset FPGA Command (req)
 
-Thu Mar 05 11:49:06 2026
+Thu Mar 19 21:24:42 2026
 Reset FPGA command : Success
 
-Thu Mar 05 11:49:06 2026
+Thu Mar 19 21:24:42 2026
 Return status : 0
 
-Thu Mar 05 11:49:06 2026
+Thu Mar 19 21:24:42 2026
 FPGA Configuration Command (req)
 
-Thu Mar 05 11:49:06 2026
+Thu Mar 19 21:24:42 2026
 FPGA Configuration command : Success
 
-Thu Mar 05 11:49:06 2026
+Thu Mar 19 21:24:42 2026
 Return status : 0
 
-Thu Mar 05 11:49:06 2026
+Thu Mar 19 21:24:43 2026
 Configure Record Command (req)
 
-Thu Mar 05 11:49:06 2026
+Thu Mar 19 21:24:43 2026
 Configure Record command : Success
 
-Thu Mar 05 11:49:06 2026
+Thu Mar 19 21:24:43 2026
 Return status : 0
 
-Thu Mar 05 11:49:06 2026
+Thu Mar 19 21:24:43 2026
 Start Record Command (req)
 
-Thu Mar 05 11:49:07 2026
+Thu Mar 19 21:24:43 2026
 Start Record Command (req)
 
-Thu Mar 05 11:49:07 2026
+Thu Mar 19 21:24:43 2026
 Start Record command : Success
 
-Thu Mar 05 11:49:07 2026
+Thu Mar 19 21:24:43 2026
 Return status : 0
 
-Thu Mar 05 11:49:07 2026
+Thu Mar 19 21:24:43 2026
 Start Record command : Success
 
-Thu Mar 05 11:49:16 2026
+Thu Mar 19 21:25:50 2026
 Reset FPGA Command (req)
 
-Thu Mar 05 11:49:16 2026
+Thu Mar 19 21:25:50 2026
 Reset FPGA command : Success
 
-Thu Mar 05 11:49:16 2026
+Thu Mar 19 21:25:50 2026
 Return status : 0
 
-Thu Mar 05 11:59:01 2026
+Fri Mar 20 14:53:09 2026
 Reset FPGA Command (req)
 
-Thu Mar 05 11:59:01 2026
+Fri Mar 20 14:53:09 2026
 Reset FPGA command : Success
 
-Thu Mar 05 11:59:01 2026
+Fri Mar 20 14:53:09 2026
 Return status : 0
 
-Thu Mar 05 11:59:02 2026
+Fri Mar 20 14:53:09 2026
 FPGA Configuration Command (req)
 
-Thu Mar 05 11:59:02 2026
+Fri Mar 20 14:53:09 2026
 FPGA Configuration command : Success
 
-Thu Mar 05 11:59:02 2026
+Fri Mar 20 14:53:09 2026
 Return status : 0
 
-Thu Mar 05 11:59:02 2026
+Fri Mar 20 14:53:09 2026
 Configure Record Command (req)
 
-Thu Mar 05 11:59:02 2026
+Fri Mar 20 14:53:09 2026
 Configure Record command : Success
 
-Thu Mar 05 11:59:02 2026
+Fri Mar 20 14:53:09 2026
 Return status : 0
 
-Thu Mar 05 11:59:02 2026
-Start Record Command (req)
-
-Thu Mar 05 11:59:02 2026
-Start Record Command (req)
-
-Thu Mar 05 11:59:03 2026
-Start Record command : Success
-
-Thu Mar 05 11:59:03 2026
-Return status : 0
-
-Thu Mar 05 11:59:03 2026
-Start Record command : Success
-
-Thu Mar 05 11:59:48 2026
+Fri Mar 20 14:53:47 2026
 Reset FPGA Command (req)
 
-Thu Mar 05 11:59:48 2026
+Fri Mar 20 14:53:47 2026
 Reset FPGA command : Success
 
-Thu Mar 05 11:59:48 2026
+Fri Mar 20 14:53:47 2026
 Return status : 0
 
-Thu Mar 05 15:25:35 2026
+Fri Mar 20 14:54:15 2026
 Reset FPGA Command (req)
 
-Thu Mar 05 15:25:45 2026
-Reset FPGA : 
-Timeout Error! System disconnected
-
-Thu Mar 05 15:25:45 2026
-Return status : -5
-
-Thu Mar 05 15:25:45 2026
-FPGA Configuration Command (req)
-
-Thu Mar 05 15:25:55 2026
-FPGA Configuration : 
-Timeout Error! System disconnected
-
-Thu Mar 05 15:25:55 2026
-Return status : -5
-
-Thu Mar 05 15:25:55 2026
-Configure Record Command (req)
-
-Thu Mar 05 15:26:05 2026
-Configure Record : 
-Timeout Error! System disconnected
-
-Thu Mar 05 15:26:05 2026
-Return status : -5
-
-Thu Mar 05 15:26:05 2026
-Start Record Command (req)
-
-Thu Mar 05 15:26:24 2026
-Reset FPGA Command (req)
-
-Thu Mar 05 15:26:34 2026
-Reset FPGA : 
-Timeout Error! System disconnected
-
-Thu Mar 05 15:26:34 2026
-Return status : -5
-
-Thu Mar 05 15:26:34 2026
-FPGA Configuration Command (req)
-
-Thu Mar 05 15:26:44 2026
-FPGA Configuration : 
-Timeout Error! System disconnected
-
-Thu Mar 05 15:26:44 2026
-Return status : -5
-
-Thu Mar 05 15:26:45 2026
-Configure Record Command (req)
-
-Thu Mar 05 15:26:55 2026
-Configure Record : 
-Timeout Error! System disconnected
-
-Thu Mar 05 15:26:55 2026
-Return status : -5
-
-Thu Mar 05 15:26:55 2026
-Start Record Command (req)
-
-Thu Mar 05 15:27:05 2026
-System is disconnected.
-
-Thu Mar 05 15:27:05 2026
-Return status : -5
-
-Thu Mar 05 15:27:14 2026
-Reset FPGA Command (req)
-
-Thu Mar 05 15:27:24 2026
-Reset FPGA : 
-Timeout Error! System disconnected
-
-Thu Mar 05 15:27:24 2026
-Return status : -5
-
-Thu Mar 05 15:59:04 2026
-Reset FPGA Command (req)
-
-Thu Mar 05 15:59:14 2026
-Reset FPGA : 
-Timeout Error! System disconnected
-
-Thu Mar 05 15:59:14 2026
-Return status : -5
-
-Thu Mar 05 15:59:15 2026
-Reset FPGA Command (req)
-
-Thu Mar 05 15:59:25 2026
-Reset FPGA : 
-Timeout Error! System disconnected
-
-Thu Mar 05 15:59:25 2026
-Return status : -5
-
-Thu Mar 05 15:59:57 2026
-Reset FPGA Command (req)
-
-Thu Mar 05 16:00:07 2026
-Reset FPGA : 
-Timeout Error! System disconnected
-
-Thu Mar 05 16:00:07 2026
-Return status : -5
-
-Thu Mar 05 16:00:07 2026
-FPGA Configuration Command (req)
-
-Thu Mar 05 16:00:17 2026
-FPGA Configuration : 
-Timeout Error! System disconnected
-
-Thu Mar 05 16:00:17 2026
-Return status : -5
-
-Thu Mar 05 16:00:17 2026
-Configure Record Command (req)
-
-Thu Mar 05 16:00:28 2026
-Configure Record : 
-Timeout Error! System disconnected
-
-Thu Mar 05 16:00:28 2026
-Return status : -5
-
-Thu Mar 05 16:00:28 2026
-Start Record Command (req)
-
-Thu Mar 05 16:00:38 2026
-System is disconnected.
-
-Thu Mar 05 16:00:38 2026
-Return status : -5
-
-Thu Mar 05 16:02:51 2026
-Reset FPGA Command (req)
-
-Thu Mar 05 16:03:01 2026
-Reset FPGA : 
-Timeout Error! System disconnected
-
-Thu Mar 05 16:03:01 2026
-Return status : -5
-
-Tue Mar 10 16:45:18 2026
-Reset FPGA Command (req)
-
-Tue Mar 10 16:45:18 2026
+Fri Mar 20 14:54:15 2026
 Reset FPGA command : Success
 
-Tue Mar 10 16:45:18 2026
+Fri Mar 20 14:54:15 2026
 Return status : 0
 
-Tue Mar 10 16:45:18 2026
+Fri Mar 20 14:54:15 2026
 FPGA Configuration Command (req)
 
-Tue Mar 10 16:45:18 2026
+Fri Mar 20 14:54:15 2026
 FPGA Configuration command : Success
 
-Tue Mar 10 16:45:18 2026
+Fri Mar 20 14:54:15 2026
 Return status : 0
 
-Tue Mar 10 16:45:18 2026
+Fri Mar 20 14:54:15 2026
 Configure Record Command (req)
 
-Tue Mar 10 16:45:18 2026
+Fri Mar 20 14:54:15 2026
 Configure Record command : Success
 
-Tue Mar 10 16:45:18 2026
+Fri Mar 20 14:54:15 2026
 Return status : 0
 
-Tue Mar 10 16:45:18 2026
-Start Record Command (req)
-
-Tue Mar 10 16:45:20 2026
-Start Record Command (req)
-
-Tue Mar 10 16:45:20 2026
-Start Record command : Success
-
-Tue Mar 10 16:45:20 2026
-Return status : 0
-
-Tue Mar 10 16:45:20 2026
-Start Record command : Success
-
-Tue Mar 10 16:45:41 2026
+Fri Mar 20 14:54:29 2026
 Reset FPGA Command (req)
 
-Tue Mar 10 16:45:41 2026
+Fri Mar 20 14:54:29 2026
 Reset FPGA command : Success
 
-Tue Mar 10 16:45:41 2026
+Fri Mar 20 14:54:29 2026
 Return status : 0
 
-Tue Mar 10 16:45:48 2026
+Fri Mar 20 14:54:36 2026
 Reset FPGA Command (req)
 
-Tue Mar 10 16:45:48 2026
+Fri Mar 20 14:54:36 2026
 Reset FPGA command : Success
 
-Tue Mar 10 16:45:48 2026
+Fri Mar 20 14:54:36 2026
 Return status : 0
 
-Tue Mar 10 16:45:49 2026
+Fri Mar 20 14:54:36 2026
 FPGA Configuration Command (req)
 
-Tue Mar 10 16:45:49 2026
+Fri Mar 20 14:54:36 2026
 FPGA Configuration command : Success
 
-Tue Mar 10 16:45:49 2026
+Fri Mar 20 14:54:36 2026
 Return status : 0
 
-Tue Mar 10 16:45:49 2026
+Fri Mar 20 14:54:36 2026
 Configure Record Command (req)
 
-Tue Mar 10 16:45:49 2026
+Fri Mar 20 14:54:36 2026
 Configure Record command : Success
 
-Tue Mar 10 16:45:49 2026
+Fri Mar 20 14:54:36 2026
 Return status : 0
 
-Tue Mar 10 16:45:49 2026
-Start Record Command (req)
-
-Tue Mar 10 16:45:49 2026
-Start Record Command (req)
-
-Tue Mar 10 16:45:50 2026
-Start Record command : Success
-
-Tue Mar 10 16:45:50 2026
-Return status : 0
-
-Tue Mar 10 16:45:50 2026
-Start Record command : Success
-
-Tue Mar 10 16:45:56 2026
+Fri Mar 20 14:54:40 2026
 Reset FPGA Command (req)
 
-Tue Mar 10 16:45:56 2026
+Fri Mar 20 14:54:40 2026
 Reset FPGA command : Success
 
-Tue Mar 10 16:45:56 2026
+Fri Mar 20 14:54:40 2026
 Return status : 0
 
-Tue Mar 10 16:46:31 2026
+Fri Mar 20 14:55:21 2026
 Reset FPGA Command (req)
 
-Tue Mar 10 16:46:31 2026
+Fri Mar 20 14:55:21 2026
 Reset FPGA command : Success
 
-Tue Mar 10 16:46:31 2026
+Fri Mar 20 14:55:21 2026
 Return status : 0
 
-Tue Mar 10 16:46:31 2026
+Fri Mar 20 14:55:21 2026
 FPGA Configuration Command (req)
 
-Tue Mar 10 16:46:31 2026
+Fri Mar 20 14:55:21 2026
 FPGA Configuration command : Success
 
-Tue Mar 10 16:46:31 2026
+Fri Mar 20 14:55:21 2026
 Return status : 0
 
-Tue Mar 10 16:46:31 2026
+Fri Mar 20 14:55:21 2026
 Configure Record Command (req)
 
-Tue Mar 10 16:46:31 2026
+Fri Mar 20 14:55:21 2026
 Configure Record command : Success
 
-Tue Mar 10 16:46:31 2026
+Fri Mar 20 14:55:21 2026
 Return status : 0
 
-Tue Mar 10 16:46:31 2026
-Start Record Command (req)
-
-Tue Mar 10 16:46:31 2026
-Start Record Command (req)
-
-Tue Mar 10 16:46:32 2026
-Start Record command : Success
-
-Tue Mar 10 16:46:32 2026
-Return status : 0
-
-Tue Mar 10 16:46:32 2026
-Start Record command : Success
-
-Tue Mar 10 16:46:42 2026
+Fri Mar 20 14:55:27 2026
 Reset FPGA Command (req)
 
-Tue Mar 10 16:46:42 2026
+Fri Mar 20 14:55:27 2026
 Reset FPGA command : Success
 
-Tue Mar 10 16:46:42 2026
+Fri Mar 20 14:55:27 2026
 Return status : 0
 
-Tue Mar 10 16:56:03 2026
+Fri Mar 20 14:59:17 2026
 Reset FPGA Command (req)
 
-Tue Mar 10 16:56:03 2026
+Fri Mar 20 14:59:17 2026
 Reset FPGA command : Success
 
-Tue Mar 10 16:56:03 2026
+Fri Mar 20 14:59:17 2026
 Return status : 0
 
-Tue Mar 10 16:56:03 2026
+Fri Mar 20 14:59:17 2026
 FPGA Configuration Command (req)
 
-Tue Mar 10 16:56:03 2026
+Fri Mar 20 14:59:17 2026
 FPGA Configuration command : Success
 
-Tue Mar 10 16:56:03 2026
+Fri Mar 20 14:59:17 2026
 Return status : 0
 
-Tue Mar 10 16:56:03 2026
+Fri Mar 20 14:59:17 2026
 Configure Record Command (req)
 
-Tue Mar 10 16:56:03 2026
+Fri Mar 20 14:59:17 2026
 Configure Record command : Success
 
-Tue Mar 10 16:56:03 2026
+Fri Mar 20 14:59:17 2026
 Return status : 0
 
-Tue Mar 10 16:56:03 2026
+Fri Mar 20 14:59:17 2026
 Start Record Command (req)
 
-Tue Mar 10 16:56:04 2026
+Fri Mar 20 14:59:18 2026
 Start Record Command (req)
 
-Tue Mar 10 16:56:04 2026
+Fri Mar 20 14:59:18 2026
 Start Record command : Success
 
-Tue Mar 10 16:56:04 2026
+Fri Mar 20 14:59:18 2026
 Return status : 0
 
-Tue Mar 10 16:56:04 2026
+Fri Mar 20 14:59:18 2026
 Start Record command : Success
 
-Tue Mar 10 16:56:17 2026
+Fri Mar 20 15:00:18 2026
 Reset FPGA Command (req)
 
-Tue Mar 10 16:56:17 2026
+Fri Mar 20 15:00:18 2026
 Reset FPGA command : Success
 
-Tue Mar 10 16:56:17 2026
+Fri Mar 20 15:00:18 2026
 Return status : 0
 
-Tue Mar 10 17:31:39 2026
+Fri Mar 20 15:00:33 2026
 Reset FPGA Command (req)
 
-Tue Mar 10 17:31:39 2026
+Fri Mar 20 15:00:33 2026
 Reset FPGA command : Success
 
-Tue Mar 10 17:31:39 2026
+Fri Mar 20 15:00:33 2026
 Return status : 0
 
-Tue Mar 10 17:31:39 2026
+Fri Mar 20 15:00:33 2026
 FPGA Configuration Command (req)
 
-Tue Mar 10 17:31:39 2026
+Fri Mar 20 15:00:33 2026
 FPGA Configuration command : Success
 
-Tue Mar 10 17:31:39 2026
+Fri Mar 20 15:00:33 2026
 Return status : 0
 
-Tue Mar 10 17:31:40 2026
+Fri Mar 20 15:00:33 2026
 Configure Record Command (req)
 
-Tue Mar 10 17:31:40 2026
+Fri Mar 20 15:00:33 2026
 Configure Record command : Success
 
-Tue Mar 10 17:31:40 2026
+Fri Mar 20 15:00:33 2026
 Return status : 0
 
-Tue Mar 10 17:31:40 2026
+Fri Mar 20 15:00:33 2026
 Start Record Command (req)
 
-Tue Mar 10 17:31:40 2026
+Fri Mar 20 15:00:34 2026
 Start Record Command (req)
 
-Tue Mar 10 17:31:41 2026
+Fri Mar 20 15:00:35 2026
 Start Record command : Success
 
-Tue Mar 10 17:31:41 2026
+Fri Mar 20 15:00:35 2026
 Return status : 0
 
-Tue Mar 10 17:31:41 2026
+Fri Mar 20 15:00:35 2026
 Start Record command : Success
 
-Tue Mar 10 17:33:04 2026
+Fri Mar 20 15:01:17 2026
 Reset FPGA Command (req)
 
-Tue Mar 10 17:33:04 2026
+Fri Mar 20 15:01:17 2026
 Reset FPGA command : Success
 
-Tue Mar 10 17:33:04 2026
-Return status : 0
-
-Tue Mar 10 17:34:46 2026
-Reset FPGA Command (req)
-
-Tue Mar 10 17:34:46 2026
-Reset FPGA command : Success
-
-Tue Mar 10 17:34:46 2026
-Return status : 0
-
-Tue Mar 10 17:34:46 2026
-FPGA Configuration Command (req)
-
-Tue Mar 10 17:34:46 2026
-FPGA Configuration command : Success
-
-Tue Mar 10 17:34:46 2026
-Return status : 0
-
-Tue Mar 10 17:34:46 2026
-Configure Record Command (req)
-
-Tue Mar 10 17:34:46 2026
-Configure Record command : Success
-
-Tue Mar 10 17:34:46 2026
-Return status : 0
-
-Tue Mar 10 17:34:46 2026
-Start Record Command (req)
-
-Tue Mar 10 17:34:47 2026
-Start Record Command (req)
-
-Tue Mar 10 17:34:47 2026
-Start Record command : Success
-
-Tue Mar 10 17:34:47 2026
-Return status : 0
-
-Tue Mar 10 17:34:47 2026
-Start Record command : Success
-
-Tue Mar 10 17:34:57 2026
-Reset FPGA Command (req)
-
-Tue Mar 10 17:34:57 2026
-Reset FPGA command : Success
-
-Tue Mar 10 17:34:57 2026
-Return status : 0
-
-Tue Mar 10 17:36:36 2026
-Reset FPGA Command (req)
-
-Tue Mar 10 17:36:36 2026
-Reset FPGA command : Success
-
-Tue Mar 10 17:36:36 2026
-Return status : 0
-
-Tue Mar 10 17:36:36 2026
-FPGA Configuration Command (req)
-
-Tue Mar 10 17:36:36 2026
-FPGA Configuration command : Success
-
-Tue Mar 10 17:36:36 2026
-Return status : 0
-
-Tue Mar 10 17:36:36 2026
-Configure Record Command (req)
-
-Tue Mar 10 17:36:36 2026
-Configure Record command : Success
-
-Tue Mar 10 17:36:36 2026
-Return status : 0
-
-Tue Mar 10 17:36:36 2026
-Start Record Command (req)
-
-Tue Mar 10 17:36:37 2026
-Start Record Command (req)
-
-Tue Mar 10 17:36:37 2026
-Start Record command : Success
-
-Tue Mar 10 17:36:37 2026
-Return status : 0
-
-Tue Mar 10 17:36:37 2026
-Start Record command : Success
-
-Tue Mar 10 17:36:51 2026
-Reset FPGA Command (req)
-
-Tue Mar 10 17:36:51 2026
-Reset FPGA command : Success
-
-Tue Mar 10 17:36:51 2026
-Return status : 0
-
-Tue Mar 10 17:48:08 2026
-Reset FPGA Command (req)
-
-Tue Mar 10 17:48:08 2026
-Reset FPGA command : Success
-
-Tue Mar 10 17:48:08 2026
-Return status : 0
-
-Tue Mar 10 17:48:08 2026
-FPGA Configuration Command (req)
-
-Tue Mar 10 17:48:08 2026
-FPGA Configuration command : Success
-
-Tue Mar 10 17:48:08 2026
-Return status : 0
-
-Tue Mar 10 17:48:08 2026
-Configure Record Command (req)
-
-Tue Mar 10 17:48:08 2026
-Configure Record command : Success
-
-Tue Mar 10 17:48:08 2026
-Return status : 0
-
-Tue Mar 10 17:48:08 2026
-Start Record Command (req)
-
-Tue Mar 10 17:48:09 2026
-Start Record Command (req)
-
-Tue Mar 10 17:48:09 2026
-Start Record command : Success
-
-Tue Mar 10 17:48:09 2026
-Return status : 0
-
-Tue Mar 10 17:48:10 2026
-Start Record command : Success
-
-Tue Mar 10 17:48:30 2026
-Reset FPGA Command (req)
-
-Tue Mar 10 17:48:30 2026
-Reset FPGA command : Success
-
-Tue Mar 10 17:48:30 2026
-Return status : 0
-
-Tue Mar 10 17:48:52 2026
-Reset FPGA Command (req)
-
-Tue Mar 10 17:48:52 2026
-Reset FPGA command : Success
-
-Tue Mar 10 17:48:52 2026
-Return status : 0
-
-Tue Mar 10 17:48:52 2026
-FPGA Configuration Command (req)
-
-Tue Mar 10 17:48:52 2026
-FPGA Configuration command : Success
-
-Tue Mar 10 17:48:52 2026
-Return status : 0
-
-Tue Mar 10 17:48:52 2026
-Configure Record Command (req)
-
-Tue Mar 10 17:48:52 2026
-Configure Record command : Success
-
-Tue Mar 10 17:48:52 2026
-Return status : 0
-
-Tue Mar 10 17:48:52 2026
-Start Record Command (req)
-
-Tue Mar 10 17:48:53 2026
-Start Record Command (req)
-
-Tue Mar 10 17:48:53 2026
-Start Record command : Success
-
-Tue Mar 10 17:48:53 2026
-Return status : 0
-
-Tue Mar 10 17:48:53 2026
-Start Record command : Success
-
-Tue Mar 10 17:49:16 2026
-Reset FPGA Command (req)
-
-Tue Mar 10 17:49:16 2026
-Reset FPGA command : Success
-
-Tue Mar 10 17:49:16 2026
-Return status : 0
-
-Wed Mar 11 16:59:48 2026
-Reset FPGA Command (req)
-
-Wed Mar 11 16:59:48 2026
-Reset FPGA command : Success
-
-Wed Mar 11 16:59:48 2026
-Return status : 0
-
-Wed Mar 11 16:59:49 2026
-FPGA Configuration Command (req)
-
-Wed Mar 11 16:59:49 2026
-FPGA Configuration command : Success
-
-Wed Mar 11 16:59:49 2026
-Return status : 0
-
-Wed Mar 11 16:59:49 2026
-Configure Record Command (req)
-
-Wed Mar 11 16:59:49 2026
-Configure Record command : Success
-
-Wed Mar 11 16:59:49 2026
-Return status : 0
-
-Wed Mar 11 16:59:49 2026
-Start Record Command (req)
-
-Wed Mar 11 16:59:51 2026
-Start Record Command (req)
-
-Wed Mar 11 16:59:51 2026
-Start Record command : Success
-
-Wed Mar 11 16:59:51 2026
-Return status : 0
-
-Wed Mar 11 16:59:51 2026
-Start Record command : Success
-
-Wed Mar 11 16:59:58 2026
-Reset FPGA Command (req)
-
-Wed Mar 11 16:59:58 2026
-Reset FPGA command : Success
-
-Wed Mar 11 16:59:58 2026
-Return status : 0
-
-Thu Mar 12 10:09:45 2026
-Reset FPGA Command (req)
-
-Thu Mar 12 10:09:45 2026
-Reset FPGA command : Success
-
-Thu Mar 12 10:09:45 2026
-Return status : 0
-
-Thu Mar 12 10:09:45 2026
-FPGA Configuration Command (req)
-
-Thu Mar 12 10:09:45 2026
-FPGA Configuration command : Success
-
-Thu Mar 12 10:09:45 2026
-Return status : 0
-
-Thu Mar 12 10:09:45 2026
-Configure Record Command (req)
-
-Thu Mar 12 10:09:45 2026
-Configure Record command : Success
-
-Thu Mar 12 10:09:45 2026
-Return status : 0
-
-Thu Mar 12 10:09:45 2026
-Start Record Command (req)
-
-Thu Mar 12 10:09:46 2026
-Start Record Command (req)
-
-Thu Mar 12 10:09:46 2026
-Start Record command : Success
-
-Thu Mar 12 10:09:46 2026
-Return status : 0
-
-Thu Mar 12 10:09:47 2026
-Start Record command : Success
-
-Thu Mar 12 10:11:41 2026
-Reset FPGA Command (req)
-
-Thu Mar 12 10:11:41 2026
-Reset FPGA command : Success
-
-Thu Mar 12 10:11:41 2026
-Return status : 0
-
-Thu Mar 12 10:12:43 2026
-Reset FPGA Command (req)
-
-Thu Mar 12 10:12:43 2026
-Reset FPGA command : Success
-
-Thu Mar 12 10:12:43 2026
-Return status : 0
-
-Thu Mar 12 10:12:43 2026
-FPGA Configuration Command (req)
-
-Thu Mar 12 10:12:43 2026
-FPGA Configuration command : Success
-
-Thu Mar 12 10:12:43 2026
-Return status : 0
-
-Thu Mar 12 10:12:44 2026
-Configure Record Command (req)
-
-Thu Mar 12 10:12:44 2026
-Configure Record command : Success
-
-Thu Mar 12 10:12:44 2026
-Return status : 0
-
-Thu Mar 12 10:12:44 2026
-Start Record Command (req)
-
-Thu Mar 12 10:12:44 2026
-Start Record Command (req)
-
-Thu Mar 12 10:12:44 2026
-Start Record command : Success
-
-Thu Mar 12 10:12:44 2026
-Return status : 0
-
-Thu Mar 12 10:12:45 2026
-Start Record command : Success
-
-Thu Mar 12 10:13:12 2026
-Reset FPGA Command (req)
-
-Thu Mar 12 10:13:12 2026
-Reset FPGA command : Success
-
-Thu Mar 12 10:13:12 2026
-Return status : 0
-
-Thu Mar 12 10:15:24 2026
-Reset FPGA Command (req)
-
-Thu Mar 12 10:15:24 2026
-Reset FPGA command : Success
-
-Thu Mar 12 10:15:24 2026
-Return status : 0
-
-Thu Mar 12 10:15:24 2026
-FPGA Configuration Command (req)
-
-Thu Mar 12 10:15:24 2026
-FPGA Configuration command : Success
-
-Thu Mar 12 10:15:24 2026
-Return status : 0
-
-Thu Mar 12 10:15:24 2026
-Configure Record Command (req)
-
-Thu Mar 12 10:15:24 2026
-Configure Record command : Success
-
-Thu Mar 12 10:15:24 2026
-Return status : 0
-
-Thu Mar 12 10:15:24 2026
-Start Record Command (req)
-
-Thu Mar 12 10:15:25 2026
-Start Record Command (req)
-
-Thu Mar 12 10:15:25 2026
-Start Record command : Success
-
-Thu Mar 12 10:15:25 2026
-Return status : 0
-
-Thu Mar 12 10:15:25 2026
-Start Record command : Success
-
-Thu Mar 12 10:16:34 2026
-Reset FPGA Command (req)
-
-Thu Mar 12 10:16:34 2026
-Reset FPGA command : Success
-
-Thu Mar 12 10:16:34 2026
-Return status : 0
-
-Thu Mar 12 10:19:15 2026
-Reset FPGA Command (req)
-
-Thu Mar 12 10:19:15 2026
-Reset FPGA command : Success
-
-Thu Mar 12 10:19:15 2026
-Return status : 0
-
-Thu Mar 12 10:19:15 2026
-FPGA Configuration Command (req)
-
-Thu Mar 12 10:19:15 2026
-FPGA Configuration command : Success
-
-Thu Mar 12 10:19:15 2026
-Return status : 0
-
-Thu Mar 12 10:19:15 2026
-Configure Record Command (req)
-
-Thu Mar 12 10:19:15 2026
-Configure Record command : Success
-
-Thu Mar 12 10:19:15 2026
-Return status : 0
-
-Thu Mar 12 10:19:15 2026
-Start Record Command (req)
-
-Thu Mar 12 10:19:16 2026
-Start Record Command (req)
-
-Thu Mar 12 10:19:16 2026
-Start Record command : Success
-
-Thu Mar 12 10:19:16 2026
-Return status : 0
-
-Thu Mar 12 10:19:17 2026
-Start Record command : Success
-
-Thu Mar 12 10:20:24 2026
-Reset FPGA Command (req)
-
-Thu Mar 12 10:20:24 2026
-Reset FPGA command : Success
-
-Thu Mar 12 10:20:24 2026
-Return status : 0
-
-Thu Mar 12 10:26:27 2026
-Reset FPGA Command (req)
-
-Thu Mar 12 10:26:27 2026
-Reset FPGA command : Success
-
-Thu Mar 12 10:26:27 2026
-Return status : 0
-
-Thu Mar 12 10:26:27 2026
-FPGA Configuration Command (req)
-
-Thu Mar 12 10:26:27 2026
-FPGA Configuration command : Success
-
-Thu Mar 12 10:26:27 2026
-Return status : 0
-
-Thu Mar 12 10:26:27 2026
-Configure Record Command (req)
-
-Thu Mar 12 10:26:27 2026
-Configure Record command : Success
-
-Thu Mar 12 10:26:27 2026
-Return status : 0
-
-Thu Mar 12 10:26:27 2026
-Start Record Command (req)
-
-Thu Mar 12 10:26:28 2026
-Start Record Command (req)
-
-Thu Mar 12 10:26:28 2026
-Start Record command : Success
-
-Thu Mar 12 10:26:28 2026
-Return status : 0
-
-Thu Mar 12 10:26:28 2026
-Start Record command : Success
-
-Thu Mar 12 10:26:47 2026
-Reset FPGA Command (req)
-
-Thu Mar 12 10:26:47 2026
-Reset FPGA command : Success
-
-Thu Mar 12 10:26:47 2026
-Return status : 0
-
-Thu Mar 12 10:27:06 2026
-Reset FPGA Command (req)
-
-Thu Mar 12 10:27:06 2026
-Reset FPGA command : Success
-
-Thu Mar 12 10:27:06 2026
-Return status : 0
-
-Thu Mar 12 10:27:06 2026
-FPGA Configuration Command (req)
-
-Thu Mar 12 10:27:06 2026
-FPGA Configuration command : Success
-
-Thu Mar 12 10:27:06 2026
-Return status : 0
-
-Thu Mar 12 10:27:06 2026
-Configure Record Command (req)
-
-Thu Mar 12 10:27:06 2026
-Configure Record command : Success
-
-Thu Mar 12 10:27:06 2026
-Return status : 0
-
-Thu Mar 12 10:27:06 2026
-Start Record Command (req)
-
-Thu Mar 12 10:27:07 2026
-Start Record Command (req)
-
-Thu Mar 12 10:27:07 2026
-Start Record command : Success
-
-Thu Mar 12 10:27:07 2026
-Return status : 0
-
-Thu Mar 12 10:27:08 2026
-Start Record command : Success
-
-Thu Mar 12 10:27:14 2026
-Reset FPGA Command (req)
-
-Thu Mar 12 10:27:14 2026
-Reset FPGA command : Success
-
-Thu Mar 12 10:27:14 2026
-Return status : 0
-
-Thu Mar 12 10:27:25 2026
-Reset FPGA Command (req)
-
-Thu Mar 12 10:27:25 2026
-Reset FPGA command : Success
-
-Thu Mar 12 10:27:25 2026
-Return status : 0
-
-Thu Mar 12 10:27:25 2026
-FPGA Configuration Command (req)
-
-Thu Mar 12 10:27:25 2026
-FPGA Configuration command : Success
-
-Thu Mar 12 10:27:25 2026
-Return status : 0
-
-Thu Mar 12 10:27:25 2026
-Configure Record Command (req)
-
-Thu Mar 12 10:27:25 2026
-Configure Record command : Success
-
-Thu Mar 12 10:27:25 2026
-Return status : 0
-
-Thu Mar 12 10:27:25 2026
-Start Record Command (req)
-
-Thu Mar 12 10:27:25 2026
-Start Record Command (req)
-
-Thu Mar 12 10:27:26 2026
-Start Record command : Success
-
-Thu Mar 12 10:27:26 2026
-Return status : 0
-
-Thu Mar 12 10:27:26 2026
-Start Record command : Success
-
-Thu Mar 12 10:27:30 2026
-Reset FPGA Command (req)
-
-Thu Mar 12 10:27:30 2026
-Reset FPGA command : Success
-
-Thu Mar 12 10:27:30 2026
-Return status : 0
-
-Thu Mar 12 16:09:48 2026
-Reset FPGA Command (req)
-
-Thu Mar 12 16:09:48 2026
-Reset FPGA command : Success
-
-Thu Mar 12 16:09:48 2026
-Return status : 0
-
-Thu Mar 12 16:09:48 2026
-FPGA Configuration Command (req)
-
-Thu Mar 12 16:09:48 2026
-FPGA Configuration command : Success
-
-Thu Mar 12 16:09:48 2026
-Return status : 0
-
-Thu Mar 12 16:09:49 2026
-Configure Record Command (req)
-
-Thu Mar 12 16:09:49 2026
-Configure Record command : Success
-
-Thu Mar 12 16:09:49 2026
-Return status : 0
-
-Thu Mar 12 16:09:49 2026
-Start Record Command (req)
-
-Thu Mar 12 16:09:49 2026
-Start Record Command (req)
-
-Thu Mar 12 16:09:50 2026
-Start Record command : Success
-
-Thu Mar 12 16:09:50 2026
-Return status : 0
-
-Thu Mar 12 16:09:50 2026
-Start Record command : Success
-
-Thu Mar 12 16:11:00 2026
-Reset FPGA Command (req)
-
-Thu Mar 12 16:11:00 2026
-Reset FPGA command : Success
-
-Thu Mar 12 16:11:00 2026
-Return status : 0
-
-Thu Mar 12 16:24:04 2026
-Reset FPGA Command (req)
-
-Thu Mar 12 16:24:04 2026
-Reset FPGA command : Success
-
-Thu Mar 12 16:24:04 2026
-Return status : 0
-
-Thu Mar 12 16:24:05 2026
-FPGA Configuration Command (req)
-
-Thu Mar 12 16:24:05 2026
-FPGA Configuration command : Success
-
-Thu Mar 12 16:24:05 2026
-Return status : 0
-
-Thu Mar 12 16:24:06 2026
-Configure Record Command (req)
-
-Thu Mar 12 16:24:06 2026
-Configure Record command : Success
-
-Thu Mar 12 16:24:06 2026
-Return status : 0
-
-Thu Mar 12 16:24:06 2026
-Start Record Command (req)
-
-Thu Mar 12 16:24:07 2026
-Start Record Command (req)
-
-Thu Mar 12 16:24:07 2026
-Start Record command : Success
-
-Thu Mar 12 16:24:07 2026
-Return status : 0
-
-Thu Mar 12 16:24:08 2026
-Start Record command : Success
-
-Thu Mar 12 16:25:01 2026
-Reset FPGA Command (req)
-
-Thu Mar 12 16:25:01 2026
-Reset FPGA command : Success
-
-Thu Mar 12 16:25:01 2026
-Return status : 0
-
-Thu Mar 12 16:25:01 2026
-FPGA Configuration Command (req)
-
-Thu Mar 12 16:25:01 2026
-FPGA Configuration command : Success
-
-Thu Mar 12 16:25:01 2026
-Return status : 0
-
-Thu Mar 12 16:25:01 2026
-Configure Record Command (req)
-
-Thu Mar 12 16:25:01 2026
-Configure Record command : Success
-
-Thu Mar 12 16:25:01 2026
-Return status : 0
-
-Thu Mar 12 16:25:01 2026
-Start Record Command (req)
-
-Thu Mar 12 16:25:02 2026
-Ethernet connection (req)
-
-Thu Mar 12 16:25:02 2026
-Ethernet connection failed. [error -4051]
-
-Thu Mar 12 16:25:09 2026
-Start Record command : Timeout Error! Couldnt read the record process status. [error 4071]
-
-Thu Mar 12 16:25:10 2026
-Reset FPGA Command (req)
-
-Thu Mar 12 16:25:10 2026
-Reset FPGA command : Success
-
-Thu Mar 12 16:25:10 2026
-Return status : 0
-
-Thu Mar 12 16:25:10 2026
-FPGA Configuration Command (req)
-
-Thu Mar 12 16:25:10 2026
-FPGA Configuration command : Success
-
-Thu Mar 12 16:25:10 2026
-Return status : 0
-
-Thu Mar 12 16:25:10 2026
-Configure Record Command (req)
-
-Thu Mar 12 16:25:10 2026
-Configure Record command : Success
-
-Thu Mar 12 16:25:10 2026
-Return status : 0
-
-Thu Mar 12 16:25:10 2026
-Start Record Command (req)
-
-Thu Mar 12 16:25:11 2026
-Ethernet connection (req)
-
-Thu Mar 12 16:25:11 2026
-Ethernet connection failed. [error -4051]
-
-Thu Mar 12 16:25:18 2026
-Start Record command : Timeout Error! Couldnt read the record process status. [error 4071]
-
-Thu Mar 12 16:25:20 2026
-Reset FPGA Command (req)
-
-Thu Mar 12 16:25:20 2026
-Reset FPGA command : Success
-
-Thu Mar 12 16:25:20 2026
-Return status : 0
-
-Thu Mar 12 16:25:20 2026
-FPGA Configuration Command (req)
-
-Thu Mar 12 16:25:20 2026
-FPGA Configuration command : Success
-
-Thu Mar 12 16:25:20 2026
-Return status : 0
-
-Thu Mar 12 16:25:20 2026
-Configure Record Command (req)
-
-Thu Mar 12 16:25:20 2026
-Configure Record command : Success
-
-Thu Mar 12 16:25:20 2026
-Return status : 0
-
-Thu Mar 12 16:25:20 2026
-Start Record Command (req)
-
-Thu Mar 12 16:25:21 2026
-Ethernet connection (req)
-
-Thu Mar 12 16:25:21 2026
-Ethernet connection failed. [error -4051]
-
-Thu Mar 12 16:25:28 2026
-Start Record command : Timeout Error! Couldnt read the record process status. [error 4071]
-
-Thu Mar 12 16:27:19 2026
-Reset FPGA Command (req)
-
-Thu Mar 12 16:27:19 2026
-Reset FPGA command : Success
-
-Thu Mar 12 16:27:19 2026
-Return status : 0
-
-Thu Mar 12 16:27:29 2026
-Reset FPGA Command (req)
-
-Thu Mar 12 16:27:29 2026
-Reset FPGA command : Success
-
-Thu Mar 12 16:27:29 2026
-Return status : 0
-
-Thu Mar 12 16:27:29 2026
-FPGA Configuration Command (req)
-
-Thu Mar 12 16:27:29 2026
-FPGA Configuration command : Success
-
-Thu Mar 12 16:27:29 2026
-Return status : 0
-
-Thu Mar 12 16:27:29 2026
-Configure Record Command (req)
-
-Thu Mar 12 16:27:29 2026
-Configure Record command : Success
-
-Thu Mar 12 16:27:29 2026
-Return status : 0
-
-Thu Mar 12 16:27:29 2026
-Start Record Command (req)
-
-Thu Mar 12 16:27:30 2026
-Start Record Command (req)
-
-Thu Mar 12 16:27:30 2026
-Start Record command : Success
-
-Thu Mar 12 16:27:30 2026
-Return status : 0
-
-Thu Mar 12 16:27:30 2026
-Start Record command : Success
-
-Thu Mar 12 16:27:59 2026
-Reset FPGA Command (req)
-
-Thu Mar 12 16:27:59 2026
-Reset FPGA command : Success
-
-Thu Mar 12 16:27:59 2026
+Fri Mar 20 15:01:17 2026
 Return status : 0

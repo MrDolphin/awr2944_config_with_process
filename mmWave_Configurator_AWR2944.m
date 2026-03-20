@@ -1,14 +1,6 @@
 function mmWave_Configurator_AWR2944
 % mmWave雷达参数配置工具 - 专为TI AWR2944P优化
 % 新增Telnet网络连接功能和实时数据处理可视化
-% addpath(genpath('function'));
-
-% 1. 获取当前主脚本所在的完整绝对路径
-current_folder = fileparts(mfilename('fullpath'));
-
-% 2. 将该文件夹及其所有子文件夹添加到 MATLAB 搜索路径中
-addpath(genpath(fullfile(current_folder, 'function')));
-addpath(genpath(fullfile(current_folder, 'PostProc')));
 
 % 创建主窗口
 hFig = figure('Name', 'TI AWR2944 毫米波雷达配置工具', ...
@@ -442,8 +434,12 @@ guidata(hFig, guiData);
         xlabel(guiData.ax4, 'X (m)');
         ylabel(guiData.ax4, 'Y (m)');
         grid(guiData.ax4, 'on');
-        xlim(guiData.ax4, [-3, 3]);
         ylim(guiData.ax4, [0, 5]);
+        
+        % 新增：创建一个文本对象用于显示厘米坐标
+        guiData.targetCoordText = text(guiData.ax4, 0, 0, '', ...
+            'Color', [0.8, 0.2, 0.2], 'FontWeight', 'bold', 'FontSize', 10, ...
+            'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom');
         
         % 添加状态显示
         guiData.displayStatus = uicontrol('Parent', displayPanel, 'Style', 'text', ...
@@ -506,7 +502,6 @@ function toggleRealTimeProcessing(~, ~)
             end
 
             guiData.config = load_config_from_gui(guiData);
-
             %% 数据加载
             % 获取当前m文件所在目录
             currentFilePath = mfilename('fullpath');
@@ -514,7 +509,6 @@ function toggleRealTimeProcessing(~, ~)
             
             % 构建PostProc子目录的完整路径
             addr = fullfile(fileDir, 'PostProc');
-
             %addr = 'C:\PostProc';
             cd(addr);
             system('DCA1000EVM_CLI_Control.exe reset_fpga cf.json')
@@ -567,7 +561,7 @@ function toggleRealTimeProcessing(~, ~)
             addDebugMessage(guiData, '启动处理定时器...');
 
             guiData.processingTimer = timer('ExecutionMode', 'fixedRate', ...
-                'Period', 0.2, ...  % 200ms处理一帧
+                'Period', 0.05, ...  % 从 200ms 优化为 50ms 处理一帧
                 'TimerFcn', @processOneFrame, ...
                 'ErrorFcn', @(hObj, eventData) timerErrorCallback(hObj, eventData, guiData), ...
                 'StopFcn', @(hObj, ~) timerStopCallback(hObj, guiData), ...
@@ -733,12 +727,21 @@ end
     % 获取最新的guiData
     guiData = guidata(hFig);
     
-     addDebugMessage(guiData, 'processOneFrame');
+    addDebugMessage(guiData, 'processOneFrame');
 
     % 检查处理状态
     if ~guiData.isProcessing || guiData.processing_stopped || isempty(guiData.udpReceiver)
         return;
     end
+
+    % 检查是否达到最大帧数
+    if guiData.currentFrame >= guiData.maxFrames
+        toggleRealTimeProcessing([], []);
+        return;
+    end
+    
+    % 增加帧计数
+    guiData.currentFrame = guiData.currentFrame + 1;
 
     % 检查配置是否有效，如果无效则尝试重新加载
     if ~isfield(guiData, 'config') || isempty(guiData.config)
@@ -792,7 +795,7 @@ end
           
 
             if mod(packet_count, 10) == 0
-            fprintf('接收了 %d 个数据包，当前rx0_idx=%d\n', packet_count, rx0_idx);
+            %fprintf('接收了 %d 个数据包，当前rx0_idx=%d\n', packet_count, rx0_idx);
             end
 
             
@@ -1029,7 +1032,7 @@ end
     guidata(hFig, guiData);
     end
 
-    function updateDisplay(guiData, frame_idx, range_azimuth, peaks, radar_cube, doppler_spectrum, ranges_m, azimuths_rad)
+function updateDisplay(guiData, frame_idx, range_azimuth, peaks, radar_cube, doppler_spectrum, ranges_m, azimuths_rad)
     % 更新显示页签中的4个图
     
     % 检查是否有足够的配置信息
@@ -1102,50 +1105,113 @@ end
         end
     end
     
-    % 第四子图：跟踪结果
+    % 第四子图：跟踪结果（带轨迹显示）
     if isfield(guiData.inst, 'target') && ~isempty(guiData.inst.target)
-        hold(guiData.ax4, 'off');
         
-        x_pos = [];
-        y_pos = [];
-        ids = [];
+        % 获取当前帧的目标位置
+        current_x = [];
+        current_y = [];
+        current_ids = [];
         
         for i = 1:length(guiData.inst.target)
             target = guiData.inst.target(i);
             if isfield(target, 'S_hat') && ~isempty(target.S_hat) && length(target.S_hat) >= 2
-                x_pos = [x_pos; target.S_hat(1)];
-                y_pos = [y_pos; target.S_hat(2)];
-                ids = [ids; target.trackID];
+                current_x = [current_x; target.S_hat(1)];
+                current_y = [current_y; target.S_hat(2)];
+                current_ids = [current_ids; target.trackID];
             end
         end
         
-        if ~isempty(x_pos)
-            % 绘制当前帧的目标点
-            scatter(guiData.ax4, x_pos, y_pos, 100, 'r', 'filled');
+        % 初始化或更新轨迹历史
+        persistent history_positions history_frames
+        if isempty(history_positions)
+            history_positions = [];  % [x, y, trackID, frame]
+            history_frames = 0;
+        end
+        
+        % 添加当前帧的位置到历史
+        if ~isempty(current_x)
+            new_history = [current_x, current_y, current_ids, ...
+                          repmat(frame_idx, length(current_x), 1)];
+            history_positions = [history_positions; new_history];
+            history_frames = history_frames + 1;
+        end
+        
+        % 清理超过100帧的历史数据
+        if ~isempty(history_positions)
+            valid_idx = history_positions(:, 4) > frame_idx - 100;
+            history_positions = history_positions(valid_idx, :);
+        end
+        
+        % 绘制
+        cla(guiData.ax4);
+        hold(guiData.ax4, 'on');
+        
+        % 绘制历史轨迹（灰色点，不同透明度表示时间远近）
+        if ~isempty(history_positions)
+            % 计算每个历史点的年龄（帧数差）
+            ages = frame_idx - history_positions(:, 4);
+            % 根据年龄设置透明度（越新的点越亮）
+            alphas = 0.2 + 0.6 * (1 - ages / 100);  % 透明度范围0.2-0.8
+            alphas = max(0.1, min(0.8, alphas));    % 限制范围
+            
+            % 批量绘制所有历史点（使用循环可以更好控制透明度，但这里为了效率使用scatter）
+            for age_level = 0:10:90
+                mask = ages >= age_level & ages < age_level + 10;
+                if any(mask)
+                    alpha_val = 0.2 + 0.6 * (1 - age_level / 100);
+                    scatter(guiData.ax4, history_positions(mask, 1), ...
+                            history_positions(mask, 2), 30, ...
+                            'MarkerFaceColor', [0.5 0.5 0.5], ...
+                            'MarkerEdgeColor', 'none', ...
+                            'MarkerFaceAlpha', alpha_val);
+                end
+            end
+        end
+        
+        % 绘制当前帧的目标点（红色实心圆）
+        if ~isempty(current_x)
+            scatter(guiData.ax4, current_x, current_y, 100, 'r', 'filled');
             
             % 添加ID标签
-            for i = 1:length(x_pos)
-                text(guiData.ax4, x_pos(i), y_pos(i) + 0.15, sprintf('ID:%d y:%.1f cm', ids(i),y_pos(i)*100), ...
-                    'FontSize', 9, 'FontWeight', 'bold', ...
-                    'HorizontalAlignment', 'center', ...
-                    'BackgroundColor', 'w', 'EdgeColor', 'k');
+            % 添加ID和坐标文本 (cm)
+            for i = 1:length(current_x)
+                x_cm = current_x(i) * 100;
+                y_cm = current_y(i) * 100;
+                text(guiData.ax4, current_x(i), current_y(i) + 0.45, ...
+                     sprintf('ID:%d (%.0f, %.0f)cm', current_ids(i), x_cm, y_cm), ...
+                     'FontSize', 9, 'FontWeight', 'bold', ...
+                     'HorizontalAlignment', 'center', ...
+                     'BackgroundColor', 'w', 'EdgeColor', 'k');
             end
             
-            title(guiData.ax4, sprintf('Tracked Targets: %d', length(x_pos)));
+            title(guiData.ax4, sprintf('Tracked Targets: %d (History: %d)', ...
+                  length(current_x), size(history_positions, 1)));
         else
-            title(guiData.ax4, 'Tracked Targets: 0');
+            title(guiData.ax4, sprintf('Tracked Targets: 0 (History: %d)', ...
+                  size(history_positions, 1)));
         end
         
         xlabel(guiData.ax4, 'X (m)');
         ylabel(guiData.ax4, 'Y (m)');
-        fprintf('当前距离x= %d ，y=%d\n', x_pos(i), y_pos(i)+ 0.15);
+        grid(guiData.ax4, 'on');
+        xlim(guiData.ax4, [-3, 3]);
+        ylim(guiData.ax4, [0, 5]);
+        hold(guiData.ax4, 'off');
+    else
+        % 如果没有目标，至少清除并显示空图
+        cla(guiData.ax4);
+        title(guiData.ax4, 'Tracked Targets: 0');
+        xlabel(guiData.ax4, 'X (m)');
+        ylabel(guiData.ax4, 'Y (m)');
         grid(guiData.ax4, 'on');
         xlim(guiData.ax4, [-3, 3]);
         ylim(guiData.ax4, [0, 5]);
     end
     
-    drawnow;
-    end
+    drawnow limitrate;  % 使用limitrate避免过度刷新
+end
+ 
 
     % 以下是原有的辅助函数，保持不变
     function ports = getAvailableCOM()
@@ -1747,7 +1813,7 @@ end
         rangeResolution = 3e8 / (2 * freqSlope * 1e12 * samplesPerChirp);
         maxRange = 3e8 * sampleRate * 1e3 / (2 * freqSlope * 1e12);
         chirpDuration = (idleTime + rampEndTime) * 1e-6;
-        maxVelocity = 3e8 / (4 * startFreq * 1e9 * chirpDuration * chirpsPerFrame);
+        maxVelocity = 3e8 / (4 * startFreq * 1e9 * chirpDuration);
         velocityResolution = 3e8 / (2 * startFreq * 1e9 * chirpsPerFrame * chirpDuration);
         
         % 将所有参数转换为整数
