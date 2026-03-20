@@ -19,7 +19,7 @@
       "DCA1000DataPort": 4098
     },
     "captureConfig": {
-      "fileBasePath": "D:\\hp-laptop\\USV\\project_1\\awr2944_config_with_process\\PostProc",
+      "fileBasePath": ".",
       "filePrefix": "adc_data",
       "maxRecFileSize_MB": 1024,
       "sequenceNumberEnable": 1,

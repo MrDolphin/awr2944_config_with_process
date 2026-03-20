@@ -30,15 +30,15 @@ inst.target = [];            % 目标结构体数组
 %--------------------------------------------------------------------------
 % 门限参数（数据关联）
 %--------------------------------------------------------------------------
-inst.gatingParams.limits = [3 2 0];  % 门限限制 [长度, 宽度, 速度]
-inst.gatingParams.volume = 8;        % 门限体积系数
+inst.gatingParams.limits = [5 4 0];  % 调大门限限制 [长度, 宽度, 速度]，适应运动目标
+inst.gatingParams.volume = 15;        % 增大门限体积系数，提高关联容忍度
 
 %--------------------------------------------------------------------------
 % 分配量测参数（新目标初始化）
 %--------------------------------------------------------------------------
 inst.allocationParams.maxVelThre = 0.5; % 速度阈值，适应人体移动
 inst.allocationParams.maxDistanceThre = 0.5; % 距离阈值，避免目标合并
-inst.allocationParams.pointsThre = 5; % 点云数量阈值，控制目标初始化难度
+inst.allocationParams.pointsThre = 2; % 降低点云数量阈值（原为5），使侧身等微弱反射也能初始化目标
 inst.allocationParams.velThre = 0.2; % 速度阈值，用于目标分配
 
 %--------------------------------------------------------------------------
@@ -62,8 +62,8 @@ inst.stateParams.detection = 1;       % 检测状态
 inst.stateParams.active = 2;          % 活跃状态
 inst.stateParams.free = 3;            % 空闲状态
 inst.stateParams.det2actThre = 1;     % 检测到活跃的阈值
-inst.stateParams.act2freeThre = 3;    % 活跃到空闲的阈值
-inst.stateParams.det2freeThre = 2;    % 检测到空闲的阈值
+inst.stateParams.act2freeThre = 20;    % 大幅增加活跃到空闲的阈值（原为3），防止目标短暂遮挡或闪烁时轨迹消失
+inst.stateParams.det2freeThre = 10;    % 增加检测到空闲的阈值
 
 %--------------------------------------------------------------------------
 % EKF（扩展卡尔曼滤波）参数
