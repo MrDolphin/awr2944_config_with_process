@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>海洋无人船雷达追踪终端</title>
+    <style>
+        body {
+            margin: 0; padding: 0; background-color: #080c14; color: #00ffcc;
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+            display: flex; flex-direction: column; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+        .header {
+            width: 100%; padding: 15px 20px; box-sizing: border-box;
+            background: linear-gradient(180deg, #101826 0%, #080c14 100%);
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid #005f5f; z-index: 10;
+        }
+        .logo { font-size: 20px; font-weight: 700; letter-spacing: 2px; }
+        .status-panel { display: flex; align-items: center; gap: 15px; }
+        input, button {
+            background-color: #162438; border: 1px solid #00ffcc;
+            color: #fff; padding: 8px 12px; border-radius: 4px; outline: none;
+        }
+        button { cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button:hover { background-color: #00ffcc; color: #000; }
+        .status-dot { width: 12px; height: 12px; border-radius: 50%; background-color: #ff3333; }
+        .connected { background-color: #00ff00; box-shadow: 0 0 10px #00ff00; }
+        
+        .radar-container {
+            position: relative; flex: 1; width: 100%; display: flex;
+            justify-content: center; align-items: center; padding: 10px; box-sizing: border-box;
+        }
+        
+        canvas {
+            background: radial-gradient(circle at 50% 100%, #152c38 0%, #060a10 100%);
+            border-radius: 8px 8px 0 0; border: 2px solid #005f5f;
+            border-bottom: 4px solid #00ffcc;
+            max-width: 100%; max-height: 100%;
+        }
+
+        .hud-overlay { position: absolute; top: 30px; left: 30px; pointer-events: none; }
+        .hud-box {
+            background: rgba(0, 30, 30, 0.7); border-left: 3px solid #00ffcc;
+            padding: 10px; margin-bottom: 10px; font-size: 13px; text-shadow: 1px 1px 2px #000;
+        }
+        .value { font-size: 18px; font-weight: bold; color: #fff; }
+        .boat-text { color: #ffaa00; font-weight: bold;}
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="logo">🌊 USV 海洋雷达跟踪中枢</div>
+        <div class="status-panel">
+            <input type="text" id="wsInput" value="ws://192.168.33.1:8765" placeholder="ws://树莓派IP:8765" />
+            <button id="connectBtn">连接卫星</button>
+            <div id="statusIndicator" class="status-dot"></div>
+        </div>
+    </div>
+
+    <div class="radar-container">
+        <canvas id="radarCanvas" width="800" height="600"></canvas>
+        <div class="hud-overlay">
+            <div class="hud-box">
+                <div>网络延迟 / 帧率</div>
+                <div class="value" id="frameDisplay">DISCONNECTED</div>
+            </div>
+            <div class="hud-box" style="border-color: rgba(0,255,100,0.4); color: rgba(0,255,100,0.6);">
+                <div>原始反光点云 (降噪过滤)</div>
+                <div class="value" id="pointsDisplay">0</div>
+            </div>
+            <div class="hud-box" style="border-color: #ffaa00; color: #ffaa00;">
+                <div>锁定船只目标 (Tracker)</div>
+                <div class="value" id="targetsDisplay">0</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('radarCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 雷达探测范围配置 (米)
+        const MAX_RANGE_Y = 15; // 纵向最大 15米，根据实测您可以改成 300
+        const MAX_RANGE_X = 10; // 横向总计 20米 (-10 到 10)
+        
+        let ws = null;
+        let lastFrameTime = performance.now();
+
+        // 简易 DBSCAN 和多目标跟踪航迹类 (Software Tracker)
+        class TargetTracker {
+            constructor() {
+                this.boats = []; 
+                this.nextId = 1;
+                this.maxUnseenFrames = 60; // 断线容忍保持在优异的 3秒 级
+                this.globalTrails = {}; // 【核心修复】改为键值对，独立记录每一艘历史船只的连贯航线！
+            }
+
+            processPoints(points) {
+                // 【核心修复1：室内测试剔除死物鬼影】
+                // 现在 Python 后端输出了无损精度，静止的墙壁多普勒趋近于 0，走动的活人一般在 0.1~2.0。
+                // 加上 > 0.05 的极轻微速度过滤，直接让空房间里那些定死不动的 3 个椅子/墙壁分身原地蒸发！
+                let validPoints = points.filter(p => p.y >= 0.0 && Math.abs(p.v) > 0.05); 
+                
+                let clusters = [];
+                validPoints.forEach(p => {
+                    let clustered = false;
+                    for (let c of clusters) {
+                        // [多径抑制副作用修复]：之前用 3.5 米导致整个 5x5 房间的镜像分身都和本尊合并了！
+                        // 这直接导致加权中心点（Centroid）死死定在房间中央，看起来移动只有几十厘米！
+                        // 🚢 现已调回常规船体/人体的抓取半径 1.2 米，您的超长真实绕圈轨迹将完美解封！
+                        if (c.points.some(cp => Math.hypot(cp.x - p.x, cp.y - p.y) < 1.2)) {
+                            c.points.push(p);
+                            clustered = true; break;
+                        }
+                    }
+                    if (!clustered) clusters.push({points: [p]});
+                });
+
+                // 【核心修复2：成团门槛放宽】
+                // 室内信号衰减大，强行要求 3 个点会导致人类本身被丢弃，退回 2 点成团
+                let detectedCentroids = clusters
+                    .filter(c => c.points.length >= 2) 
+                    .map(c => {
+                        let sx = 0, sy = 0, sv = 0;
+                        c.points.forEach(p => {sx += p.x; sy += p.y; sv += Math.abs(p.v)});
+                        let count = c.points.length;
+                        return { x: sx/count, y: sy/count, v: sv/count };
+                    });
+
+                this.boats.forEach(b => b.matched = false);
+                
+                detectedCentroids.forEach(det => {
+                    let bestBoat = null;
+                    let minDist = 4.0; // 宽容的跟踪跳变门限
+                    
+                    this.boats.forEach(b => {
+                        if (b.matched) return;
+                        let d = Math.hypot(b.x - det.x, b.y - det.y);
+                        if (d < minDist) { minDist = d; bestBoat = b; }
+                    });
+
+                    if (bestBoat) {
+                        let dx = det.x - bestBoat.x;
+                        let dy = det.y - bestBoat.y;
+                        let dist = Math.hypot(dx, dy);
+
+                        if (dist > 0.01) {
+                            bestBoat.vx = 0.8 * bestBoat.vx + 0.2 * (dx / dist) * det.v;
+                            bestBoat.vy = 0.8 * bestBoat.vy + 0.2 * (dy / dist) * det.v;
+                        }
+
+                        bestBoat.x = 0.85 * bestBoat.x + 0.15 * det.x;
+                        bestBoat.y = 0.85 * bestBoat.y + 0.15 * det.y;
+                        
+                        bestBoat.unseen = 0;
+                        bestBoat.matched = true;
+                        
+                        // 【连绵不断的历史实线】：记录进入对应 ID 的航线字典中
+                        if (!this.globalTrails[bestBoat.id]) this.globalTrails[bestBoat.id] = [];
+                        this.globalTrails[bestBoat.id].push({x: bestBoat.x, y: bestBoat.y});
+                        if(this.globalTrails[bestBoat.id].length > 1000) this.globalTrails[bestBoat.id].shift();
+                        
+                    } else {
+                        let newBoat = {
+                            id: this.nextId++,
+                            x: det.x, y: det.y,
+                            vx: 0, vy: 0,
+                            unseen: 0, matched: true
+                        };
+                        this.boats.push(newBoat);
+                        this.globalTrails[newBoat.id] = [{x: newBoat.x, y: newBoat.y}];
+                    }
+                });
+
+                this.boats.forEach(b => { if (!b.matched) b.unseen++; });
+                this.boats = this.boats.filter(b => b.unseen < this.maxUnseenFrames);
+            }
+        }
+
+        const tracker = new TargetTracker();
+
+        function mapToCanvas(x_m, y_m) {
+            const cx = canvas.width / 2;
+            const cy = canvas.height;
+            return {
+                px: cx + (x_m / MAX_RANGE_X) * cx,
+                py: cy - (y_m / MAX_RANGE_Y) * cy
+            };
+        }
+
+        function drawGrid() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const cx = canvas.width / 2, cy = canvas.height;
+            
+            ctx.strokeStyle = 'rgba(0, 255, 204, 0.15)';
+            ctx.lineWidth = 1;
+            
+            // 半圆
+            for (let i = 1; i <= 5; i++) {
+                const r = (cy / 5) * i;
+                ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, 0); ctx.stroke();
+                ctx.fillStyle = 'rgba(0, 255, 204, 0.4)'; ctx.font = '10px Arial';
+                ctx.fillText((MAX_RANGE_Y / 5 * i).toFixed(1) + 'm', cx + 5, cy - r + 15);
+            }
+            
+            // 扇形线
+            [-60, -30, 0, 30, 60].forEach(deg => {
+                const rad = (90 - deg) * (Math.PI / 180);
+                ctx.beginPath(); ctx.moveTo(cx, cy);
+                ctx.lineTo(cx - canvas.height * Math.cos(rad), cy - canvas.height * Math.sin(rad));
+                ctx.stroke();
+            });
+            
+            ctx.fillStyle = '#00ffcc';
+            ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // 画一艘带转向的船形 SVG
+        function drawBoat(px, py, vx, vy) {
+            ctx.save();
+            ctx.translate(px, py);
+            // 算物理朝向角（如果静止，朝上）
+            let heading = (vx === 0 && vy === 0) ? -Math.PI/2 : Math.atan2(-vy, vx);
+            // 旋转到船头朝向
+            ctx.rotate(heading);
+            
+            // 绘制尖头船图形 (长16宽10)
+            ctx.beginPath();
+            ctx.moveTo(10, 0); // 船头尖尖
+            ctx.lineTo(-6, 5); // 左后
+            ctx.lineTo(-4, 0); // 尾部挖空
+            ctx.lineTo(-6, -5); // 右后
+            ctx.closePath();
+            
+            ctx.fillStyle = '#ffaa00';
+            ctx.shadowColor = '#ffaa00';
+            ctx.shadowBlur = 10;
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            
+            ctx.restore();
+        }
+
+        function renderRadarFrame(data) {
+            // [重磅退回：手写 JS Tracker] 
+            // 震惊！硬件发出来的 Type 7 根本不是真目标！是驻留区报警！所以用回我给您写好的完美软件 JS Tracker！
+            tracker.processPoints(data.points);
+            drawGrid(); 
+
+            // 1. 点云大幅度弱化：防干扰背景
+            ctx.fillStyle = 'rgba(0, 255, 100, 0.15)'; 
+            data.points.forEach(pt => {
+                const {px, py} = mapToCanvas(pt.x, pt.y);
+                if(px > 0 && px < canvas.width && py > 0) ctx.fillRect(px-1, py-1, 2, 2);
+            });
+
+            // 2. 将所有历史点云升级为【实心连贯航向线】！！！
+            // 分别遍历曾经出没过的每一个独立船只 ID 的航路字典
+            Object.values(tracker.globalTrails).forEach(pathArray => {
+                if(pathArray.length < 2) return;
+                ctx.beginPath();
+                for(let i=0; i<pathArray.length; i++) {
+                    const tp = mapToCanvas(pathArray[i].x, pathArray[i].y);
+                    if(i===0) ctx.moveTo(tp.px, tp.py);
+                    else ctx.lineTo(tp.px, tp.py);
+                }
+                ctx.strokeStyle = 'rgba(255, 170, 0, 0.4)';  
+                ctx.lineWidth = 2.5; 
+                ctx.stroke();
+            });
+
+            // 3. 画出真正的活动战舰实体
+            tracker.boats.forEach(boat => {
+                const {px, py} = mapToCanvas(boat.x, boat.y);
+
+                // 画雷达真目标图形！
+                drawBoat(px, py, boat.vx, boat.vy);
+
+                // 文字标牌
+                const dist = Math.hypot(boat.x, boat.y).toFixed(1);
+                const speed = Math.hypot(boat.vx, boat.vy).toFixed(1); 
+                
+                ctx.fillStyle = '#fff'; ctx.shadowBlur = 4; ctx.shadowColor = '#000';
+                ctx.font = '12px Tahoma';
+                ctx.fillText(`本舰 [${boat.id}]`, px - 15, py - 25);
+                ctx.fillStyle = '#ffaa00';
+                ctx.fillText(`L:${dist}m S:${speed}m/s`, px - 25, py - 10);
+                ctx.shadowBlur = 0;
+            });
+
+            // UI 数字更新
+            const now = performance.now();
+            let fps = 1000 / (now - lastFrameTime);
+            lastFrameTime = now;
+            
+            document.getElementById('frameDisplay').innerText = `#${data.frame_num} (${fps.toFixed(0)}Hz)`;
+            document.getElementById('pointsDisplay').innerText = data.points.length;
+            document.getElementById('targetsDisplay').innerText = tracker.boats.length;
+        }
+
+        // WS 通信防断线机制
+        document.getElementById('connectBtn').addEventListener('click', () => {
+            const url = document.getElementById('wsInput').value;
+            const btn = document.getElementById('connectBtn');
+            const indicator = document.getElementById('statusIndicator');
+
+            if (ws && ws.readyState === WebSocket.OPEN) { ws.close(); return; }
+
+            btn.innerText = '拉取雷达...';
+            ws = new WebSocket(url);
+
+            ws.onopen = () => {
+                btn.innerText = '断开追踪'; btn.style.backgroundColor = '#ff3333';
+                indicator.classList.add('connected');
+            };
+            ws.onmessage = (event) => { renderRadarFrame(JSON.parse(event.data)); };
+            ws.onclose = () => {
+                btn.innerText = '连接卫星'; btn.style.backgroundColor = '';
+                indicator.classList.remove('connected');
+                document.getElementById('frameDisplay').innerText = 'OFFLINE';
+            };
+            ws.onerror = (err) => { console.error(err); alert("连接雷达服务失败"); };
+        });
+
+        window.addEventListener('resize', drawGrid);
+        drawGrid();
+
+    </script>
+</body>
+</html>
