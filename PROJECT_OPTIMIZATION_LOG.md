@@ -53,6 +53,9 @@
 *   **全自动化脚本**：由 AI 编写了多套用于 MATLAB 自动交互的脚本，极大缩短了“重启-配置-发送-观察”的耗时。
 
 ---
+> **End of Log** - *Last Updated: 2026-03-21*
+> **Version**: 1.1 Optimized-Alpha
+
 
 ## 🚣‍♀️ 第四阶段：从室内模型到外场实战的架构大重构 (v2.0 Architecture Transition)
 > **日期: 2026-03-23**
@@ -86,3 +89,40 @@
 
 > **End of Log** - *Last Updated: 2026-03-23*
 > **Version**: 2.0 Real-World-Ready
+
+---
+---
+
+## 🦾 第五阶段：从 PC 依赖到树莓派 4B 独立载荷的工业级部署 (RPI Edge Deployment)
+> **日期: 2026-03-25**
+> **核心目标**: 实现雷达服务器的脱机独立运行，彻底解决 SD 卡易损及网络地址漂移问题，打造“插电即用”的无人船载荷。
+
+### 1. 硬件级稳定性：USB 3.0 磁盘阵地 (Storage Migration)
+*   **挑战**：传统的 SD 卡在频繁读写雷达 binary 原始数据时极易发生分区损坏，且 I/O 延迟会导致 WebSocket 推流卡顿。
+*   **重构**：将整个 **Raspberry Pi OS Lite (64-bit)** 运行环境迁移至 **USB 3.0 固态闪存** 启动。
+*   **成果**：系统启动速度提升 2 倍，彻底杜绝了文件系统崩溃，为长时间大吞吐量雷达录制提供了物理保障。
+
+### 2. 网络基建：静态 IP 与免密管理 (Network Strategy)
+*   **问题**：DHCP 动态分配导致每次重启都要猜 IP，手机终端难以连接。
+*   **对策**：
+    1. 使用 `NetworkManager (nmcli)` 硬编码 **静态 IP 172.20.10.10**，确保在 `WLAN-DHSYS` 办公 WiFi 下永久固定。
+    2. 配置 **SSH ED25519 密钥对**。
+*   **成果**：笔记本/手机即便在代理开启的情况下也能通过直连 IP 瞬时访问，实现了 AI Agent 与树莓派的自动化指令闭环。
+
+### 3. “插拔即自启”：基于设备绑定的 systemd 逻辑 (Service Engineering)
+*   **设计原则**：雷达不插，服务不跑；雷达一插，自动起飞。
+*   **实现**：编写了专用的 `deploy/radar.service` 配置文件。
+    - **逻辑内核**：使用 `BindsTo=dev-ttyACM0.device`。系统内核一旦识别到雷达板的 USB 序列号，Systemd 会在 3 秒初始化延迟后自动拉起 `radar_server.py`。
+    - **环境隔离**：通过 `Environment` 路径映射，解决了 `pi` 用户本地 Python 依赖库的路径冲突。
+*   **现状**：实现了真正的无人值守。哪怕树莓派先开机，后插雷达，后台解析引擎也会在探测到串口的第一时间秒级响应。
+
+### 4. 仓库洁癖：.gitignore 与目录重构 (Repo Engineering)
+*   **痛点**：25MB+ 的 `.bin` 录制文件常误入 Git 缓存，导致仓库体积爆炸。
+*   **优化**：
+    1. 新增 `.gitignore`：精准拦截 `record/*.bin` 和 `matlab_exe/*.asv`。
+    2. 发布目录规范化：新增 `deploy/` 存放运维脚本，`matlab_exe/` 集中存放 GUI 备份，保持根目录清爽。
+
+---
+
+> **End of Log** - *Last Updated: 2026-03-25*
+> **Version**: 3.0 Autonomous-Deploy-Ready

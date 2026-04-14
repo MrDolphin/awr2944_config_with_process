@@ -6,7 +6,7 @@ BindsTo=dev-ttyACM0.device
 [Service]
 # 等待3秒确保USB串口设备完全就绪后再启动
 ExecStartPre=/bin/sleep 3
-ExecStart=/usr/bin/python3 /home/pi/radar_server.py --cfg_port /dev/ttyACM0 --data_port /dev/ttyACM1 --cfg_file /home/pi/profile-2944.cfg --ws_port 8765
+ExecStart=/usr/bin/python3 /home/pi/radar_server.py
 WorkingDirectory=/home/pi
 User=pi
 # 确保用户本地pip包（websockets等）可被找到
