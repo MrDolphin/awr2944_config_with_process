@@ -1,0 +1,819 @@
+---
+
+# 一、通信协议草案（V0.1）
+
+这里分成两层：
+
+* **层 1：雷达端 → 树莓派内部链路协议**
+* **层 2：树莓派 → 前端终端协议**
+
+建议：
+
+* 雷达到树莓派：**二进制协议**
+* 树莓派到前端：**JSON over WebSocket**
+
+这样兼顾性能和开发效率。
+
+---
+
+## 1.1 雷达到树莓派二进制帧格式
+
+## 目标
+
+用于承载：
+ 
+* 点云
+* 目标列表
+* 状态信息
+* 配置回显
+* 可选 IMU 数据
+
+---
+
+## 1.2 数据帧总结构
+
+```text id="ozgiux"
++----------------+----------------+----------------+----------------+
+| Magic Word     | Header         | TLV Section    | CRC32          |
++----------------+----------------+----------------+----------------+
+```
+
+---
+
+## 1.3 Magic Word（帧头标识）
+
+固定 8 字节：
+
+```text id="hw4gaj"
+0x02 0x01 0x04 0x03 0x06 0x05 0x08 0x07
+```
+
+作用：
+
+* 用于同步帧边界
+* 防止粘包/半包时无法恢复
+
+---
+
+## 1.4 Header 结构
+
+建议长度固定为 40 字节。
+
+```c id="8xjz2z"
+typedef struct {
+    uint16_t version_major;      // 协议主版本
+    uint16_t version_minor;      // 协议次版本
+    uint32_t total_length;       // 整帧总长度（含CRC）
+    uint32_t frame_id;           // 帧编号
+    uint64_t timestamp_us;       // 时间戳（微秒）
+    uint16_t source_type;        // 0=radar_live, 1=replay, 2=test
+    uint16_t mode_type;          // 0=debug, 1=land, 2=sea
+    uint16_t tlv_count;          // TLV数量
+    uint16_t reserved0;          // 保留
+    uint32_t device_status;      // 状态位
+    uint32_t reserved1;          // 保留
+    uint32_t reserved2;          // 保留
+} FrameHeader;
+```
+
+---
+
+## 1.5 TLV 结构
+
+每个数据块采用 TLV：
+
+* T = Type
+* L = Length
+* V = Value
+
+```c id="bkc7ku"
+typedef struct {
+    uint16_t type;       // TLV类型
+    uint16_t reserved;   // 对齐保留
+    uint32_t length;     // Value长度（字节）
+    // uint8_t value[length];
+} TLVHeader;
+```
+
+---
+
+## 1.6 TLV 类型定义
+
+```c id="hbbhf3"
+#define TLV_TYPE_POINT_CLOUD      0x1001
+#define TLV_TYPE_TARGET_LIST      0x1002
+#define TLV_TYPE_SIDE_INFO        0x1003
+#define TLV_TYPE_STATUS           0x1004
+#define TLV_TYPE_IMU              0x1005
+#define TLV_TYPE_CONFIG_ACK       0x1006
+#define TLV_TYPE_HEARTBEAT        0x1007
+```
+
+---
+
+## 1.7 点云 TLV 数据结构
+
+每个点建议使用 float，便于前后端统一。
+
+```c id="7f1d0g"
+typedef struct {
+    float x;
+    float y;
+    float z;
+    float doppler;
+    float snr;
+    float noise;
+} PointItem;
+```
+
+点云 TLV 的 Value：
+
+```c id="xdm76c"
+typedef struct {
+    uint32_t point_count;
+    PointItem points[];
+} PointCloudTLV;
+```
+
+---
+
+## 1.8 目标列表 TLV 数据结构
+
+```c id="8m33dc"
+typedef struct {
+    uint32_t target_id;
+    float x;
+    float y;
+    float z;
+    float vx;
+    float vy;
+    float vz;
+    float speed;
+    float heading_deg;
+    float confidence;
+} TargetItem;
+```
+
+目标列表 TLV 的 Value：
+
+```c id="83w361"
+typedef struct {
+    uint32_t target_count;
+    TargetItem targets[];
+} TargetListTLV;
+```
+
+---
+
+## 1.9 状态 TLV 数据结构
+
+```c id="ziiv1r"
+typedef struct {
+    float frame_rate;
+    float temperature;
+    float cpu_load;
+    uint32_t error_code;
+    uint32_t radar_online;
+} StatusTLV;
+```
+
+---
+
+## 1.10 IMU TLV 数据结构
+
+后续海用非常重要，建议一期协议就预留。
+
+```c id="wq5jri"
+typedef struct {
+    float roll_deg;
+    float pitch_deg;
+    float yaw_deg;
+    float gyro_x;
+    float gyro_y;
+    float gyro_z;
+    float acc_x;
+    float acc_y;
+    float acc_z;
+} ImuTLV;
+```
+
+---
+
+## 1.11 CRC
+
+帧尾 4 字节：
+
+```text id="43r34u"
+CRC32(header + all TLVs)
+```
+
+---
+
+# 二、树莓派到前端的 WebSocket JSON 协议
+
+前端不直接吃二进制，统一使用 JSON。
+
+---
+
+## 2.1 点云消息
+
+```json id="qf50ja"
+{
+  "type": "pointcloud",
+  "frame_id": 1024,
+  "timestamp_us": 1710000000123456,
+  "mode": "sea",
+  "point_count": 2,
+  "points": [
+    {"x": 1.2, "y": 2.3, "z": 0.1, "doppler": 0.4, "snr": 19.2, "noise": 1.1},
+    {"x": 2.0, "y": 1.8, "z": 0.2, "doppler": -0.1, "snr": 15.5, "noise": 1.3}
+  ]
+}
+```
+
+---
+
+## 2.2 目标列表消息
+
+```json id="un506q"
+{
+  "type": "targets",
+  "frame_id": 1024,
+  "timestamp_us": 1710000000123456,
+  "target_count": 1,
+  "targets": [
+    {
+      "id": 1,
+      "x": 4.2,
+      "y": -1.5,
+      "z": 0.0,
+      "vx": 0.2,
+      "vy": 0.0,
+      "vz": 0.0,
+      "speed": 0.2,
+      "heading_deg": 0.0,
+      "confidence": 0.93
+    }
+  ]
+}
+```
+
+---
+
+## 2.3 状态消息
+
+```json id="vyw8q2"
+{
+  "type": "status",
+  "frame_id": 1024,
+  "timestamp_us": 1710000000123456,
+  "radar_online": true,
+  "gateway_online": true,
+  "fps": 10.0,
+  "temperature": 48.2,
+  "packet_loss": 0.0,
+  "heartbeat_ok": true
+}
+```
+
+---
+
+## 2.4 心跳消息
+
+```json id="2mf3rm"
+{
+  "type": "heartbeat",
+  "timestamp_us": 1710000000123456,
+  "source": "gateway",
+  "ok": true
+}
+```
+
+---
+
+# 三、目录结构建议
+
+下面给你一版树莓派程序的建议目录结构，适合 Python 实现。
+
+```text id="topvgr"
+radar_gateway/
+├── app/
+│   ├── main.py
+│   ├── config.py
+│   ├── models/
+│   │   ├── radar_frame.py
+│   │   ├── point.py
+│   │   ├── target.py
+│   │   └── status.py
+│   ├── io/
+│   │   ├── uart_receiver.py
+│   │   ├── eth_receiver.py
+│   │   └── ring_buffer.py
+│   ├── parser/
+│   │   ├── frame_parser.py
+│   │   ├── tlv_parser.py
+│   │   └── crc.py
+│   ├── processor/
+│   │   ├── normalizer.py
+│   │   ├── filter.py
+│   │   └── mode_manager.py
+│   ├── recorder/
+│   │   ├── writer.py
+│   │   ├── reader.py
+│   │   └── replay.py
+│   ├── service/
+│   │   ├── broadcaster.py
+│   │   ├── heartbeat.py
+│   │   ├── health_monitor.py
+│   │   └── config_service.py
+│   ├── api/
+│   │   ├── websocket.py
+│   │   ├── status_api.py
+│   │   └── config_api.py
+│   └── static/
+│       └── index.html
+├── tests/
+├── logs/
+├── data/
+└── requirements.txt
+```
+
+---
+
+# 四、核心数据模型骨架
+
+---
+
+## 4.1 point.py
+
+```python id="gxz9sd"
+from dataclasses import dataclass
+
+@dataclass
+class Point:
+    x: float
+    y: float
+    z: float
+    doppler: float
+    snr: float
+    noise: float
+```
+
+---
+
+## 4.2 target.py
+
+```python id="rbeobm"
+from dataclasses import dataclass
+
+@dataclass
+class Target:
+    target_id: int
+    x: float
+    y: float
+    z: float
+    vx: float
+    vy: float
+    vz: float
+    speed: float
+    heading_deg: float
+    confidence: float
+```
+
+---
+
+## 4.3 status.py
+
+```python id="xqbijo"
+from dataclasses import dataclass
+
+@dataclass
+class SystemStatus:
+    radar_online: bool
+    gateway_online: bool
+    fps: float
+    temperature: float
+    packet_loss: float
+    heartbeat_ok: bool
+```
+
+---
+
+## 4.4 radar_frame.py
+
+```python id="055acw"
+from dataclasses import dataclass, field
+from typing import List
+from .point import Point
+from .target import Target
+from .status import SystemStatus
+
+@dataclass
+class RadarFrame:
+    frame_id: int
+    timestamp_us: int
+    source_type: int
+    mode_type: int
+    points: List[Point] = field(default_factory=list)
+    targets: List[Target] = field(default_factory=list)
+    status: SystemStatus | None = None
+    raw_meta: dict = field(default_factory=dict)
+```
+
+---
+
+# 五、环形缓冲区骨架
+
+用于串口接收字节流。
+
+```python id="nz7vk0"
+class RingBuffer:
+    def __init__(self):
+        self._buf = bytearray()
+
+    def append(self, data: bytes) -> None:
+        self._buf.extend(data)
+
+    def __len__(self) -> int:
+        return len(self._buf)
+
+    def peek(self, n: int) -> bytes:
+        return bytes(self._buf[:n])
+
+    def read(self, n: int) -> bytes:
+        data = bytes(self._buf[:n])
+        del self._buf[:n]
+        return data
+
+    def discard(self, n: int) -> None:
+        del self._buf[:n]
+
+    def find(self, magic: bytes) -> int:
+        return self._buf.find(magic)
+```
+
+---
+
+# 六、UART 接收模块骨架
+
+```python id="njx6rt"
+import serial
+import threading
+from queue import Queue
+
+class UARTReceiver(threading.Thread):
+    def __init__(self, port: str, baudrate: int, output_queue: Queue):
+        super().__init__(daemon=True)
+        self.port = port
+        self.baudrate = baudrate
+        self.output_queue = output_queue
+        self._running = True
+        self.ser = None
+
+    def connect(self):
+        self.ser = serial.Serial(self.port, self.baudrate, timeout=0.1)
+
+    def run(self):
+        self.connect()
+        while self._running:
+            if self.ser and self.ser.in_waiting:
+                data = self.ser.read(self.ser.in_waiting)
+                if data:
+                    self.output_queue.put(data)
+
+    def stop(self):
+        self._running = False
+        if self.ser:
+            self.ser.close()
+```
+
+---
+
+# 七、帧解析模块骨架
+
+这个模块负责：
+
+* 找帧头
+* 解析 Header
+* 找到所有 TLV
+* 输出 RadarFrame
+
+```python id="4u7mbc"
+import struct
+from queue import Queue
+from app.io.ring_buffer import RingBuffer
+
+MAGIC = b'\x02\x01\x04\x03\x06\x05\x08\x07'
+HEADER_LEN = 40
+CRC_LEN = 4
+
+class FrameParser:
+    def __init__(self):
+        self.buffer = RingBuffer()
+
+    def feed(self, data: bytes):
+        self.buffer.append(data)
+
+    def parse_available_frames(self):
+        frames = []
+        while True:
+            idx = self.buffer.find(MAGIC)
+            if idx < 0:
+                if len(self.buffer) > 4096:
+                    self.buffer.discard(len(self.buffer) - 1024)
+                break
+
+            if idx > 0:
+                self.buffer.discard(idx)
+
+            if len(self.buffer) < len(MAGIC) + HEADER_LEN:
+                break
+
+            raw = self.buffer.peek(len(MAGIC) + HEADER_LEN)
+            header_bin = raw[len(MAGIC):len(MAGIC)+HEADER_LEN]
+
+            header = self._parse_header(header_bin)
+            total_length = header["total_length"]
+
+            if len(self.buffer) < len(MAGIC) + total_length:
+                break
+
+            frame_data = self.buffer.read(len(MAGIC) + total_length)
+            frames.append(self._parse_frame(frame_data))
+
+        return frames
+
+    def _parse_header(self, data: bytes) -> dict:
+        fields = struct.unpack("<HHIIQHHHHIII", data)
+        return {
+            "version_major": fields[0],
+            "version_minor": fields[1],
+            "total_length": fields[2],
+            "frame_id": fields[3],
+            "timestamp_us": fields[4],
+            "source_type": fields[5],
+            "mode_type": fields[6],
+            "tlv_count": fields[7],
+            "reserved0": fields[8],
+            "device_status": fields[9],
+            "reserved1": fields[10],
+            "reserved2": fields[11],
+        }
+
+    def _parse_frame(self, frame_data: bytes):
+        # 这里先留空，后续补TLV解析
+        return {
+            "raw_frame": frame_data
+        }
+```
+
+---
+
+# 八、TLV 解析模块骨架
+
+```python id="c3gimz"
+import struct
+from app.models.point import Point
+from app.models.target import Target
+
+TLV_HEADER_LEN = 8
+
+class TLVParser:
+    def parse_tlvs(self, payload: bytes, tlv_count: int):
+        offset = 0
+        result = {
+            "points": [],
+            "targets": [],
+            "status": None,
+            "imu": None,
+        }
+
+        for _ in range(tlv_count):
+            tlv_type, reserved, length = struct.unpack_from("<HHI", payload, offset)
+            offset += TLV_HEADER_LEN
+            value = payload[offset:offset+length]
+            offset += length
+
+            if tlv_type == 0x1001:
+                result["points"] = self._parse_points(value)
+            elif tlv_type == 0x1002:
+                result["targets"] = self._parse_targets(value)
+            elif tlv_type == 0x1004:
+                result["status"] = self._parse_status(value)
+
+        return result
+
+    def _parse_points(self, value: bytes):
+        point_count = struct.unpack_from("<I", value, 0)[0]
+        points = []
+        offset = 4
+        for _ in range(point_count):
+            x, y, z, doppler, snr, noise = struct.unpack_from("<ffffff", value, offset)
+            offset += 24
+            points.append(Point(x, y, z, doppler, snr, noise))
+        return points
+
+    def _parse_targets(self, value: bytes):
+        target_count = struct.unpack_from("<I", value, 0)[0]
+        targets = []
+        offset = 4
+        for _ in range(target_count):
+            item = struct.unpack_from("<Ifffffffff", value, offset)
+            offset += 40
+            targets.append(
+                Target(
+                    target_id=item[0],
+                    x=item[1], y=item[2], z=item[3],
+                    vx=item[4], vy=item[5], vz=item[6],
+                    speed=item[7],
+                    heading_deg=item[8],
+                    confidence=item[9],
+                )
+            )
+        return targets
+
+    def _parse_status(self, value: bytes):
+        frame_rate, temperature, cpu_load, error_code, radar_online = struct.unpack("<fffII", value)
+        return {
+            "fps": frame_rate,
+            "temperature": temperature,
+            "cpu_load": cpu_load,
+            "error_code": error_code,
+            "radar_online": bool(radar_online),
+        }
+```
+
+---
+
+# 九、广播器骨架
+
+```python id="4hrohp"
+import asyncio
+import json
+
+class Broadcaster:
+    def __init__(self):
+        self.clients = set()
+
+    async def register(self, websocket):
+        self.clients.add(websocket)
+
+    async def unregister(self, websocket):
+        self.clients.discard(websocket)
+
+    async def broadcast(self, message: dict):
+        if not self.clients:
+            return
+        dead = []
+        text = json.dumps(message)
+        for ws in self.clients:
+            try:
+                await ws.send_text(text)
+            except Exception:
+                dead.append(ws)
+        for ws in dead:
+            self.clients.discard(ws)
+```
+
+---
+
+# 十、WebSocket 接口骨架
+
+```python id="4qycww"
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from app.service.broadcaster import Broadcaster
+
+router = APIRouter()
+broadcaster = Broadcaster()
+
+@router.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    await broadcaster.register(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        await broadcaster.unregister(websocket)
+```
+
+---
+
+# 十一、录制器骨架
+
+我建议原型期先做“**一帧一行 JSONL**”，后期再升级成二进制高性能格式。
+
+```python id="37u2ho"
+import json
+from pathlib import Path
+
+class Recorder:
+    def __init__(self, filepath: str):
+        self.filepath = Path(filepath)
+        self.file = self.filepath.open("a", encoding="utf-8")
+
+    def write_frame(self, frame: dict):
+        self.file.write(json.dumps(frame, ensure_ascii=False) + "\n")
+        self.file.flush()
+
+    def close(self):
+        self.file.close()
+```
+
+---
+
+# 十二、主程序骨架
+
+```python id="v11esb"
+import threading
+import asyncio
+from queue import Queue
+from fastapi import FastAPI
+from app.io.uart_receiver import UARTReceiver
+from app.parser.frame_parser import FrameParser
+
+raw_queue = Queue()
+parser = FrameParser()
+
+def receiver_worker():
+    rx = UARTReceiver("/dev/ttyUSB0", 921600, raw_queue)
+    rx.start()
+    return rx
+
+def parser_worker():
+    while True:
+        data = raw_queue.get()
+        parser.feed(data)
+        frames = parser.parse_available_frames()
+        for frame in frames:
+            # TODO: 送到处理器、录制器、广播器
+            print("Frame received")
+
+app = FastAPI()
+
+@app.get("/api/status")
+def get_status():
+    return {"ok": True}
+
+if __name__ == "__main__":
+    rx = receiver_worker()
+    threading.Thread(target=parser_worker, daemon=True).start()
+
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8080)
+```
+
+---
+
+# 十三、当前最小可运行版本的目标
+
+这份骨架的第一步不是做全，而是先达成下面 4 件事：
+
+## 第一步
+
+接收到串口字节流
+
+## 第二步
+
+成功识别帧头和 frame_id
+
+## 第三步
+
+能打印：
+
+* 帧号
+* 点数
+* 目标数
+
+## 第四步
+
+WebSocket 推送一条假的 JSON 消息到前端页面
+
+只要这 4 步打通，你的系统就已经从“方案文档”进入“可运行工程”。
+
+---
+
+# 十四、下一步最值得继续补的内容
+
+我建议下一条我直接给你补这两个中的一个：
+
+### 方案 1
+
+**完整的 `frame_parser.py` 可运行版**
+包括：
+
+* CRC 校验
+* TLV 解析整合
+* 输出 RadarFrame
+
+### 方案 2
+
+**一个最小可运行的前端页面 `index.html`**
+包括：
+
+* WebSocket 连接
+* 实时显示点数
+* 实时显示目标数
+* 掉线变红提示
+
+建议先做 **方案 2**，因为你马上就能看到东西。

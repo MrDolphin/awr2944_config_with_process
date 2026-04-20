@@ -421,6 +421,7 @@
                 this.nextId = 1;
                 this.maxUnseenFrames = 60; // 断线容忍保持在优异的 3秒 级
                 this.globalTrails = {}; // 【核心修复】改为键值对，独立记录每一艘历史船只的连贯航线！
+                this.currentClusters = []; // 存储当前帧的实体簇，用于绘制 XY 平面包围框
             }
 
             processPoints(points) {
@@ -442,6 +443,9 @@
                     }
                     if (!clustered) clusters.push({ points: [p] });
                 });
+
+                // 保存以供 UI 绘制真实聚类形状
+                this.currentClusters = clusters;
 
                 // 成团门槛维持在 2 点，但仅保留距离中心合理的点
                 let detectedCentroids = clusters
@@ -594,6 +598,42 @@
 
             // 1. 点云增强：高亮灯带发光效果
             drawPoints(ctx, data.points);
+            
+            // 1.5. 绘制 XY 平面簇 (Clusters) 的边界框
+            if (showTrails && tracker.currentClusters) {
+                tracker.currentClusters.forEach(c => {
+                    // 只展示有规模的实体簇
+                    if (c.points.length >= 2) {
+                        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+                        c.points.forEach(p => {
+                            if (p.x < minX) minX = p.x;
+                            if (p.x > maxX) maxX = p.x;
+                            if (p.y < minY) minY = p.y;
+                            if (p.y > maxY) maxY = p.y;
+                        });
+                        
+                        // 稍微给边界框加上一点 Padding
+                        const padding = 0.3; // 0.3米
+                        const tl = mapToCanvas(minX - padding, maxY + padding);
+                        const br = mapToCanvas(maxX + padding, minY - padding);
+                        
+                        const w = br.px - tl.px;
+                        const h = br.py - tl.py;
+
+                        ctx.save();
+                        ctx.strokeStyle = 'rgba(0, 150, 255, 0.6)';
+                        ctx.setLineDash([4, 4]); // 虚线框
+                        ctx.lineWidth = 1.5;
+                        ctx.strokeRect(tl.px, tl.py, w, h);
+                        
+                        // 在旁边标记聚类包含的点数
+                        ctx.fillStyle = 'rgba(0, 150, 255, 0.8)';
+                        ctx.font = '10px Arial';
+                        ctx.fillText(`Cluster (${c.points.length} pts)`, tl.px, tl.py - 5);
+                        ctx.restore();
+                    }
+                });
+            }
             
             // 2. 绘制历史航迹 (根据开关决定)
             if (showTrails) {
@@ -751,6 +791,14 @@
         });
 
         // --- 配置管理交互逻辑 ---
+        let activeConfigTab = 'form';
+        let pendingSavedConfigName = '';
+
+        function getConfigContentForSubmit() {
+            if (activeConfigTab === 'form') syncFormToCfg();
+            return document.getElementById('configEditor').value;
+        }
+
         function handleConfigResponse(data) {
             const select = document.getElementById('configSelect');
             const editor = document.getElementById('configEditor');
@@ -765,6 +813,11 @@
                         opt.innerText = f;
                         select.appendChild(opt);
                     });
+                    if (pendingSavedConfigName && data.files.includes(pendingSavedConfigName)) {
+                        select.value = pendingSavedConfigName;
+                        ws.send(JSON.stringify({ type: "read_config", filename: pendingSavedConfigName }));
+                        pendingSavedConfigName = '';
+                    }
                 }
             } else if (data.type === 'config_content') {
                 editor.value = data.content;
@@ -779,6 +832,7 @@
         }
 
         document.getElementById('configSelect').addEventListener('change', (e) => {
+            pendingSavedConfigName = '';
             if (e.target.value) {
                 ws.send(JSON.stringify({ type: "read_config", filename: e.target.value }));
             }
@@ -790,7 +844,7 @@
             const newName = prompt("请输入配置文件名 (注意以 .cfg 结尾):", currentName);
             if (newName) {
                 const content = document.getElementById('configEditor').value;
-                ws.send(json.stringify({ type: "save_config", filename: newName, content: content }));
+                ws.send(JSON.stringify({ type: "save_config", filename: newName, content: content }));
             }
         });
 
@@ -799,7 +853,7 @@
             const fname = document.getElementById('configSelect').value;
             if (!fname) { alert("请先选择或保存一个配置文件！"); return; }
             if (confirm(`确认下发并在雷达上运行 [${fname}] 吗？`)) {
-                ws.send(json.stringify({ type: "apply_config", filename: fname }));
+                ws.send(JSON.stringify({ type: "apply_config", filename: fname }));
             }
         });
 
@@ -820,6 +874,7 @@
 
         // --- 参数解析与同步逻辑 ---
         function switchTab(type) {
+            activeConfigTab = type;
             const isForm = type === 'form';
             document.getElementById('configFormScroll').style.display = isForm ? 'block' : 'none';
             document.getElementById('configEditor').style.display = isForm ? 'none' : 'block';
@@ -924,6 +979,72 @@
 
         // 将 json 对象和 resize 监听移到顶部或保持在此处（移至顶部更安全）
 
+        handleConfigResponse = function(data) {
+            const select = document.getElementById('configSelect');
+            const editor = document.getElementById('configEditor');
+
+            console.log("Config Response:", data.type);
+            if (data.type === 'config_list') {
+                select.innerHTML = '<option value="">-- 选择场景配置 --</option>';
+                if (data.files && data.files.length > 0) {
+                    data.files.forEach(f => {
+                        const opt = document.createElement('option');
+                        opt.value = f;
+                        opt.innerText = f;
+                        select.appendChild(opt);
+                    });
+                    if (pendingSavedConfigName && data.files.includes(pendingSavedConfigName)) {
+                        select.value = pendingSavedConfigName;
+                        ws.send(JSON.stringify({ type: "read_config", filename: pendingSavedConfigName }));
+                        pendingSavedConfigName = '';
+                    }
+                }
+            } else if (data.type === 'config_content') {
+                editor.value = data.content;
+                parseCfgToForm(data.content);
+            } else if (data.type === 'save_status') {
+                alert("配置已成功保存！");
+                if (data.filename) pendingSavedConfigName = data.filename;
+                ws.send(JSON.stringify({ type: "list_configs" }));
+            } else if (data.type === 'apply_status') {
+                if (data.success) alert("雷达配置已成功下发并应用！");
+                else alert("应用失败，请检查雷达串口状态。");
+            }
+        };
+
+        function rebindConfigActionButtons() {
+            const saveBtn = document.getElementById('saveConfigBtn');
+            const applyBtn = document.getElementById('applyConfigBtn');
+            const saveClone = saveBtn.cloneNode(true);
+            const applyClone = applyBtn.cloneNode(true);
+
+            saveBtn.parentNode.replaceChild(saveClone, saveBtn);
+            applyBtn.parentNode.replaceChild(applyClone, applyBtn);
+
+            saveClone.addEventListener('click', () => {
+                const content = getConfigContentForSubmit();
+                const currentName = document.getElementById('configSelect').value || 'new_config.cfg';
+                const newName = prompt("请输入配置文件名 (注意以 .cfg 结尾):", currentName);
+                if (newName) {
+                    pendingSavedConfigName = newName;
+                    ws.send(JSON.stringify({ type: "save_config", filename: newName, content: content }));
+                }
+            });
+
+            applyClone.addEventListener('click', () => {
+                const fname = document.getElementById('configSelect').value;
+                if (!fname) {
+                    alert("请先选择或保存一个配置文件！");
+                    return;
+                }
+                const content = getConfigContentForSubmit();
+                if (confirm(`确认下发并在雷达上运行 [${fname}] 吗？`)) {
+                    ws.send(JSON.stringify({ type: "apply_config", filename: fname, content: content }));
+                }
+            });
+        }
+
+        rebindConfigActionButtons();
         window.addEventListener('resize', drawGrid);
         drawGrid();
 

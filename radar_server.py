@@ -233,6 +233,7 @@ def radar_serial_thread(data_port_name, baud_rate, log_file=""):
     global latest_radar_frame
     buffer = bytearray()
     stats = {"count": 0, "last": time.time()}
+    MAX_PACKET_LEN = 1024 * 1024
 
     try:
         ser = serial.Serial(data_port_name, baud_rate, timeout=1)
@@ -272,6 +273,10 @@ def radar_serial_thread(data_port_name, baud_rate, log_file=""):
                 # 【防死循环终极护甲】：绝不能允许 p_len 小于最小帧头（40），否则若 p_len=0 会导致 buffer 永远不缩减！
                 if p_len < 40:
                     buffer = buffer[8:] # 这是一个伪装的破损头部，跳过魔数继续往后搜！
+                    continue
+                if p_len > MAX_PACKET_LEN:
+                    logger.warning(f"⚠️ 异常包长 {p_len}，疑似破损帧或非预期TLV，丢弃当前魔法字后继续同步")
+                    buffer = buffer[8:]
                     continue
 
                 if len(buffer) < p_len: break # 这一帧还没吐完，保留现场，去等喂饭
@@ -361,8 +366,13 @@ async def handle_client(websocket):
                     
                     elif ctype == "apply_config":
                         fname = cmd.get("filename")
+                        content = cmd.get("content")
                         config_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Config')
                         fpath = os.path.join(config_dir, fname)
+                        if fname and content is not None:
+                            if not os.path.exists(config_dir): os.makedirs(config_dir)
+                            with open(fpath, 'w', encoding='utf-8') as f:
+                                f.write(content)
                         if fname and os.path.exists(fpath):
                             logger.info(f"⚙️ 正在应用 Config 下的动态配置: {fpath}")
                             success = send_config_to_radar(ARGS.cfg_port, fpath)
