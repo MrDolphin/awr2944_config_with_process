@@ -1,4 +1,7 @@
 # 雷达录制数据（二进制/大文件，不入库）
+mathlab/
+paper/
+record/
 record/*.bin
 record/*.dat
 record/*.jsonl
