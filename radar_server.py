@@ -9,6 +9,7 @@ import asyncio
 import websockets
 import logging
 import os
+import csv
 
 # 配置日志：同时输出到文件和控制台
 config_dir = os.path.dirname(os.path.abspath(__file__))
@@ -30,9 +31,106 @@ MAGIC_WORD = b'\x02\x01\x04\x03\x06\x05\x08\x07'
 # 共享变量，存储最新一帧的结构化数据，供 WebSockets 广播
 latest_radar_frame = {
     "frame_num": 0,
-    "points": [],  # Type 1 散点云 [{x, y, v}, ...]
-    "targets": []  # Type 7 目标轨迹 [{id, x, y, vx, vy}, ...]
+    "points": [],  # Type 1 散点云 [{x, y, z, v, snr, noise}, ...]
+    "tlv_types": [],
+    "side_info_count": 0,
+    "has_side_info": False,
+    "targets": []
 }
+
+pointcloud_recording = {
+    "enabled": False,
+    "file": None,
+    "writer": None,
+    "path": "",
+    "rows": 0,
+    "last_frame": -1
+}
+
+def start_pointcloud_recording():
+    if pointcloud_recording["enabled"]:
+        return pointcloud_recording["path"]
+
+    out_dir = os.path.join(config_dir, "captures", "pointcloud_logs")
+    os.makedirs(out_dir, exist_ok=True)
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    out_path = os.path.join(out_dir, f"pointcloud_{timestamp}.csv")
+    f = open(out_path, "w", newline="", encoding="utf-8")
+    writer = csv.writer(f)
+    writer.writerow([
+        "timestamp_s", "frame_num", "point_index",
+        "x_m", "y_m", "z_m", "v_mps",
+        "snr_db", "noise_db"
+    ])
+
+    pointcloud_recording.update({
+        "enabled": True,
+        "file": f,
+        "writer": writer,
+        "path": out_path,
+        "rows": 0,
+        "last_frame": -1
+    })
+    logger.info(f"📝 点云记录已开启: {out_path}")
+    return out_path
+
+def stop_pointcloud_recording():
+    out_path = pointcloud_recording.get("path", "")
+    f = pointcloud_recording.get("file")
+    if f:
+        try:
+            f.flush()
+            f.close()
+        except Exception:
+            pass
+    rows = pointcloud_recording.get("rows", 0)
+    pointcloud_recording.update({
+        "enabled": False,
+        "file": None,
+        "writer": None,
+        "path": "",
+        "rows": 0,
+        "last_frame": -1
+    })
+    logger.info(f"🛑 点云记录已关闭: {out_path} rows={rows}")
+    return out_path, rows
+
+def record_pointcloud_frame(frame):
+    if not pointcloud_recording["enabled"]:
+        return
+    frame_num = frame.get("frame_num", -1)
+    if frame_num == pointcloud_recording["last_frame"]:
+        return
+    writer = pointcloud_recording.get("writer")
+    if not writer:
+        return
+
+    now_s = time.time()
+    for idx, pt in enumerate(frame.get("points", [])):
+        writer.writerow([
+            f"{now_s:.3f}",
+            frame_num,
+            idx,
+            pt.get("x", ""),
+            pt.get("y", ""),
+            pt.get("z", ""),
+            pt.get("v", ""),
+            pt.get("snr", ""),
+            pt.get("noise", "")
+        ])
+        pointcloud_recording["rows"] += 1
+
+    pointcloud_recording["last_frame"] = frame_num
+    f = pointcloud_recording.get("file")
+    if f and pointcloud_recording["rows"] % 200 == 0:
+        f.flush()
+
+def get_recording_status():
+    return {
+        "enabled": pointcloud_recording["enabled"],
+        "path": pointcloud_recording["path"],
+        "rows": pointcloud_recording["rows"]
+    }
 
 def auto_detect_ports():
     import glob
@@ -232,7 +330,7 @@ def send_config_to_radar(cfg_port_name, config_file_path):
 def radar_serial_thread(data_port_name, baud_rate, log_file=""):
     global latest_radar_frame
     buffer = bytearray()
-    stats = {"count": 0, "last": time.time()}
+    stats = {"count": 0, "last": time.time(), "last_tlv": time.time()}
     MAX_PACKET_LEN = 1024 * 1024
 
     try:
@@ -287,10 +385,14 @@ def radar_serial_thread(data_port_name, baud_rate, log_file=""):
                 progress_made = True
                 
                 pts = []
+                point_side_info = []
+                range_profile = []
+                tlv_types = []
                 offset = 0
                 for _ in range(n_tlvs):
                     try:
                         t_type, t_len = struct.unpack('<II', f_data[offset:offset+8])
+                        tlv_types.append(t_type)
                         offset += 8
                         if t_type == 1:
                             p_cnt = t_len // 16
@@ -298,11 +400,47 @@ def radar_serial_thread(data_port_name, baud_rate, log_file=""):
                                 x, y, z, v = struct.unpack('<ffff', f_data[offset:offset+16])
                                 pts.append({"x": x, "y": y, "z": z, "v": v})
                                 offset += 16
+                        elif t_type == 2:
+                            sample_cnt = t_len // 2
+                            # Range Profile TLV: one uint16 magnitude per range bin.
+                            fmt = '<' + ('H' * sample_cnt)
+                            profile_vals = struct.unpack(fmt, f_data[offset:offset + t_len])
+                            range_profile = list(profile_vals)
+                            offset += t_len
+                        elif t_type == 7:
+                            # Detected Points Side Info TLV: one int16 SNR + int16 noise per point.
+                            # TI demos commonly encode both values in 0.1 dB units.
+                            side_cnt = t_len // 4
+                            for p in range(side_cnt):
+                                snr_raw, noise_raw = struct.unpack('<hh', f_data[offset:offset+4])
+                                point_side_info.append({
+                                    "snr": snr_raw / 10.0,
+                                    "noise": noise_raw / 10.0
+                                })
+                                offset += 4
                         else: offset += t_len
                     except: 
                         break # TLV 碎了，但这帧算看过了，不影响继续
+
+                for i, side in enumerate(point_side_info):
+                    if i < len(pts):
+                        pts[i].update(side)
                 
-                latest_radar_frame = {"frame_num": f_num, "points": pts}
+                latest_radar_frame = {
+                    "frame_num": f_num,
+                    "points": pts,
+                    "range_profile": range_profile,
+                    "tlv_types": tlv_types,
+                    "side_info_count": len(point_side_info),
+                    "has_side_info": len(point_side_info) > 0
+                }
+                record_pointcloud_frame(latest_radar_frame)
+                if time.time() - stats["last_tlv"] > 5:
+                    logger.info(
+                        f"📦 [TLV] frame={f_num} types={tlv_types} "
+                        f"points={len(pts)} sideInfo={len(point_side_info)}"
+                    )
+                    stats["last_tlv"] = time.time()
                 
             # 【CPU 退烧药】：如果这一圈下来根本没东西吃，也没有任何成功开包的帧，必须休眠释放 CPU！
             if not progress_made and ser.in_waiting == 0:
@@ -380,6 +518,32 @@ async def handle_client(websocket):
                         else:
                             logger.warn(f"⚠️ 找不到配置文件: {fpath}")
                             await websocket.send(json.dumps({"type": "apply_status", "success": False, "message": "找不到配置文件"}))
+
+                    elif ctype == "pointcloud_record":
+                        action = cmd.get("action")
+                        if action == "start":
+                            path = start_pointcloud_recording()
+                            await websocket.send(json.dumps({
+                                "type": "pointcloud_record_status",
+                                "recording": True,
+                                "path": path,
+                                "rows": pointcloud_recording["rows"]
+                            }))
+                        elif action == "stop":
+                            path, rows = stop_pointcloud_recording()
+                            await websocket.send(json.dumps({
+                                "type": "pointcloud_record_status",
+                                "recording": False,
+                                "path": path,
+                                "rows": rows
+                            }))
+                        elif action == "status":
+                            await websocket.send(json.dumps({
+                                "type": "pointcloud_record_status",
+                                "recording": pointcloud_recording["enabled"],
+                                "path": pointcloud_recording["path"],
+                                "rows": pointcloud_recording["rows"]
+                            }))
                             
                 except Exception as e:
                     logger.error(f"❌ 指令处理解析错误: {e}")
@@ -394,7 +558,9 @@ async def handle_client(websocket):
                 if latest_radar_frame["frame_num"] != last_sent_frame:
                     # 如果不是命令包，则发送雷达点云包
                     try:
-                        await websocket.send(json.dumps(latest_radar_frame))
+                        frame = dict(latest_radar_frame)
+                        frame["pointcloud_recording"] = get_recording_status()
+                        await websocket.send(json.dumps(frame))
                         last_sent_frame = latest_radar_frame["frame_num"]
                     except: break
                 await asyncio.sleep(0.04) # 约 25Hz 推送

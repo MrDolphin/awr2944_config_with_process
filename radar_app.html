@@ -4,8 +4,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>海洋无人船雷达追踪终端</title>
+    <title>USV 毫米波点云 PPI 视图</title>
     <style>
+        :root {
+            --sidebar-width: 280px;
+            --config-panel-width: 420px;
+            --layout-gap: 28px;
+            --radar-panel-max-width: 980px;
+        }
+
         body {
             margin: 0;
             padding: 0;
@@ -82,9 +89,35 @@
             width: 100%;
             display: flex;
             justify-content: center;
-            align-items: center;
-            padding: 10px;
+            align-items: flex-start;
+            padding: 18px calc(28px + var(--config-panel-width) + var(--layout-gap)) 24px 28px;
             box-sizing: border-box;
+        }
+
+        .radar-layout {
+            width: 100%;
+            max-width: calc(1840px - var(--config-panel-width) - var(--layout-gap));
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            gap: var(--layout-gap);
+        }
+
+        .hud-sidebar {
+            width: var(--sidebar-width);
+            flex: 0 0 var(--sidebar-width);
+        }
+
+        .main-visual {
+            flex: 1;
+            min-width: 0;
+            width: min(var(--radar-panel-max-width), 100%);
+            max-width: var(--radar-panel-max-width);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            padding-top: 8px;
         }
 
         canvas {
@@ -96,10 +129,16 @@
             max-height: 100%;
         }
 
+        #radarCanvas {
+            display: block;
+            width: min(100%, calc((100vh - 290px) * 4 / 3));
+            height: auto;
+            max-width: 100%;
+            max-height: calc(100vh - 290px);
+        }
+
         .hud-overlay {
-            position: absolute;
-            top: 30px;
-            left: 30px;
+            position: static;
             pointer-events: none;
         }
 
@@ -112,6 +151,27 @@
             text-shadow: 1px 1px 2px #000;
         }
 
+        .hud-chart {
+            width: 100%;
+            max-width: var(--radar-panel-max-width);
+            height: 132px;
+            margin-top: 6px;
+            border: 1px solid rgba(0, 255, 204, 0.18);
+            background: rgba(2, 10, 18, 0.75);
+            display: block;
+        }
+
+        .profile-panel {
+            width: 100%;
+            background: rgba(0, 30, 30, 0.68);
+            border-left: 3px solid rgba(90, 180, 255, 0.7);
+            padding: 10px 12px 12px;
+            font-size: 13px;
+            color: rgba(140, 220, 255, 0.95);
+            text-shadow: 1px 1px 2px #000;
+            box-sizing: border-box;
+        }
+
         .value {
             font-size: 18px;
             font-weight: bold;
@@ -122,7 +182,8 @@
             position: absolute;
             top: 20px;
             right: 20px;
-            width: 420px; /* 拉长面板宽度 */
+            width: var(--config-panel-width);
+            /* 拉长面板宽度 */
             background: rgba(16, 24, 38, 0.95);
             border: 1px solid #005f5f;
             border-radius: 12px;
@@ -130,7 +191,7 @@
             backdrop-filter: blur(15px);
             z-index: 20;
             display: none;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
             transition: all 0.3s ease;
             overflow: hidden;
         }
@@ -175,7 +236,8 @@
 
         .param-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr; /* 改为两列布局更加舒展 */
+            grid-template-columns: 1fr 1fr;
+            /* 改为两列布局更加舒展 */
             gap: 15px;
             font-size: 12px;
         }
@@ -191,7 +253,8 @@
             white-space: nowrap;
         }
 
-        .param-item input, .param-item select {
+        .param-item input,
+        .param-item select {
             padding: 6px 10px;
             font-size: 12px;
             background: #060a10;
@@ -253,9 +316,21 @@
             vertical-align: middle;
             transition: all 0.2s;
         }
+
         .help-icon:hover {
             background: #00ffcc;
             color: #000;
+        }
+
+        @media (max-width: 1580px) {
+            .radar-container {
+                padding-right: calc(24px + var(--config-panel-width));
+            }
+
+            #radarCanvas {
+                width: min(100%, calc((100vh - 310px) * 4 / 3));
+                max-height: calc(100vh - 310px);
+            }
         }
     </style>
 </head>
@@ -263,12 +338,30 @@
 <body>
 
     <div class="header">
-        <div class="logo">🌊 USV 海洋雷达跟踪中枢</div>
+        <div class="logo">🌊 USV 雷达点云 PPI 视图</div>
         <div class="status-panel">
             <div class="input-group">
-                <input type="text" id="wsInput" list="ip-history" placeholder="雷达 IP (例如: 192.168.43.36)" value="192.168.43.36:8765">
+                <input type="text" id="wsInput" list="ip-history" placeholder="雷达 IP (例如: 192.168.43.36)"
+                    value="192.168.43.36:8765">
                 <datalist id="ip-history"></datalist>
+                <button id="clearMapBtn" style="border-color: #555; color: #ccc; display: none;"
+                    title="清除当前累积的静态背景">清空</button>
+                <button id="staticMapToggleBtn" style="border-color: #0099ff; color: #0099ff;">静态地图: 关</button>
+                <button id="stableMapToggleBtn" style="border-color: #00ddff; color: #00ddff;"
+                    title="原始点云淡显示，静态累计点亮显示">稳定地图: 关</button>
+                <button id="snrLabelToggleBtn" style="border-color: #ff5577; color: #ff5577;"
+                    title="显示/关闭每个点云的 SNR 和附近 noise 数值">SNR标签: 关</button>
+                <button id="recordPointcloudBtn" style="border-color: #7fdcff; color: #7fdcff;"
+                    title="保存当前点云到服务器本地 CSV，便于后续分析 SNR/noise/TLV">记录点云: 关</button>
+                <label style="color:#7fdcff; font-size:12px; font-weight:bold;">
+                    Noise基线
+                    <input type="number" id="noiseBaselineInput" value="80" step="1"
+                        title="noise_baseline，默认 80 dB；用于 SNR/noise 可信度计算"
+                        style="width:64px; padding:6px 8px; margin-left:4px; border-color:#7fdcff;"> dB
+                </label>
                 <button id="trailToggleBtn" style="border-color: #ffaa00; color: #ffaa00;">目标追踪: 关</button>
+                <button id="clearTrailsBtn" style="border-color: #ffaa00; color: #ffaa00; display: none;"
+                    title="手动清除所有黄色轨迹和当前动态目标">清除轨迹</button>
                 <button id="connectBtn">连接雷达</button>
             </div>
             <div id="statusIndicator" class="status-dot"></div>
@@ -276,19 +369,36 @@
     </div>
 
     <div class="radar-container">
-        <canvas id="radarCanvas" width="800" height="600"></canvas>
-        <div class="hud-overlay">
-            <div class="hud-box">
-                <div>网络延迟 / 帧率</div>
-                <div class="value" id="frameDisplay">DISCONNECTED</div>
+        <div class="radar-layout">
+            <div class="hud-overlay hud-sidebar">
+                <div class="hud-box">
+                    <div>网络延迟 / 帧率</div>
+                    <div class="value" id="frameDisplay">DISCONNECTED</div>
+                </div>
+                <div class="hud-box" style="border-color: rgba(0,255,100,0.4); color: rgba(0,255,100,0.6);">
+                    <div>原始点云 (降噪过滤)</div>
+                    <div class="value" id="pointsDisplay">0</div>
+                </div>
+                <div class="hud-box" style="border-color: #ffaa00; color: #ffaa00;">
+                    <div>目标追踪 (Tracker)</div>
+                    <div class="value" id="targetsDisplay">0</div>
+                </div>
+                <div class="hud-box" style="border-color: #ff5577; color: #ff99aa;">
+                    <div>点云 Side Info</div>
+                    <div class="value" id="sideInfoDisplay">未知</div>
+                </div>
+                <div class="hud-box" style="border-color: #7fdcff; color: #7fdcff;">
+                    <div>点云记录</div>
+                    <div class="value" id="recordDisplay">未记录</div>
+                </div>
             </div>
-            <div class="hud-box" style="border-color: rgba(0,255,100,0.4); color: rgba(0,255,100,0.6);">
-                <div>原始点云 (降噪过滤)</div>
-                <div class="value" id="pointsDisplay">0</div>
-            </div>
-            <div class="hud-box" style="border-color: #ffaa00; color: #ffaa00;">
-                <div>目标追踪 (Tracker)</div>
-                <div class="value" id="targetsDisplay">0</div>
+
+            <div class="main-visual">
+                <canvas id="radarCanvas" width="800" height="600"></canvas>
+                <div class="profile-panel">
+                    <div>距离能量图 (Range Profile)</div>
+                    <canvas id="rangeProfileCanvas" class="hud-chart" width="960" height="120"></canvas>
+                </div>
             </div>
         </div>
 
@@ -296,8 +406,9 @@
         <div id="configPanel" class="config-panel">
             <!-- 仅在收起时显示的图标 -->
             <div class="collapsed-icon" title="展开配置面板">📡</div>
-            
-            <div id="panelHeader" style="font-weight: bold; margin-bottom: 10px; color: #00ffcc; border-bottom: 1px solid #005f5f; padding-bottom: 5px; display: flex; justify-content: space-between; align-items: center;">
+
+            <div id="panelHeader"
+                style="font-weight: bold; margin-bottom: 10px; color: #00ffcc; border-bottom: 1px solid #005f5f; padding-bottom: 5px; display: flex; justify-content: space-between; align-items: center;">
                 <span>📡 雷达参数配置</span>
                 <span id="panelToggleBtn" style="cursor:pointer; font-size: 20px;" title="收起面板">×</span>
             </div>
@@ -308,94 +419,108 @@
                     </select>
                 </div>
 
-            <!-- 参数页签切换 -->
-            <div style="display: flex; border-bottom: 1px solid #005f5f; margin-bottom: 10px;">
-                <div id="tabForm" onclick="switchTab('form')" style="flex:1; text-align:center; cursor:pointer; padding:5px; background: #162438; border-top-left-radius: 4px;">结构化参数</div>
-                <div id="tabRaw" onclick="switchTab('raw')" style="flex:1; text-align:center; cursor:pointer; padding:5px; border-top-right-radius: 4px;">原始文件</div>
-            </div>
+                <!-- 参数页签切换 -->
+                <div style="display: flex; border-bottom: 1px solid #005f5f; margin-bottom: 10px;">
+                    <div id="tabForm" onclick="switchTab('form')"
+                        style="flex:1; text-align:center; cursor:pointer; padding:5px; background: #162438; border-top-left-radius: 4px;">
+                        结构化参数</div>
+                    <div id="tabRaw" onclick="switchTab('raw')"
+                        style="flex:1; text-align:center; cursor:pointer; padding:5px; border-top-right-radius: 4px;">
+                        原始文件</div>
+                </div>
 
-            <!-- 结构化参数表单 -->
-            <div id="configFormScroll" style="margin-bottom: 10px; max-height: 450px; overflow-y: auto; padding-right: 5px;">
-                <div class="param-grid">
-                    <div class="param-section-title">📡 基础射频参数 (RF Base) - 影响物理分辨率与帧率</div>
-                    <div class="param-item">
-                        <label>RX通道数 <i class="help-icon" title="接收天线的数量。通道越多，角度的分辨解析能力越强。">?</i></label>
-                        <select id="f_rx">
-                            <option value="1">1</option><option value="2">2</option>
-                            <option value="3">3</option><option value="4" selected>4</option>
-                        </select>
-                    </div>
-                    <div class="param-item">
-                        <label>TX通道数 <i class="help-icon" title="发射天线的数量。结合RX形成虚拟天线阵列，决定水平和垂直探测精度。">?</i></label>
-                        <select id="f_tx">
-                            <option value="1" selected>1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
-                        </select>
-                    </div>
-                    <div class="param-item">
-                        <label>频率斜率 <i class="help-icon" title="决定距离分辨率。值越大，区分两个靠得很近的目标的能力越强，但探测距离会缩短。">?</i></label>
-                        <input type="number" id="f_slope" step="0.01" value="60">
-                    </div>
-                    <div class="param-item">
-                        <label>每帧Chirp <i class="help-icon" title="一帧内发送的脉冲数量。数量越多，测速精度越高。">?</i></label>
-                        <input type="number" id="f_chirps" value="128">
-                    </div>
-                    <div class="param-item">
-                        <label>帧周期(ms) <i class="help-icon" title="两帧之间的时间间隔。值越小，画面更新越快(FPS更高)。">?</i></label>
-                        <input type="number" id="f_period" value="200">
-                    </div>
-                    <div class="param-item">
-                        <label>ADC采样点 <i class="help-icon" title="每个脉冲采集的样本数。配合采样率共同决定最大理论探测距离。">?</i></label>
-                        <input type="number" id="f_samples" value="256">
-                    </div>
-                    <div class="param-item">
-                        <label>起始频率 <i class="help-icon" title="雷达工作的起始频率，通常为 77GHz。">?</i></label>
-                        <input type="number" id="f_start" step="0.1" value="77">
-                    </div>
-                    <div class="param-item">
-                        <label>采样率(ksps) <i class="help-icon" title="数模转换器的采样速度。影响最大探测距离。">?</i></label>
-                        <input type="number" id="f_rate" value="5000">
-                    </div>
+                <!-- 结构化参数表单 -->
+                <div id="configFormScroll"
+                    style="margin-bottom: 10px; max-height: 450px; overflow-y: auto; padding-right: 5px;">
+                    <div class="param-grid">
+                        <div class="param-section-title">📡 基础射频参数 (RF Base) - 影响物理分辨率与帧率</div>
+                        <div class="param-item">
+                            <label>RX通道数 <i class="help-icon" title="接收天线的数量。通道越多，角度的分辨解析能力越强。">?</i></label>
+                            <select id="f_rx">
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4" selected>4</option>
+                            </select>
+                        </div>
+                        <div class="param-item">
+                            <label>TX通道数 <i class="help-icon" title="发射天线的数量。结合RX形成虚拟天线阵列，决定水平和垂直探测精度。">?</i></label>
+                            <select id="f_tx">
+                                <option value="1" selected>1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                            </select>
+                        </div>
+                        <div class="param-item">
+                            <label>频率斜率 <i class="help-icon"
+                                    title="决定距离分辨率。值越大，区分两个靠得很近的目标的能力越强，但探测距离会缩短。">?</i></label>
+                            <input type="number" id="f_slope" step="0.01" value="60">
+                        </div>
+                        <div class="param-item">
+                            <label>每帧Chirp <i class="help-icon" title="一帧内发送的脉冲数量。数量越多，测速精度越高。">?</i></label>
+                            <input type="number" id="f_chirps" value="128">
+                        </div>
+                        <div class="param-item">
+                            <label>帧周期(ms) <i class="help-icon" title="两帧之间的时间间隔。值越小，画面更新越快(FPS更高)。">?</i></label>
+                            <input type="number" id="f_period" value="200">
+                        </div>
+                        <div class="param-item">
+                            <label>ADC采样点 <i class="help-icon" title="每个脉冲采集的样本数。配合采样率共同决定最大理论探测距离。">?</i></label>
+                            <input type="number" id="f_samples" value="256">
+                        </div>
+                        <div class="param-item">
+                            <label>起始频率 <i class="help-icon" title="雷达工作的起始频率，通常为 77GHz。">?</i></label>
+                            <input type="number" id="f_start" step="0.1" value="77">
+                        </div>
+                        <div class="param-item">
+                            <label>采样率(ksps) <i class="help-icon" title="数模转换器的采样速度。影响最大探测距离。">?</i></label>
+                            <input type="number" id="f_rate" value="5000">
+                        </div>
 
-                    <div class="param-section-title">🧠 高级信号处理 (DSP) - 影响灵敏度与探测性能</div>
-                    <div class="param-item">
-                        <label>距离CFAR阈值 <i class="help-icon" title="感应灵敏度门槛。值越小越灵敏(能看更远)，但环境中杂波/鬼影会变多。100米测试建议 12-15。">?</i></label>
-                        <input type="number" id="f_cfarRange" value="18" step="1">
-                    </div>
-                    <div class="param-item">
-                        <label>多普勒CFAR阈值 <i class="help-icon" title="速度方向的感应门槛。用于在嘈杂背景中提取移动目标。">?</i></label>
-                        <input type="number" id="f_cfarDoppler" value="18" step="1">
-                    </div>
-                    <div class="param-item">
-                        <label>静态杂波滤除 <i class="help-icon" title="算法自动识别并滤除静止的建筑物、桥墩、地面等背景噪声，只看动的物体。">?</i></label>
-                        <select id="f_clutter">
-                            <option value="1" selected>开启 (推荐)</option>
-                            <option value="0">关闭</option>
-                        </select>
-                    </div>
-                    <div class="param-item">
-                        <label>最大探测距离 <i class="help-icon" title="雷达算法尝试搜寻目标的最大范围。100米实测时建议设为 120。">?</i></label>
-                        <input type="number" id="f_fovRange" value="20" step="1">
-                    </div>
-                    <div class="param-item">
-                        <label>水平探测夹角 <i class="help-icon" title="限制雷达的视野扇区。例如设为 60°，则雷达只会报告前方正负 60 度范围内的物体。">?</i></label>
-                        <input type="number" id="f_fovAngle" value="75" step="5">
-                    </div>
+                        <div class="param-section-title">🧠 高级信号处理 (DSP) - 影响灵敏度与探测性能</div>
+                        <div class="param-item">
+                            <label>距离CFAR阈值 <i class="help-icon"
+                                    title="感应灵敏度门槛。值越小越灵敏(能看更远)，但环境中杂波/鬼影会变多。100米测试建议 12-15。">?</i></label>
+                            <input type="number" id="f_cfarRange" value="18" step="1">
+                        </div>
+                        <div class="param-item">
+                            <label>多普勒CFAR阈值 <i class="help-icon" title="速度方向的感应门槛。用于在嘈杂背景中提取移动目标。">?</i></label>
+                            <input type="number" id="f_cfarDoppler" value="18" step="1">
+                        </div>
+                        <div class="param-item">
+                            <label>静态杂波滤除 <i class="help-icon" title="算法自动识别并滤除静止的建筑物、桥墩、地面等背景噪声，只看动的物体。">?</i></label>
+                            <select id="f_clutter">
+                                <option value="1" selected>开启 (推荐)</option>
+                                <option value="0">关闭</option>
+                            </select>
+                        </div>
+                        <div class="param-item">
+                            <label>最大探测距离 <i class="help-icon" title="雷达算法尝试搜寻目标的最大范围。100米实测时建议设为 120。">?</i></label>
+                            <input type="number" id="f_fovRange" value="20" step="1">
+                        </div>
+                        <div class="param-item">
+                            <label>水平探测夹角 <i class="help-icon"
+                                    title="限制雷达的视野扇区。例如设为 60°，则雷达只会报告前方正负 60 度范围内的物体。">?</i></label>
+                            <input type="number" id="f_fovAngle" value="75" step="5">
+                        </div>
 
-                    <!-- 隐藏的高级参数，维持原有表单结构 -->
-                    <div style="display:none;">
-                        <input type="number" id="f_idle" value="34">
-                        <input type="number" id="f_adcStart" value="6">
-                        <input type="number" id="f_rampEnd" value="66">
-                        <input type="number" id="f_fStart" value="0">
-                        <input type="number" id="f_fEnd" value="0">
+                        <!-- 隐藏的高级参数，维持原有表单结构 -->
+                        <div style="display:none;">
+                            <input type="number" id="f_idle" value="34">
+                            <input type="number" id="f_adcStart" value="6">
+                            <input type="number" id="f_rampEnd" value="66">
+                            <input type="number" id="f_fStart" value="0">
+                            <input type="number" id="f_fEnd" value="0">
+                        </div>
                     </div>
                 </div>
-            </div>
 
                 <textarea id="configEditor" placeholder="配置文件内容..." style="display:none;"></textarea>
                 <div style="display: flex; gap: 5px; margin-top: 10px;">
                     <button id="saveConfigBtn" title="保存/重命名" style="flex: 1; padding: 5px;">保存场景</button>
-                    <button id="applyConfigBtn" title="下发并重启雷达" style="flex: 1; padding: 5px; background: #005f5f;">下发运行</button>
+                    <button id="applyConfigBtn" title="下发并重启雷达"
+                        style="flex: 1; padding: 5px; background: #005f5f;">下发运行</button>
                 </div>
             </div> <!-- 闭合 configContent -->
         </div> <!-- 闭合 configPanel -->
@@ -405,38 +530,435 @@
         const json = { parse: JSON.parse, stringify: JSON.stringify };
         const canvas = document.getElementById('radarCanvas');
         const ctx = canvas.getContext('2d');
+        const rangeProfileCanvas = document.getElementById('rangeProfileCanvas');
+        const rangeProfileCtx = rangeProfileCanvas.getContext('2d');
 
-        // 雷达探测范围配置 (米)
-        const MAX_RANGE_Y = 15; // 针对当前 4.88cm 分辨率配置，物理极限约 12.5m，UI设为 15m
-        const MAX_RANGE_X = 10; // 横向总计 20米 (-10 到 10)
+        // 雷达显示量程配置 (米)：由配置面板里的“最大探测距离”动态驱动。
+        let radarRangeY = 15;
+        let radarRangeX = 10;
+        const BLIND_ZONE_M = 0.35; // 近场盲区：过滤天线串扰、雷达罩/支架反射等贴脸鬼点
+        const STATIC_SPEED_MAX = 0.35; // 静止雷达调试阶段：放宽低速阈值，让柱子/岸边更容易进入静态层
+        const DYNAMIC_SPEED_MIN = 0.25; // 降低动态门槛，让斜向/横向运动目标更容易进入 Tracker
+        const STATIC_CLUSTER_EPS = 0.45; // 静态障碍聚类半径收紧，避免相邻障碍被桥接点粘成大框
+        const STATIC_CLUSTER_MIN_POINTS = 1; // 调试阶段先显示弱静态点；正式演示可调回 2~3
+        const STATIC_OBSTACLE_MATCH_GATE = 0.65;
+        const STATIC_OBSTACLE_BOX_MIN = 0.45;
+        const STATIC_OBSTACLE_BOX_MAX = 0.95;
+        const STATIC_OBSTACLE_MAX_UNSEEN = 18; // 约保留 0.7~1s，避免静态目标因单帧漏检闪烁
+        const STATIC_OBSTACLE_SMOOTHING = 0.25;
+        const STATIC_OBSTACLE_MIN_CONFIDENCE = 1.2;
+        const STATIC_MOTION_HISTORY_MAX = 18;
+        const STATIC_TO_DYNAMIC_MIN_HISTORY = 7;
+        const STATIC_TO_DYNAMIC_MIN_DISPLACEMENT_M = 0.45;
+        const STATIC_TO_DYNAMIC_MIN_STEP_M = 0.05;
+        const PROMOTED_DYNAMIC_SPEED = 0.45;
+        const POINT_TRAIL_DECAY = 0.82;
+        const POINT_TRAIL_MIN_ALPHA = 0.12;
+        const POINT_TRAIL_MAX_POINTS = 900;
+        const TRAIL_MIN_POINTS_TO_DRAW = 8;
+        const TRAIL_MIN_DISPLACEMENT_M = 0.8;
+        const TRAIL_KEEP_POINTS = 14;
+        const TRAIL_KEEP_DISPLACEMENT_M = 1.2;
+        const TRAIL_POINT_MIN_SPACING = 0.08;
+        const TRAIL_SMOOTHING = 0.35;
+        const TRAIL_RECONNECT_DIST_M = 0.9;
+        const TRAIL_RECONNECT_MAX_GAP = 45;
+        const BOAT_MIN_TRAIL_POINTS_TO_DRAW = 10;
+        const BOAT_MIN_DISPLACEMENT_M = 0.9;
+        const BOAT_MIN_SPEED_TO_DRAW = 0.35;
+        const DYNAMIC_CLUSTER_EPS = 1.0;
+        const DYNAMIC_MATCH_GATE = 2.0;
+        const DYNAMIC_NEW_TARGET_SUPPRESS = 1.2;
+        const DYNAMIC_MERGE_GATE = 0.8;
+        const POINT_DRAW_RADIUS = 2.4;
+        const CONFIDENCE_HIDE_THRESHOLD = 8;
+        const CONFIDENCE_WEAK_THRESHOLD = 12;
+        const NOISE_BASELINE_STORAGE_KEY = 'radar_noise_baseline_db';
 
         let ws = null;
         let lastFrameTime = performance.now();
         let showTrails = false; // 默认关闭航迹显示
+        let showSnrLabels = false; // 默认关闭 SNR/noise 文字，避免点多时遮挡
+        let pointcloudRecording = false;
+        let noiseBaselineDb = 80;
+        let pointTrails = [];
+        let lastRangeProfile = [];
+
+        function drawRangeProfile(profile) {
+            const w = rangeProfileCanvas.width;
+            const h = rangeProfileCanvas.height;
+            rangeProfileCtx.clearRect(0, 0, w, h);
+
+            rangeProfileCtx.fillStyle = 'rgba(2, 10, 18, 0.95)';
+            rangeProfileCtx.fillRect(0, 0, w, h);
+
+            const margin = { left: 62, right: 16, top: 18, bottom: 34 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+
+            rangeProfileCtx.strokeStyle = 'rgba(0, 255, 204, 0.16)';
+            rangeProfileCtx.lineWidth = 1;
+            rangeProfileCtx.strokeRect(margin.left, margin.top, plotW, plotH);
+
+            rangeProfileCtx.strokeStyle = 'rgba(0, 255, 204, 0.12)';
+            for (let i = 1; i <= 3; i++) {
+                const y = margin.top + Math.round(plotH * i / 4);
+                rangeProfileCtx.beginPath();
+                rangeProfileCtx.moveTo(margin.left, y);
+                rangeProfileCtx.lineTo(margin.left + plotW, y);
+                rangeProfileCtx.stroke();
+            }
+            for (let i = 1; i <= 4; i++) {
+                const x = margin.left + Math.round(plotW * i / 4);
+                rangeProfileCtx.beginPath();
+                rangeProfileCtx.moveTo(x, margin.top);
+                rangeProfileCtx.lineTo(x, margin.top + plotH);
+                rangeProfileCtx.stroke();
+            }
+
+            if (!profile || profile.length === 0) {
+                rangeProfileCtx.fillStyle = 'rgba(170, 220, 220, 0.55)';
+                rangeProfileCtx.font = '11px Tahoma';
+                rangeProfileCtx.fillText('No range profile', margin.left + 10, margin.top + 18);
+                return;
+            }
+
+            const maxVal = Math.max(...profile, 1);
+            const peakIdx = profile.indexOf(maxVal);
+            const peakDist = (peakIdx / Math.max(1, profile.length - 1)) * radarRangeY;
+            rangeProfileCtx.strokeStyle = '#7fe8ff';
+            rangeProfileCtx.lineWidth = 1.6;
+            rangeProfileCtx.beginPath();
+            profile.forEach((v, i) => {
+                const x = margin.left + (i / Math.max(1, profile.length - 1)) * plotW;
+                const y = margin.top + plotH - (v / maxVal) * (plotH - 4);
+                if (i === 0) rangeProfileCtx.moveTo(x, y);
+                else rangeProfileCtx.lineTo(x, y);
+            });
+            rangeProfileCtx.stroke();
+
+            const peakX = margin.left + (peakIdx / Math.max(1, profile.length - 1)) * plotW;
+            rangeProfileCtx.strokeStyle = 'rgba(255, 205, 90, 0.7)';
+            rangeProfileCtx.beginPath();
+            rangeProfileCtx.moveTo(peakX, margin.top);
+            rangeProfileCtx.lineTo(peakX, margin.top + plotH);
+            rangeProfileCtx.stroke();
+
+            rangeProfileCtx.fillStyle = 'rgba(140,220,255,0.95)';
+            rangeProfileCtx.font = '10px Tahoma';
+
+            const yTicks = [maxVal, maxVal * 0.75, maxVal * 0.5, maxVal * 0.25, 0];
+            yTicks.forEach((tick, idx) => {
+                const y = margin.top + (plotH * idx / (yTicks.length - 1));
+                rangeProfileCtx.fillText(`${Math.round(tick)}`, 14, y + 4);
+            });
+            rangeProfileCtx.fillText('Amplitude (a.u.)', 6, 12);
+
+            const xTicks = [0, radarRangeY * 0.25, radarRangeY * 0.5, radarRangeY * 0.75, radarRangeY];
+            xTicks.forEach((tick, idx) => {
+                const x = margin.left + (idx / (xTicks.length - 1)) * plotW;
+                rangeProfileCtx.fillText(`${tick.toFixed(1)} m`, x - 14, h - 16);
+            });
+            rangeProfileCtx.fillText('Range (m)', margin.left + plotW / 2 - 24, h - 2);
+
+            rangeProfileCtx.fillStyle = 'rgba(255, 205, 90, 0.95)';
+            rangeProfileCtx.fillText(`Peak ${peakDist.toFixed(2)} m`, Math.min(w - 128, peakX + 8), margin.top + 12);
+        }
+
+        function updateRadarDisplayRange() {
+            const input = document.getElementById('f_fovRange');
+            const rawRange = input ? parseFloat(input.value) : radarRangeY;
+            const nextRange = Number.isFinite(rawRange) && rawRange > 0 ? rawRange : 15;
+            radarRangeY = Math.max(1, Math.min(nextRange, 300));
+            // 保持 X/Y 米-像素比例一致。800x600 默认下，15m 前向对应横向 +/-10m。
+            radarRangeX = radarRangeY * (canvas.width / 2) / canvas.height;
+        }
+
+        // --- 静态热力图 (Local Occupancy Grid Map) 相关 ---
+        let showStaticMap = false;
+        let showStableStaticPoints = false;
+        const GRID_W = 100; // 栅格数量固定，实际米/格随当前显示量程动态变化
+        const GRID_H = 100;
+        let occupancyGrid = new Float32Array(GRID_W * GRID_H);
+        const GRID_DECAY = 0.992;
+        const GRID_HIT_VALUE = 0.95;
+        const GRID_MAX_VALUE = 12.0;
+        const GRID_NEIGHBOR_KERNEL = [
+            { dx: 0, dy: 0, w: 1.0 },
+            { dx: -1, dy: 0, w: 0.42 },
+            { dx: 1, dy: 0, w: 0.42 },
+            { dx: 0, dy: -1, w: 0.30 },
+            { dx: 0, dy: 1, w: 0.52 },
+            { dx: -1, dy: -1, w: 0.18 },
+            { dx: 1, dy: -1, w: 0.18 },
+            { dx: -1, dy: 1, w: 0.24 },
+            { dx: 1, dy: 1, w: 0.24 }
+        ];
+        const STATIC_MAP_POINT_THRESHOLD = 2.2;
+        const STATIC_MAP_POINT_RADIUS = 2.4;
+
+        function resetStaticMap() {
+            occupancyGrid.fill(0);
+        }
+
+        function updateStaticMap(points) {
+            if (!showStaticMap && !showStableStaticPoints) return;
+            // 1. 全局平滑指数衰减 (遗忘机制)
+            for (let i = 0; i < occupancyGrid.length; i++) {
+                if (occupancyGrid[i] > 0.1) {
+                    occupancyGrid[i] *= GRID_DECAY; // 每帧轻微衰减，保留更稳定的静态背景
+                } else {
+                    occupancyGrid[i] = 0;
+                }
+            }
+
+            // 2. 注入当帧内速度几乎为0的静态雷达点
+            const cellW = (2 * radarRangeX) / GRID_W;
+            const cellH = radarRangeY / GRID_H;
+            points.forEach(p => {
+                // 筛选：前方且接近静止的物体径向回波
+                if (p.y >= 0 && Math.abs(p.v) <= STATIC_SPEED_MAX && isPointUsable(p)) {
+                    const confidence = pointConfidence(p);
+                    const hitScale = Math.min(1.4, Math.max(0.35, confidence / 16));
+                    // 坐标换算：跟随当前显示量程，保证静态地图和距离环一致。
+                    let gx = Math.floor((p.x + radarRangeX) / cellW);
+                    let gy = Math.floor(p.y / cellH);
+
+                    if (gx >= 0 && gx < GRID_W && gy >= 0 && gy < GRID_H) {
+                        GRID_NEIGHBOR_KERNEL.forEach(k => {
+                            const nx = gx + k.dx;
+                            const ny = gy + k.dy;
+                            if (nx < 0 || nx >= GRID_W || ny < 0 || ny >= GRID_H) return;
+                            const idx = ny * GRID_W + nx;
+                            occupancyGrid[idx] += GRID_HIT_VALUE * hitScale * k.w; // 高可信点累计更快
+                            if (occupancyGrid[idx] > GRID_MAX_VALUE) occupancyGrid[idx] = GRID_MAX_VALUE;
+                        });
+                    }
+                }
+            });
+        }
+
+        function drawStaticMap() {
+            if (!showStaticMap) return;
+            ctx.save();
+            // 遍历整个网格
+            const cellW = (2 * radarRangeX) / GRID_W;
+            const cellH = radarRangeY / GRID_H;
+            for (let gy = 0; gy < GRID_H; gy++) {
+                for (let gx = 0; gx < GRID_W; gx++) {
+                    let val = occupancyGrid[gy * GRID_W + gx];
+                    if (val > 3.0) { // 超过显影阈值才画出来 (多帧累加才有效)
+                        // 计算这一个小方格在 Canvas 上的物理像素坐标
+                        // px1, py1 是方块左下角(真实物理y数值更小)；px2, py2是方块右上角
+                        let p_bl = mapToCanvas(gx * cellW - radarRangeX, gy * cellH);
+                        let p_tr = mapToCanvas((gx + 1) * cellW - radarRangeX, (gy + 1) * cellH);
+
+                        let px = p_bl.px;
+                        let py = p_tr.py; // 在屏幕上，y轴反向，右上角的py反而更小(更靠上)
+                        let w = p_tr.px - p_bl.px;
+                        let h = p_bl.py - p_tr.py;
+
+                        // 数值越高，越不透明并越发青色 (最高 0.8 alpha)
+                        let alpha = Math.min(0.8, (val - 3.0) / 7.0 * 0.8);
+                        ctx.fillStyle = `rgba(0, 200, 255, ${alpha})`;
+                        // 考虑格子的微小间隙，稍微多渲染 0.5px 以防锯齿
+                        ctx.fillRect(px, py - 0.5, w + 0.5, h + 1);
+                    }
+                }
+            }
+            ctx.restore();
+        }
+
+        function drawStableStaticPoints() {
+            if (!showStableStaticPoints) return;
+            ctx.save();
+            const cellW = (2 * radarRangeX) / GRID_W;
+            const cellH = radarRangeY / GRID_H;
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = '#66e6ff';
+            for (let gy = 0; gy < GRID_H; gy++) {
+                for (let gx = 0; gx < GRID_W; gx++) {
+                    const val = occupancyGrid[gy * GRID_W + gx];
+                    if (val < STATIC_MAP_POINT_THRESHOLD) continue;
+
+                    const x = (gx + 0.5) * cellW - radarRangeX;
+                    const y = (gy + 0.5) * cellH;
+                    const { px, py } = mapToCanvas(x, y);
+                    const alpha = Math.min(0.95, 0.2 + (val / 10) * 0.75);
+
+                    ctx.fillStyle = `rgba(100, 230, 255, ${alpha})`;
+                    ctx.beginPath();
+                    ctx.arc(px, py, STATIC_MAP_POINT_RADIUS, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+            ctx.restore();
+        }
+
+        // 静态障碍层：只做当前帧障碍聚类，不参与船只 ID 跟踪和动态目标合并。
+        class StaticObstacleMapper {
+            constructor() {
+                this.currentObstacles = [];
+                this.tracks = [];
+                this.nextId = 1;
+            }
+
+            processPoints(points) {
+                const validPoints = points.filter(p => p.y >= 0.0 && isPointUsable(p));
+                const clusters = [];
+
+                validPoints.forEach(p => {
+                    let clustered = false;
+                    for (const c of clusters) {
+                        if (c.points.some(cp => Math.hypot(cp.x - p.x, cp.y - p.y) < STATIC_CLUSTER_EPS)) {
+                            c.points.push(p);
+                            clustered = true;
+                            break;
+                        }
+                    }
+                    if (!clustered) clusters.push({ points: [p] });
+                });
+
+                const detections = clusters
+                    .filter(c => c.points.length >= STATIC_CLUSTER_MIN_POINTS)
+                    .map(c => {
+                        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+                        let sx = 0, sy = 0;
+                        c.points.forEach(p => {
+                            sx += p.x;
+                            sy += p.y;
+                            if (p.x < minX) minX = p.x;
+                            if (p.x > maxX) maxX = p.x;
+                            if (p.y < minY) minY = p.y;
+                            if (p.y > maxY) maxY = p.y;
+                        });
+                        return {
+                            x: sx / c.points.length,
+                            y: sy / c.points.length,
+                            minX, maxX, minY, maxY,
+                            count: c.points.length
+                        };
+                    });
+
+                this.tracks.forEach(t => t.matched = false);
+
+                detections.forEach(det => {
+                    let bestTrack = null;
+                    let bestDist = STATIC_OBSTACLE_MATCH_GATE;
+
+                    this.tracks.forEach(track => {
+                        if (track.matched) return;
+                        const d = Math.hypot(track.x - det.x, track.y - det.y);
+                        if (d < bestDist) {
+                            bestDist = d;
+                            bestTrack = track;
+                        }
+                    });
+
+                    if (bestTrack) {
+                        const a = STATIC_OBSTACLE_SMOOTHING;
+                        bestTrack.x = (1 - a) * bestTrack.x + a * det.x;
+                        bestTrack.y = (1 - a) * bestTrack.y + a * det.y;
+                        bestTrack.minX = (1 - a) * bestTrack.minX + a * det.minX;
+                        bestTrack.maxX = (1 - a) * bestTrack.maxX + a * det.maxX;
+                        bestTrack.minY = (1 - a) * bestTrack.minY + a * det.minY;
+                        bestTrack.maxY = (1 - a) * bestTrack.maxY + a * det.maxY;
+                        bestTrack.count = Math.round((1 - a) * bestTrack.count + a * det.count);
+                        bestTrack.confidence = Math.min(5, bestTrack.confidence + 0.9);
+                        bestTrack.unseen = 0;
+                        bestTrack.matched = true;
+                        this.appendMotionHistory(bestTrack);
+                    } else {
+                        const newTrack = {
+                            id: this.nextId++,
+                            ...det,
+                            confidence: 1,
+                            unseen: 0,
+                            matched: true,
+                            history: []
+                        };
+                        this.appendMotionHistory(newTrack);
+                        this.tracks.push(newTrack);
+                    }
+                });
+
+                this.tracks.forEach(track => {
+                    if (!track.matched) {
+                        track.unseen++;
+                        track.confidence *= 0.88;
+                    }
+                });
+
+                this.tracks = this.tracks.filter(track =>
+                    track.unseen <= STATIC_OBSTACLE_MAX_UNSEEN && track.confidence >= 0.25
+                );
+
+                this.currentObstacles = this.tracks.filter(track =>
+                    track.confidence >= STATIC_OBSTACLE_MIN_CONFIDENCE || track.unseen === 0
+                );
+            }
+
+            appendMotionHistory(track) {
+                if (!track.history) track.history = [];
+                const last = track.history[track.history.length - 1];
+                if (!last || Math.hypot(track.x - last.x, track.y - last.y) >= STATIC_TO_DYNAMIC_MIN_STEP_M) {
+                    track.history.push({ x: track.x, y: track.y });
+                    if (track.history.length > STATIC_MOTION_HISTORY_MAX) track.history.shift();
+                }
+            }
+
+            getTrackDisplacement(track) {
+                if (!track.history || track.history.length < 2) return 0;
+                const first = track.history[0];
+                const last = track.history[track.history.length - 1];
+                return Math.hypot(last.x - first.x, last.y - first.y);
+            }
+
+            getMovingCandidates() {
+                this.tracks.forEach(track => track.isMovingCandidate = false);
+                return this.tracks
+                    .filter(track =>
+                        track.matched &&
+                        track.confidence >= STATIC_OBSTACLE_MIN_CONFIDENCE &&
+                        track.history &&
+                        track.history.length >= STATIC_TO_DYNAMIC_MIN_HISTORY &&
+                        this.getTrackDisplacement(track) >= STATIC_TO_DYNAMIC_MIN_DISPLACEMENT_M
+                    )
+                    .map(track => {
+                        track.isMovingCandidate = true;
+                        return {
+                            x: track.x,
+                            y: track.y,
+                            z: 0,
+                            v: PROMOTED_DYNAMIC_SPEED,
+                            promoted: true,
+                            sourceId: track.id
+                        };
+                    });
+            }
+        }
 
         // 简易 DBSCAN 和多目标跟踪航迹类 (Software Tracker)
         class TargetTracker {
             constructor() {
                 this.boats = [];
                 this.nextId = 1;
+                this.frameTick = 0;
                 this.maxUnseenFrames = 60; // 断线容忍保持在优异的 3秒 级
                 this.globalTrails = {}; // 【核心修复】改为键值对，独立记录每一艘历史船只的连贯航线！
                 this.currentClusters = []; // 存储当前帧的实体簇，用于绘制 XY 平面包围框
             }
 
             processPoints(points) {
-                // 【核心修复1：室内或大面积空旷环境下的多目标聚合优化】
-                // 针对用户反馈进入范围产生 7 个船只的问题：
-                // 1. 将聚类半径从 1.2m 扩大至 1.8m，以更好地适应人体反射的散布范围。
-                // 2. 增加微小速度过滤。
-                let validPoints = points.filter(p => p.y >= 0.0 && Math.abs(p.v) > 0.05);
+                this.frameTick++;
+                // 动态 Tracker 同时接收明显 Doppler 点和静态层升级来的低 Doppler 运动候选。
+                let validPoints = points.filter(p => p.y >= 0.0 && (p.promoted || (Math.abs(p.v) >= DYNAMIC_SPEED_MIN && isPointUsable(p))));
 
                 let clusters = [];
                 validPoints.forEach(p => {
                     let clustered = false;
                     for (let c of clusters) {
-                        // 聚类半径采用 1.8m，有助于合并分离开的目标点
-                        if (c.points.some(cp => Math.hypot(cp.x - p.x, cp.y - p.y) < 1.8)) {
+                        if (c.points.some(cp => Math.hypot(cp.x - p.x, cp.y - p.y) < DYNAMIC_CLUSTER_EPS)) {
                             c.points.push(p);
                             clustered = true; break;
                         }
@@ -449,7 +971,7 @@
 
                 // 成团门槛维持在 2 点，但仅保留距离中心合理的点
                 let detectedCentroids = clusters
-                    .filter(c => c.points.length >= 2)
+                    .filter(c => c.points.length >= 2 || c.points.some(p => p.promoted))
                     .map(c => {
                         let sx = 0, sy = 0, sv = 0;
                         c.points.forEach(p => { sx += p.x; sy += p.y; sv += Math.abs(p.v) });
@@ -461,7 +983,7 @@
 
                 detectedCentroids.forEach(det => {
                     let bestBoat = null;
-                    let minDist = 3.5; // 跟踪门限收紧以防止误匹配
+                    let minDist = DYNAMIC_MATCH_GATE;
 
                     this.boats.forEach(b => {
                         if (b.matched) return;
@@ -473,7 +995,7 @@
                         // 平滑系数调整
                         bestBoat.x = 0.8 * bestBoat.x + 0.2 * det.x;
                         bestBoat.y = 0.8 * bestBoat.y + 0.2 * det.y;
-                        
+
                         let dx = det.x - bestBoat.x;
                         let dy = det.y - bestBoat.y;
                         let dist = Math.hypot(dx, dy);
@@ -485,32 +1007,32 @@
                         bestBoat.unseen = 0;
                         bestBoat.matched = true;
 
-                        if (!this.globalTrails[bestBoat.id]) this.globalTrails[bestBoat.id] = [];
-                        this.globalTrails[bestBoat.id].push({ x: bestBoat.x, y: bestBoat.y });
-                        if (this.globalTrails[bestBoat.id].length > 1000) this.globalTrails[bestBoat.id].shift();
+                        this.appendTrailPoint(bestBoat.id, bestBoat.x, bestBoat.y);
+                        if (this.globalTrails[bestBoat.id].points.length > 1000) this.globalTrails[bestBoat.id].points.shift();
                     } else {
-                        // 【防止幽灵分裂】：只有远离现有活跃船只 3.0m 以上的才新生成 ID
-                        let tooCloseToOthers = this.boats.some(b => Math.hypot(b.x - det.x, b.y - det.y) < 2.5);
+                        // 新目标抑制只服务于动态目标防分裂，不再影响静态障碍物分辨。
+                        let tooCloseToOthers = this.boats.some(b => Math.hypot(b.x - det.x, b.y - det.y) < DYNAMIC_NEW_TARGET_SUPPRESS);
                         if (!tooCloseToOthers) {
+                            const trailId = this.findReconnectTrailId(det.x, det.y);
                             let newBoat = {
-                                id: this.nextId++,
+                                id: trailId || this.nextId++,
                                 x: det.x, y: det.y,
                                 vx: 0, vy: 0,
                                 unseen: 0, matched: true
                             };
                             this.boats.push(newBoat);
-                            this.globalTrails[newBoat.id] = [{ x: newBoat.x, y: newBoat.y }];
+                            this.appendTrailPoint(newBoat.id, newBoat.x, newBoat.y, true);
                         }
                     }
                 });
 
                 this.boats.forEach(b => { if (!b.matched) b.unseen++; });
-                
-                // 【合并逻辑】：如果两个目标靠得太近 (小于 1.5m)，则合并它们，解决“鬼影”现象
+
+                // 合并逻辑只作用于动态目标；静态障碍已经在独立层处理。
                 for (let i = 0; i < this.boats.length; i++) {
                     for (let j = i + 1; j < this.boats.length; j++) {
-                        if (Math.hypot(this.boats[i].x - this.boats[j].x, this.boats[i].y - this.boats[j].y) < 1.5) {
-                            console.log("Merging ghost targets...");
+                        if (Math.hypot(this.boats[i].x - this.boats[j].x, this.boats[i].y - this.boats[j].y) < DYNAMIC_MERGE_GATE) {
+                            console.log("Tracker: Merging adjacent targets...");
                             this.boats.splice(j, 1);
                             j--;
                         }
@@ -518,25 +1040,175 @@
                 }
 
                 this.boats = this.boats.filter(b => b.unseen < this.maxUnseenFrames);
+                // 旧版本缓存可能还是数组结构，顺手迁移，避免刷新前后行为不一致。
+                Object.keys(this.globalTrails).forEach(id => {
+                    if (Array.isArray(this.globalTrails[id])) {
+                        this.globalTrails[id] = { points: this.globalTrails[id], keep: false };
+                    }
+                });
+                this.pruneShortTrails();
+            }
+
+            appendTrailPoint(id, x, y, force = false) {
+                if (!this.globalTrails[id]) this.globalTrails[id] = { points: [], keep: false };
+                if (Array.isArray(this.globalTrails[id])) {
+                    this.globalTrails[id] = { points: this.globalTrails[id], keep: false };
+                }
+                const trail = this.globalTrails[id];
+                const pathArray = trail.points;
+                const last = pathArray[pathArray.length - 1];
+                if (!force && last && Math.hypot(x - last.x, y - last.y) < TRAIL_POINT_MIN_SPACING) return;
+
+                const smoothed = last
+                    ? {
+                        x: (1 - TRAIL_SMOOTHING) * last.x + TRAIL_SMOOTHING * x,
+                        y: (1 - TRAIL_SMOOTHING) * last.y + TRAIL_SMOOTHING * y
+                    }
+                    : { x, y };
+
+                pathArray.push({ ...smoothed, t: this.frameTick });
+                if (pathArray.length >= TRAIL_KEEP_POINTS && this.getTrailDisplacement(pathArray) >= TRAIL_KEEP_DISPLACEMENT_M) {
+                    trail.keep = true;
+                }
+            }
+
+            findReconnectTrailId(x, y) {
+                let bestId = null;
+                let bestDist = TRAIL_RECONNECT_DIST_M;
+                Object.entries(this.globalTrails).forEach(([id, trail]) => {
+                    const points = Array.isArray(trail) ? trail : trail.points;
+                    if (!points || points.length === 0) return;
+                    const last = points[points.length - 1];
+                    const gap = this.frameTick - (last.t || 0);
+                    if (gap > TRAIL_RECONNECT_MAX_GAP) return;
+                    const d = Math.hypot(x - last.x, y - last.y);
+                    if (d < bestDist) {
+                        bestDist = d;
+                        bestId = Number(id);
+                    }
+                });
+                return bestId;
+            }
+
+            getTrailDisplacement(pathArray) {
+                if (!pathArray || pathArray.length < 2) return 0;
+                const first = pathArray[0];
+                const last = pathArray[pathArray.length - 1];
+                return Math.hypot(last.x - first.x, last.y - first.y);
+            }
+
+            isTrailDrawable(pathArray) {
+                return pathArray &&
+                    pathArray.length >= TRAIL_MIN_POINTS_TO_DRAW &&
+                    this.getTrailDisplacement(pathArray) >= TRAIL_MIN_DISPLACEMENT_M;
+            }
+
+            isBoatDrawable(boat) {
+                const trail = this.globalTrails[boat.id];
+                const pathArray = Array.isArray(trail) ? trail : (trail ? trail.points : []);
+                const speed = Math.hypot(boat.vx, boat.vy);
+                const displacement = this.getTrailDisplacement(pathArray);
+                return pathArray.length >= BOAT_MIN_TRAIL_POINTS_TO_DRAW &&
+                    displacement >= BOAT_MIN_DISPLACEMENT_M &&
+                    speed >= BOAT_MIN_SPEED_TO_DRAW;
+            }
+
+            pruneShortTrails() {
+                const liveIds = new Set(this.boats.map(b => String(b.id)));
+                Object.keys(this.globalTrails).forEach(id => {
+                    if (liveIds.has(id)) return;
+                    const trail = this.globalTrails[id];
+                    const pathArray = Array.isArray(trail) ? trail : (trail ? trail.points : []);
+                    const keep = !Array.isArray(trail) && trail && trail.keep;
+                    if (keep) return;
+                    const stale = !pathArray || pathArray.length < TRAIL_MIN_POINTS_TO_DRAW;
+                    const tooShort = this.getTrailDisplacement(pathArray) < TRAIL_MIN_DISPLACEMENT_M;
+                    if (stale || tooShort) {
+                        delete this.globalTrails[id];
+                    }
+                });
+            }
+
+            clearTrails() {
+                this.globalTrails = {};
+                this.boats = [];
+                this.currentClusters = [];
+                this.nextId = 1;
+                this.frameTick = 0;
             }
         }
 
         const tracker = new TargetTracker();
+        const staticObstacleMapper = new StaticObstacleMapper();
 
         function mapToCanvas(x_m, y_m) {
             const cx = canvas.width / 2;
             const cy = canvas.height;
             return {
-                px: cx + (x_m / MAX_RANGE_X) * cx,
-                py: cy - (y_m / MAX_RANGE_Y) * cy
+                px: cx + (x_m / radarRangeX) * cx,
+                py: cy - (y_m / radarRangeY) * cy
             };
         }
 
+        function getPointSnr(pt) {
+            const snr = Number(pt.snr);
+            return Number.isFinite(snr) ? snr : null;
+        }
+
+        function getPointNoise(pt) {
+            const noise = Number(pt.noise);
+            return Number.isFinite(noise) ? noise : null;
+        }
+
+        function getNoiseBaseline() {
+            const input = document.getElementById('noiseBaselineInput');
+            const raw = input ? Number(input.value) : noiseBaselineDb;
+            noiseBaselineDb = Number.isFinite(raw) ? raw : 80;
+            return noiseBaselineDb;
+        }
+
+        function pointConfidence(pt) {
+            const snr = getPointSnr(pt);
+            const noise = getPointNoise(pt);
+            const safeSnr = snr !== null ? snr : 10;
+            const safeNoise = noise !== null ? noise : getNoiseBaseline();
+            return safeSnr - 0.15 * Math.max(0, safeNoise - getNoiseBaseline());
+        }
+
+        function isPointUsable(pt) {
+            return pointConfidence(pt) >= CONFIDENCE_HIDE_THRESHOLD;
+        }
+
+        function confidenceToAlpha(confidence) {
+            if (confidence < CONFIDENCE_HIDE_THRESHOLD) return 0;
+            if (confidence < CONFIDENCE_WEAK_THRESHOLD) return 0.28 + (confidence - CONFIDENCE_HIDE_THRESHOLD) * 0.08;
+            return Math.min(1, 0.62 + (confidence - CONFIDENCE_WEAK_THRESHOLD) * 0.025);
+        }
+
+        function normalizeSnr(snr) {
+            if (snr === null) return 0.45;
+            // 6~30 dB 覆盖弱点到强反射点；超出范围做夹紧，避免颜色跳变。
+            return Math.max(0, Math.min(1, (snr - 6) / 24));
+        }
+
+        function snrToColor(snr, alpha = 1) {
+            if (snr === null) return `rgba(0, 255, 204, ${alpha})`;
+            const t = normalizeSnr(snr);
+            const hue = 220 - 220 * t; // 低 SNR 蓝色，高 SNR 红色
+            const light = 56 + 8 * t;
+            return `hsla(${hue}, 100%, ${light}%, ${alpha})`;
+        }
+
+        function snrToRadius(snr) {
+            return POINT_DRAW_RADIUS;
+        }
+
         function drawGrid() {
+            updateRadarDisplayRange();
             // [余辉效果关键]：不再使用 clearRect，而是涂一层带透明度的底色
             ctx.fillStyle = 'rgba(8, 12, 20, 0.4)'; // 值的越小，余辉越长 (0.1~0.5)
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
+
             const cx = canvas.width / 2, cy = canvas.height;
 
             ctx.strokeStyle = 'rgba(0, 255, 204, 0.15)';
@@ -547,7 +1219,7 @@
                 const r = (cy / 5) * i;
                 ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, 0); ctx.stroke();
                 ctx.fillStyle = 'rgba(0, 255, 204, 0.4)'; ctx.font = '10px Arial';
-                ctx.fillText((MAX_RANGE_Y / 5 * i).toFixed(1) + 'm', cx + 5, cy - r + 15);
+                ctx.fillText((radarRangeY / 5 * i).toFixed(1) + 'm', cx + 5, cy - r + 15);
             }
 
             // 扇形线
@@ -590,15 +1262,72 @@
             ctx.restore();
         }
 
+        function drawStaticObstacles() {
+            if (!showStaticMap) return;
+            staticObstacleMapper.currentObstacles.forEach(obs => {
+                // 观测层使用“限幅框”，避免稀疏桥接点把相邻障碍撑成一个巨大的外接框。
+                const rawW = Math.max(STATIC_OBSTACLE_BOX_MIN, obs.maxX - obs.minX + 0.35);
+                const rawH = Math.max(STATIC_OBSTACLE_BOX_MIN, obs.maxY - obs.minY + 0.35);
+                const boxW = Math.min(STATIC_OBSTACLE_BOX_MAX, rawW);
+                const boxH = Math.min(STATIC_OBSTACLE_BOX_MAX, rawH);
+                const tl = mapToCanvas(obs.x - boxW / 2, obs.y + boxH / 2);
+                const br = mapToCanvas(obs.x + boxW / 2, obs.y - boxH / 2);
+                const w = br.px - tl.px;
+                const h = br.py - tl.py;
+                const center = mapToCanvas(obs.x, obs.y);
+                const dist = Math.hypot(obs.x, obs.y).toFixed(1);
+
+                ctx.save();
+                ctx.strokeStyle = obs.isMovingCandidate ? 'rgba(255, 190, 0, 0.95)' : 'rgba(0, 180, 255, 0.9)';
+                const alpha = Math.min(0.9, Math.max(0.25, obs.confidence / 5));
+                ctx.fillStyle = obs.isMovingCandidate
+                    ? `rgba(255, 160, 0, ${0.08 + alpha * 0.06})`
+                    : `rgba(0, 120, 255, ${0.10 + alpha * 0.08})`;
+                ctx.lineWidth = 2;
+                ctx.setLineDash([6, 4]);
+                ctx.globalAlpha = alpha;
+                ctx.fillRect(tl.px, tl.py, w, h);
+                ctx.strokeRect(tl.px, tl.py, w, h);
+                ctx.globalAlpha = 1;
+                ctx.setLineDash([]);
+                ctx.fillStyle = obs.isMovingCandidate ? '#ffd37a' : '#7fdcff';
+                ctx.shadowColor = '#003a66';
+                ctx.shadowBlur = 5;
+                ctx.font = 'bold 11px Tahoma';
+                const label = obs.isMovingCandidate ? '移动候选' : '静态障碍';
+                ctx.fillText(`${label} ${dist}m (${obs.count}点)`, center.px + 6, center.py - 6);
+                ctx.restore();
+            });
+        }
+
         function renderRadarFrame(data) {
-            tracker.processPoints(data.points);
-            
+            updateRadarDisplayRange();
+            lastRangeProfile = Array.isArray(data.range_profile) ? data.range_profile : [];
+            drawRangeProfile(lastRangeProfile);
+            // 【近场补偿】过滤雷达中心 BLIND_ZONE_M 内部的天线串扰/安装结构鬼点。
+            const visiblePoints = (data.points || []).filter(pt => Math.hypot(pt.x, pt.y) >= BLIND_ZONE_M);
+            const usablePoints = visiblePoints.filter(pt => isPointUsable(pt));
+            const staticPoints = usablePoints.filter(pt => pt.y >= 0 && Math.abs(pt.v) <= STATIC_SPEED_MAX);
+            const dynamicPoints = usablePoints.filter(pt => pt.y >= 0 && Math.abs(pt.v) >= DYNAMIC_SPEED_MIN);
+
+            staticObstacleMapper.processPoints(staticPoints);
+            const promotedDynamicPoints = staticObstacleMapper.getMovingCandidates();
+            tracker.processPoints(dynamicPoints.concat(promotedDynamicPoints));
+
+            // 更新静态热力图模型
+            updateStaticMap(staticPoints);
+
             // 绘制底图（带余辉）
             drawGrid();
 
-            // 1. 点云增强：高亮灯带发光效果
-            drawPoints(ctx, data.points);
-            
+            // 绘制静态热力图（做为底层背景）
+            drawStaticMap();
+
+            // 1. 原始点云保留真实跳动；稳定地图开启时会自动淡化原始点
+            drawPoints(ctx, visiblePoints);
+            drawStableStaticPoints();
+            drawStaticObstacles();
+
             // 1.5. 绘制 XY 平面簇 (Clusters) 的边界框
             if (showTrails && tracker.currentClusters) {
                 tracker.currentClusters.forEach(c => {
@@ -611,12 +1340,12 @@
                             if (p.y < minY) minY = p.y;
                             if (p.y > maxY) maxY = p.y;
                         });
-                        
+
                         // 稍微给边界框加上一点 Padding
                         const padding = 0.3; // 0.3米
                         const tl = mapToCanvas(minX - padding, maxY + padding);
                         const br = mapToCanvas(maxX + padding, minY - padding);
-                        
+
                         const w = br.px - tl.px;
                         const h = br.py - tl.py;
 
@@ -625,7 +1354,7 @@
                         ctx.setLineDash([4, 4]); // 虚线框
                         ctx.lineWidth = 1.5;
                         ctx.strokeRect(tl.px, tl.py, w, h);
-                        
+
                         // 在旁边标记聚类包含的点数
                         ctx.fillStyle = 'rgba(0, 150, 255, 0.8)';
                         ctx.font = '10px Arial';
@@ -634,26 +1363,42 @@
                     }
                 });
             }
-            
+
             // 2. 绘制历史航迹 (根据开关决定)
             if (showTrails) {
-                Object.values(tracker.globalTrails).forEach(pathArray => {
-                if (pathArray.length < 2) return;
-                ctx.beginPath();
-                for (let i = 0; i < pathArray.length; i++) {
-                    const tp = mapToCanvas(pathArray[i].x, pathArray[i].y);
-                    if (i === 0) ctx.moveTo(tp.px, tp.py);
-                    else ctx.lineTo(tp.px, tp.py);
-                }
-                ctx.strokeStyle = 'rgba(255, 170, 0, 0.4)';
-                ctx.lineWidth = 2.5;
-                ctx.stroke();
+                Object.values(tracker.globalTrails).forEach(trail => {
+                    const pathArray = Array.isArray(trail) ? trail : trail.points;
+                    if (!tracker.isTrailDrawable(pathArray)) return;
+                    for (let i = 1; i < pathArray.length; i++) {
+                        const prev = mapToCanvas(pathArray[i - 1].x, pathArray[i - 1].y);
+                        const cur = mapToCanvas(pathArray[i].x, pathArray[i].y);
+                        const ageRatio = i / (pathArray.length - 1);
+                        ctx.beginPath();
+                        ctx.moveTo(prev.px, prev.py);
+                        ctx.lineTo(cur.px, cur.py);
+                        ctx.strokeStyle = `rgba(255, 170, 0, ${0.12 + ageRatio * 0.55})`;
+                        ctx.lineWidth = 1.2 + ageRatio * 2.4;
+                        ctx.lineJoin = 'round';
+                        ctx.lineCap = 'round';
+                        ctx.stroke();
+                    }
+
+                    const head = mapToCanvas(pathArray[pathArray.length - 1].x, pathArray[pathArray.length - 1].y);
+                    ctx.save();
+                    ctx.fillStyle = '#ffd37a';
+                    ctx.shadowColor = '#ffaa00';
+                    ctx.shadowBlur = 8;
+                    ctx.beginPath();
+                    ctx.arc(head.px, head.py, 3.2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
                 });
             }
 
             // 3. 绘制活动目标（船只实体）
             if (showTrails) {
                 tracker.boats.forEach(boat => {
+                    if (!tracker.isBoatDrawable(boat)) return;
                     const { px, py } = mapToCanvas(boat.x, boat.y);
                     drawBoat(px, py, boat.vx, boat.vy);
 
@@ -675,39 +1420,100 @@
             lastFrameTime = now;
 
             document.getElementById('frameDisplay').innerText = `#${data.frame_num} (${fps.toFixed(0)}Hz)`;
-            document.getElementById('pointsDisplay').innerText = data.points.length;
-            document.getElementById('targetsDisplay').innerText = tracker.boats.length;
+            document.getElementById('pointsDisplay').innerText = `${usablePoints.length}/${visiblePoints.length} (静:${staticPoints.length}/动:${dynamicPoints.length}+候:${promotedDynamicPoints.length})`;
+            document.getElementById('targetsDisplay').innerText = tracker.boats.filter(b => tracker.isBoatDrawable(b)).length;
+            const tlvTypes = Array.isArray(data.tlv_types) ? data.tlv_types.join(',') : '--';
+            const sideCount = Number.isFinite(Number(data.side_info_count)) ? Number(data.side_info_count) : 0;
+            const sideText = data.has_side_info ? `有 SNR (${sideCount})` : `无 SNR / TLV:${tlvTypes}`;
+            document.getElementById('sideInfoDisplay').innerText = sideText;
+            if (data.pointcloud_recording) {
+                pointcloudRecording = !!data.pointcloud_recording.enabled;
+                const rows = data.pointcloud_recording.rows || 0;
+                const recordDisplay = document.getElementById('recordDisplay');
+                recordDisplay.innerText = pointcloudRecording ? `记录中 ${rows}行` : recordDisplay.innerText;
+                recordDisplay.title = data.pointcloud_recording.path || recordDisplay.title;
+            }
         }
 
         // 点云绘制：精细小点 + 轻微光晕，适合密集环境扫描
         function drawPoints(ctx, points) {
-            ctx.save();
-            ctx.shadowBlur = 6;
-            ctx.shadowColor = '#00ffcc';
-            ctx.fillStyle = '#00ffcc';
+            pointTrails = pointTrails
+                .map(p => ({ ...p, alpha: p.alpha * POINT_TRAIL_DECAY }))
+                .filter(p => p.alpha >= POINT_TRAIL_MIN_ALPHA);
+
             points.forEach(pt => {
+                pointTrails.push({
+                    x: pt.x,
+                    y: pt.y,
+                    snr: getPointSnr(pt),
+                    noise: getPointNoise(pt),
+                    alpha: 1.0
+                });
+            });
+
+            if (pointTrails.length > POINT_TRAIL_MAX_POINTS) {
+                pointTrails = pointTrails.slice(pointTrails.length - POINT_TRAIL_MAX_POINTS);
+            }
+
+            ctx.save();
+            pointTrails.forEach(pt => {
                 const { px, py } = mapToCanvas(pt.x, pt.y);
                 if (px > 0 && px < canvas.width && py > 0) {
+                    const alphaScale = showStableStaticPoints ? 0.38 : 1.0;
+                    const confidence = pointConfidence(pt);
+                    const alpha = Math.min(1, pt.alpha * alphaScale * confidenceToAlpha(confidence));
+                    if (alpha <= 0) return;
+                    const snr = getPointSnr(pt);
+                    ctx.shadowBlur = 4;
+                    ctx.shadowColor = snrToColor(snr, alpha);
+                    ctx.fillStyle = snrToColor(snr, alpha);
                     ctx.beginPath();
-                    ctx.arc(px, py, 2, 0, Math.PI * 2);
+                    ctx.arc(px, py, snrToRadius(snr), 0, Math.PI * 2);
                     ctx.fill();
                 }
             });
             ctx.restore();
+
+            if (showSnrLabels) {
+                ctx.save();
+                ctx.font = 'bold 10px Tahoma';
+                ctx.textBaseline = 'top';
+                points.forEach(pt => {
+                    const snr = getPointSnr(pt);
+                    const noise = getPointNoise(pt);
+                    if (snr === null && noise === null) return;
+                    if (!isPointUsable(pt)) return;
+                    const { px, py } = mapToCanvas(pt.x, pt.y);
+                    if (px <= 0 || px >= canvas.width || py <= 0 || py >= canvas.height) return;
+
+                    const label = `SNR:${snr !== null ? snr.toFixed(1) : '--'}dB N:${noise !== null ? noise.toFixed(1) : '--'}dB`;
+                    const x = Math.min(canvas.width - 112, px + POINT_DRAW_RADIUS + 4);
+                    const y = Math.max(2, py - 8);
+
+                    ctx.shadowBlur = 4;
+                    ctx.shadowColor = '#000';
+                    ctx.fillStyle = 'rgba(2, 10, 18, 0.62)';
+                    ctx.fillRect(x - 3, y - 2, 112, 14);
+                    ctx.fillStyle = snrToColor(snr, 0.95);
+                    ctx.fillText(label, x, y);
+                });
+                ctx.restore();
+            }
         }
 
         // 记忆 IP 逻辑
         function saveIpToHistory(ip) {
+            localStorage.setItem('radar_last_ip', ip);
             let history = JSON.parse(localStorage.getItem('radar_ip_history') || '[]');
-            if (!history.includes(ip)) {
-                history.unshift(ip);
-                if (history.length > 5) history.pop();
-                localStorage.setItem('radar_ip_history', JSON.stringify(history));
-            }
+            history = history.filter(item => item !== ip);
+            history.unshift(ip);
+            if (history.length > 5) history.pop();
+            localStorage.setItem('radar_ip_history', JSON.stringify(history));
         }
 
         function loadIpHistory() {
             const list = JSON.parse(localStorage.getItem('radar_ip_history') || '[]');
+            const lastIp = localStorage.getItem('radar_last_ip') || list[0] || '192.168.43.36:8765';
             const datalist = document.getElementById('ip-history');
             datalist.innerHTML = '';
             list.forEach(ip => {
@@ -715,27 +1521,121 @@
                 opt.value = ip;
                 datalist.appendChild(opt);
             });
-            // 默认填入最后一个记录
-            if (list.length > 0) {
-                const currentVal = document.getElementById('wsInput').value;
-                if (!currentVal || currentVal === '192.168.43.36:8765') {
-                    document.getElementById('wsInput').value = list[0];
+            document.getElementById('wsInput').value = lastIp;
+        }
+
+        function loadNoiseBaseline() {
+            const input = document.getElementById('noiseBaselineInput');
+            const saved = Number(localStorage.getItem(NOISE_BASELINE_STORAGE_KEY));
+            noiseBaselineDb = Number.isFinite(saved) ? saved : 80;
+            input.value = noiseBaselineDb;
+        }
+
+        document.getElementById('noiseBaselineInput').addEventListener('input', (e) => {
+            const next = Number(e.target.value);
+            if (!Number.isFinite(next)) return;
+            noiseBaselineDb = next;
+            localStorage.setItem(NOISE_BASELINE_STORAGE_KEY, String(next));
+        });
+
+        window.addEventListener('load', loadIpHistory);
+        window.addEventListener('load', loadNoiseBaseline);
+        window.addEventListener('load', () => drawRangeProfile([]));
+
+        // 静态地图显示开关与清除逻辑
+        document.getElementById('staticMapToggleBtn').addEventListener('click', (e) => {
+            showStaticMap = !showStaticMap;
+            const btn = e.target;
+            const clearBtn = document.getElementById('clearMapBtn');
+            if (showStaticMap) {
+                btn.innerText = "静态地图: 开";
+                btn.style.backgroundColor = "rgba(0, 150, 255, 0.2)";
+                clearBtn.style.display = 'inline-block';
+            } else {
+                btn.innerText = "静态地图: 关";
+                btn.style.backgroundColor = "transparent";
+                clearBtn.style.display = showStableStaticPoints ? 'inline-block' : 'none';
+                if (!showStableStaticPoints) {
+                    resetStaticMap(); // 两个静态显示都关闭时，自动清除遗留网格
+                    staticObstacleMapper.currentObstacles = [];
+                    staticObstacleMapper.tracks = [];
+                    pointTrails = [];
                 }
             }
-        }
-        window.addEventListener('load', loadIpHistory);
+        });
+
+        document.getElementById('stableMapToggleBtn').addEventListener('click', (e) => {
+            showStableStaticPoints = !showStableStaticPoints;
+            const btn = e.target;
+            const clearBtn = document.getElementById('clearMapBtn');
+            if (showStableStaticPoints) {
+                btn.innerText = "稳定地图: 开";
+                btn.style.backgroundColor = "rgba(0, 220, 255, 0.18)";
+                clearBtn.style.display = 'inline-block';
+            } else {
+                btn.innerText = "稳定地图: 关";
+                btn.style.backgroundColor = "transparent";
+                clearBtn.style.display = showStaticMap ? 'inline-block' : 'none';
+                if (!showStaticMap) {
+                    resetStaticMap();
+                    staticObstacleMapper.currentObstacles = [];
+                    staticObstacleMapper.tracks = [];
+                    pointTrails = [];
+                }
+            }
+        });
+
+        document.getElementById('snrLabelToggleBtn').addEventListener('click', (e) => {
+            showSnrLabels = !showSnrLabels;
+            const btn = e.target;
+            if (showSnrLabels) {
+                btn.innerText = "SNR标签: 开";
+                btn.style.backgroundColor = "rgba(255, 85, 119, 0.18)";
+            } else {
+                btn.innerText = "SNR标签: 关";
+                btn.style.backgroundColor = "transparent";
+            }
+        });
+
+        document.getElementById('recordPointcloudBtn').addEventListener('click', (e) => {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert("请先连接雷达服务，再开始记录点云。");
+                return;
+            }
+            const action = pointcloudRecording ? "stop" : "start";
+            pointcloudRecording = action === "start";
+            ws.send(JSON.stringify({ type: "pointcloud_record", action }));
+            e.target.innerText = action === "start" ? "记录点云: 开" : "记录点云: 关";
+            e.target.style.backgroundColor = action === "start" ? "rgba(127, 220, 255, 0.18)" : "transparent";
+            document.getElementById('recordDisplay').innerText = action === "start" ? "记录中..." : "正在停止";
+        });
+
+        document.getElementById('clearMapBtn').addEventListener('click', () => {
+            resetStaticMap();
+            staticObstacleMapper.currentObstacles = [];
+            staticObstacleMapper.tracks = [];
+            pointTrails = [];
+        });
 
         // 航迹显示开关逻辑
         document.getElementById('trailToggleBtn').addEventListener('click', (e) => {
             showTrails = !showTrails;
             const btn = e.target;
+            const clearTrailsBtn = document.getElementById('clearTrailsBtn');
             if (showTrails) {
                 btn.innerText = "目标追踪: 开";
                 btn.style.backgroundColor = "rgba(255, 170, 0, 0.2)";
+                clearTrailsBtn.style.display = 'inline-block';
             } else {
                 btn.innerText = "目标追踪: 关";
                 btn.style.backgroundColor = "transparent";
+                clearTrailsBtn.style.display = 'none';
             }
+        });
+
+        document.getElementById('clearTrailsBtn').addEventListener('click', () => {
+            tracker.clearTrails();
+            drawGrid();
         });
 
         // WS 通信与控制指令处理
@@ -746,14 +1646,18 @@
                 addr = addr + ':8765';
                 document.getElementById('wsInput').value = addr;
             }
+            if (!addr) {
+                addr = localStorage.getItem('radar_last_ip') || '192.168.43.36:8765';
+                document.getElementById('wsInput').value = addr;
+            }
             let url = addr.startsWith('ws://') ? addr : 'ws://' + addr;
-            
+
             const btn = document.getElementById('connectBtn');
             const indicator = document.getElementById('statusIndicator');
 
-            if (ws && ws.readyState === WebSocket.OPEN) { 
-                ws.close(); 
-                return; 
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.close();
+                return;
             }
 
             btn.innerText = '拉取雷达...';
@@ -761,30 +1665,39 @@
 
             ws.onopen = () => {
                 saveIpToHistory(addr); // 记录成功的地址
-                btn.innerText = '断开追踪'; 
+                btn.innerText = '断开追踪';
                 btn.style.backgroundColor = '#ff3333';
                 indicator.classList.add('connected');
                 document.getElementById('configPanel').style.display = 'block';
                 // 修正 JSON 大小写
                 ws.send(JSON.stringify({ type: "list_configs" }));
+                ws.send(JSON.stringify({ type: "pointcloud_record", action: "status" }));
             };
 
-            ws.onmessage = (event) => { 
+            ws.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
                     if (data.frame_num !== undefined) {
-                        renderRadarFrame(data); 
+                        renderRadarFrame(data);
                     } else {
                         handleConfigResponse(data);
                     }
-                } catch(e) { console.error("Parse Error:", e); }
+                } catch (e) { console.error("Parse Error:", e); }
             };
 
             ws.onclose = () => {
-                btn.innerText = '连接雷达'; 
+                btn.innerText = '连接雷达';
                 btn.style.backgroundColor = '';
                 indicator.classList.remove('connected');
                 document.getElementById('frameDisplay').innerText = 'OFFLINE';
+                document.getElementById('sideInfoDisplay').innerText = '未知';
+                pointcloudRecording = false;
+                const recordBtn = document.getElementById('recordPointcloudBtn');
+                recordBtn.innerText = "记录点云: 关";
+                recordBtn.style.backgroundColor = "transparent";
+                document.getElementById('recordDisplay').innerText = '未记录';
+                lastRangeProfile = [];
+                drawRangeProfile([]);
                 document.getElementById('configPanel').style.display = 'none';
             };
             ws.onerror = (err) => { alert("连接雷达服务失败，请检查 IP 端口是否正确。"); };
@@ -792,7 +1705,33 @@
 
         // --- 配置管理交互逻辑 ---
         let activeConfigTab = 'form';
-        let pendingSavedConfigName = '';
+        let pendingSavedConfigName = localStorage.getItem('radar_last_config_name') || '';
+
+        function saveLastConfig(filename, content) {
+            if (filename) localStorage.setItem('radar_last_config_name', filename);
+            if (content !== undefined && content !== null) localStorage.setItem('radar_last_config_content', content);
+        }
+
+        function restoreLastConfigFromCache() {
+            const filename = localStorage.getItem('radar_last_config_name') || '';
+            const content = localStorage.getItem('radar_last_config_content') || '';
+            if (filename) {
+                const select = document.getElementById('configSelect');
+                let opt = Array.from(select.options).find(o => o.value === filename);
+                if (!opt) {
+                    opt = document.createElement('option');
+                    opt.value = filename;
+                    opt.innerText = filename;
+                    select.appendChild(opt);
+                }
+                select.value = filename;
+                pendingSavedConfigName = filename;
+            }
+            if (content) {
+                document.getElementById('configEditor').value = content;
+                parseCfgToForm(content);
+            }
+        }
 
         function getConfigContentForSubmit() {
             if (activeConfigTab === 'form') syncFormToCfg();
@@ -809,18 +1748,20 @@
                 if (data.files && data.files.length > 0) {
                     data.files.forEach(f => {
                         const opt = document.createElement('option');
-                        opt.value = f; 
+                        opt.value = f;
                         opt.innerText = f;
                         select.appendChild(opt);
                     });
-                    if (pendingSavedConfigName && data.files.includes(pendingSavedConfigName)) {
-                        select.value = pendingSavedConfigName;
-                        ws.send(JSON.stringify({ type: "read_config", filename: pendingSavedConfigName }));
-                        pendingSavedConfigName = '';
+                    const lastConfigName = localStorage.getItem('radar_last_config_name') || pendingSavedConfigName;
+                    if (lastConfigName && data.files.includes(lastConfigName)) {
+                        select.value = lastConfigName;
+                        pendingSavedConfigName = lastConfigName;
+                        ws.send(JSON.stringify({ type: "read_config", filename: lastConfigName }));
                     }
                 }
             } else if (data.type === 'config_content') {
                 editor.value = data.content;
+                saveLastConfig(data.filename, data.content);
                 parseCfgToForm(data.content);
             } else if (data.type === 'save_status') {
                 alert("配置已成功保存！");
@@ -828,12 +1769,24 @@
             } else if (data.type === 'apply_status') {
                 if (data.success) alert("✅ 雷达配置已成功下发并应用！");
                 else alert("❌ 应用失败，请检查雷达串口状态。");
+            } else if (data.type === 'pointcloud_record_status') {
+                pointcloudRecording = !!data.recording;
+                const btn = document.getElementById('recordPointcloudBtn');
+                const recordDisplay = document.getElementById('recordDisplay');
+                btn.innerText = pointcloudRecording ? "记录点云: 开" : "记录点云: 关";
+                btn.style.backgroundColor = pointcloudRecording ? "rgba(127, 220, 255, 0.18)" : "transparent";
+                recordDisplay.innerText = pointcloudRecording ? `记录中 ${data.rows || 0}行` : `已保存 ${data.rows || 0}行`;
+                recordDisplay.title = data.path || '';
+                if (!pointcloudRecording && data.path) {
+                    alert(`点云记录已保存：\n${data.path}\n行数：${data.rows || 0}`);
+                }
             }
         }
 
         document.getElementById('configSelect').addEventListener('change', (e) => {
             pendingSavedConfigName = '';
             if (e.target.value) {
+                localStorage.setItem('radar_last_config_name', e.target.value);
                 ws.send(JSON.stringify({ type: "read_config", filename: e.target.value }));
             }
         });
@@ -844,6 +1797,7 @@
             const newName = prompt("请输入配置文件名 (注意以 .cfg 结尾):", currentName);
             if (newName) {
                 const content = document.getElementById('configEditor').value;
+                saveLastConfig(newName, content);
                 ws.send(JSON.stringify({ type: "save_config", filename: newName, content: content }));
             }
         });
@@ -853,6 +1807,7 @@
             const fname = document.getElementById('configSelect').value;
             if (!fname) { alert("请先选择或保存一个配置文件！"); return; }
             if (confirm(`确认下发并在雷达上运行 [${fname}] 吗？`)) {
+                saveLastConfig(fname, document.getElementById('configEditor').value);
                 ws.send(JSON.stringify({ type: "apply_config", filename: fname }));
             }
         });
@@ -861,7 +1816,7 @@
         function togglePanel(e) {
             const panel = document.getElementById('configPanel');
             const isCollapsed = panel.classList.contains('collapsed');
-            
+
             // 如果是点击了小叉叉（收起操作）或者当前已经是收起状态（点击整个圆圈展开操作）
             if (e.target.id === 'panelToggleBtn' || isCollapsed) {
                 panel.classList.toggle('collapsed');
@@ -886,6 +1841,12 @@
 
         const RX_MASKS = { 1: 1, 3: 2, 7: 3, 15: 4 };
         const TX_MASKS = { 1: 1, 3: 2, 7: 3, 15: 4 };
+
+        document.getElementById('f_fovRange').addEventListener('input', () => {
+            updateRadarDisplayRange();
+            resetStaticMap();
+            drawGrid();
+        });
 
         function parseCfgToForm(text) {
             const lines = text.split('\n');
@@ -919,6 +1880,9 @@
                     document.getElementById('f_fovAngle').value = Math.abs(parseFloat(p[2]));
                 }
             });
+            updateRadarDisplayRange();
+            resetStaticMap();
+            drawGrid();
         }
 
         function syncFormToCfg() {
@@ -975,11 +1939,12 @@
                 return line;
             });
             document.getElementById('configEditor').value = newLines.join('\n');
+            updateRadarDisplayRange();
         }
 
         // 将 json 对象和 resize 监听移到顶部或保持在此处（移至顶部更安全）
 
-        handleConfigResponse = function(data) {
+        handleConfigResponse = function (data) {
             const select = document.getElementById('configSelect');
             const editor = document.getElementById('configEditor');
 
@@ -993,14 +1958,16 @@
                         opt.innerText = f;
                         select.appendChild(opt);
                     });
-                    if (pendingSavedConfigName && data.files.includes(pendingSavedConfigName)) {
-                        select.value = pendingSavedConfigName;
-                        ws.send(JSON.stringify({ type: "read_config", filename: pendingSavedConfigName }));
-                        pendingSavedConfigName = '';
+                    const lastConfigName = localStorage.getItem('radar_last_config_name') || pendingSavedConfigName;
+                    if (lastConfigName && data.files.includes(lastConfigName)) {
+                        select.value = lastConfigName;
+                        pendingSavedConfigName = lastConfigName;
+                        ws.send(JSON.stringify({ type: "read_config", filename: lastConfigName }));
                     }
                 }
             } else if (data.type === 'config_content') {
                 editor.value = data.content;
+                saveLastConfig(data.filename, data.content);
                 parseCfgToForm(data.content);
             } else if (data.type === 'save_status') {
                 alert("配置已成功保存！");
@@ -1009,6 +1976,17 @@
             } else if (data.type === 'apply_status') {
                 if (data.success) alert("雷达配置已成功下发并应用！");
                 else alert("应用失败，请检查雷达串口状态。");
+            } else if (data.type === 'pointcloud_record_status') {
+                pointcloudRecording = !!data.recording;
+                const btn = document.getElementById('recordPointcloudBtn');
+                const recordDisplay = document.getElementById('recordDisplay');
+                btn.innerText = pointcloudRecording ? "记录点云: 开" : "记录点云: 关";
+                btn.style.backgroundColor = pointcloudRecording ? "rgba(127, 220, 255, 0.18)" : "transparent";
+                recordDisplay.innerText = pointcloudRecording ? `记录中 ${data.rows || 0}行` : `已保存 ${data.rows || 0}行`;
+                recordDisplay.title = data.path || '';
+                if (!pointcloudRecording && data.path) {
+                    alert(`点云记录已保存：\n${data.path}\n行数：${data.rows || 0}`);
+                }
             }
         };
 
@@ -1027,6 +2005,7 @@
                 const newName = prompt("请输入配置文件名 (注意以 .cfg 结尾):", currentName);
                 if (newName) {
                     pendingSavedConfigName = newName;
+                    saveLastConfig(newName, content);
                     ws.send(JSON.stringify({ type: "save_config", filename: newName, content: content }));
                 }
             });
@@ -1039,12 +2018,14 @@
                 }
                 const content = getConfigContentForSubmit();
                 if (confirm(`确认下发并在雷达上运行 [${fname}] 吗？`)) {
+                    saveLastConfig(fname, content);
                     ws.send(JSON.stringify({ type: "apply_config", filename: fname, content: content }));
                 }
             });
         }
 
         rebindConfigActionButtons();
+        restoreLastConfigFromCache();
         window.addEventListener('resize', drawGrid);
         drawGrid();
 
