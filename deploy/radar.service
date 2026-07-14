@@ -1,0 +1,24 @@
+[Unit]
+Description=Radar WebSocket Server
+After=network.target dev-ttyACM0.device dev-ttyACM1.device
+BindsTo=dev-ttyACM0.device
+
+[Service]
+# 等待3秒确保USB串口设备完全就绪后再启动
+ExecStartPre=/bin/sleep 3
+ExecStart=/usr/bin/python3 /home/pi/radar_server.py
+WorkingDirectory=/home/pi
+User=pi
+# 确保用户本地pip包（websockets等）可被找到
+Environment=HOME=/home/pi
+Environment=PYTHONPATH=/home/pi/.local/lib/python3.13/site-packages
+# 将stdout/stderr输出到systemd journal，可用 journalctl -u radar -f 查看
+StandardOutput=journal
+StandardError=journal
+# 仅在异常退出时重启，插拔USB时由BindsTo自动控制停启
+Restart=on-failure
+RestartSec=5
+
+[Install]
+# 当 /dev/ttyACM0 出现时自动启动，拔掉时自动停止
+WantedBy=dev-ttyACM0.device
