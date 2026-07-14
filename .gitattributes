@@ -1,0 +1,21 @@
+# Keep radar/runtime text files stable across Windows and Linux.
+*.cfg text eol=lf
+*.py text eol=lf
+*.html text eol=lf
+*.md text eol=lf
+*.service text eol=lf
+*.sh text eol=lf
+
+# Windows helper scripts should keep CRLF.
+*.ps1 text eol=crlf
+
+# Binary/data files should not be line-ending normalized.
+*.bin binary
+*.dat binary
+*.mat binary
+*.fig binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pdf binary
+*.docx binary
