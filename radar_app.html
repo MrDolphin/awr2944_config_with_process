@@ -151,6 +151,40 @@
             text-shadow: 1px 1px 2px #000;
         }
 
+        .filter-tune-panel {
+            border-left-color: #ff5533;
+            color: #cfefff;
+            pointer-events: auto;
+        }
+
+        .filter-tune-panel .filter-title {
+            color: #ff7a55;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .filter-tune-panel label {
+            display: grid;
+            grid-template-columns: 1fr 76px;
+            align-items: center;
+            gap: 8px;
+            margin: 7px 0;
+            font-size: 12px;
+            color: rgba(170, 230, 255, 0.92);
+        }
+
+        .filter-tune-panel input,
+        .filter-tune-panel select {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 5px 6px;
+            background: #0a1420;
+            border: 1px solid rgba(127, 220, 255, 0.75);
+            color: #7fdcff;
+            border-radius: 4px;
+            font-weight: 700;
+        }
+
         .hud-chart {
             width: 100%;
             max-width: var(--radar-panel-max-width);
@@ -353,12 +387,12 @@
                     title="显示/关闭每个点云的 SNR 和附近 noise 数值">SNR标签: 关</button>
                 <button id="recordPointcloudBtn" style="border-color: #7fdcff; color: #7fdcff;"
                     title="保存当前点云到服务器本地 CSV，便于后续分析 SNR/noise/TLV">记录点云: 关</button>
-                <label style="color:#7fdcff; font-size:12px; font-weight:bold;">
-                    Noise基线
-                    <input type="number" id="noiseBaselineInput" value="80" step="1"
-                        title="noise_baseline，默认 80 dB；用于 SNR/noise 可信度计算"
-                        style="width:64px; padding:6px 8px; margin-left:4px; border-color:#7fdcff;"> dB
-                </label>
+                <button id="noiseFilterToggleBtn" style="border-color: #7fdcff; color: #7fdcff;"
+                    title="启用/关闭 Noise基线 对 confidence 的扣分">Noise过滤: 开</button>
+                <button id="lineFilterToggleBtn" style="border-color: #ff5533; color: #ff7a55;"
+                    title="启用/关闭 线最小长度 与 线长宽比 过滤">线结构: 开</button>
+                <button id="gimbalScanToggleBtn" style="border-color: #35e6ff; color: #35e6ff;"
+                    title="启动 AT8236 电机自转，并按平台角度合成扫描点云">开始扫描</button>
                 <button id="trailToggleBtn" style="border-color: #ffaa00; color: #ffaa00;">目标追踪: 关</button>
                 <button id="clearTrailsBtn" style="border-color: #ffaa00; color: #ffaa00; display: none;"
                     title="手动清除所有黄色轨迹和当前动态目标">清除轨迹</button>
@@ -391,7 +425,43 @@
                     <div>点云记录</div>
                     <div class="value" id="recordDisplay">未记录</div>
                 </div>
+                <div class="hud-box filter-tune-panel">
+                    <div class="filter-title">点云过滤调参</div>
+                    <label>Noise基线(dB)
+                        <input type="number" id="noiseBaselineInput" value="80" step="1"
+                            title="noise_baseline，默认 80 dB；用于 SNR/noise 可信度计算">
+                    </label>
+                    <label>线最小长度(m)
+                        <input type="number" id="lineMinLengthInput" value="1.35" step="0.05" title="墙/码头线结构主方向最小长度">
+                    </label>
+                    <label>线长宽比
+                        <input type="number" id="lineMinRatioInput" value="3.0" step="0.1" title="线结构主方向长度 / 横向宽度的最小比例">
+                    </label>
+                </div>
+                <div class="hud-box filter-tune-panel" id="gimbalScanPanel" style="border-left-color: #35e6ff;">
+                    <div class="filter-title" style="color:#35e6ff;">电机扫描调参</div>
+                    <label>当前转向
+                        <select id="motorDirectionInput">
+                            <option value="cw">顺时针</option>
+                            <option value="ccw">逆时针</option>
+                        </select>
+                    </label>
+                    <label>电机转速(rpm)
+                        <input type="number" id="motorRpmInput" value="1" step="0.1" min="0" max="30">
+                    </label>
+                    <label>PWM占空比
+                        <input type="number" id="motorPwmDutyInput" value="0.25" step="0.01" min="0" max="1">
+                    </label>
+                    <label>雷达帧周期(s)
+                        <input type="number" id="motorFramePeriodInput" value="0.656" step="0.001" min="0.01">
+                    </label>
+                    <label>平台每帧转角(°)
+                        <input type="text" id="motorFrameAngleDisplay" value="3.94" readonly>
+                    </label>
+                    <div class="value" id="gimbalScanStatusDisplay" style="font-size:13px;color:#bff;">未启动</div>
+                </div>
             </div>
+
 
             <div class="main-visual">
                 <canvas id="radarCanvas" width="800" height="600"></canvas>
@@ -574,6 +644,16 @@
         const CONFIDENCE_HIDE_THRESHOLD = 8;
         const CONFIDENCE_WEAK_THRESHOLD = 12;
         const NOISE_BASELINE_STORAGE_KEY = 'radar_noise_baseline_db';
+        const LINE_MIN_LENGTH_STORAGE_KEY = 'radar_line_min_length_m';
+        const LINE_MIN_RATIO_STORAGE_KEY = 'radar_line_min_ratio';
+        const NOISE_FILTER_ENABLED_STORAGE_KEY = 'radar_noise_filter_enabled';
+        const LINE_FILTER_ENABLED_STORAGE_KEY = 'radar_line_filter_enabled';
+        const STRUCTURE_CLUSTER_EPS = 0.55;
+        const LINE_CLUSTER_MIN_POINTS = 3;
+        const STRONG_ISOLATED_SNR_DB = 18;
+        const STRONG_ISOLATED_MATCH_GATE_M = 0.45;
+        const STRONG_ISOLATED_MIN_HITS = 5;
+        const STRONG_ISOLATED_MAX_MISSED = 14;
 
         let ws = null;
         let lastFrameTime = performance.now();
@@ -581,8 +661,15 @@
         let showSnrLabels = false; // 默认关闭 SNR/noise 文字，避免点多时遮挡
         let pointcloudRecording = false;
         let noiseBaselineDb = 80;
+        let lineClusterMinLengthM = 1.35;
+        let lineClusterMinRatio = 3.0;
+        let noiseFilterEnabled = true;
+        let lineFilterEnabled = true;
         let pointTrails = [];
         let lastRangeProfile = [];
+        let strongIsolatedTracks = [];
+        let gimbalScanEnabled = false;
+        let latestGimbalScan = null;
 
         function drawRangeProfile(profile) {
             const w = rangeProfileCanvas.width;
@@ -699,6 +786,7 @@
 
         function resetStaticMap() {
             occupancyGrid.fill(0);
+            strongIsolatedTracks = [];
         }
 
         function updateStaticMap(points) {
@@ -1167,12 +1255,28 @@
             return noiseBaselineDb;
         }
 
+        function getLineMinLength() {
+            const input = document.getElementById('lineMinLengthInput');
+            const raw = input ? Number(input.value) : lineClusterMinLengthM;
+            lineClusterMinLengthM = Number.isFinite(raw) && raw > 0 ? raw : 1.35;
+            return lineClusterMinLengthM;
+        }
+
+        function getLineMinRatio() {
+            const input = document.getElementById('lineMinRatioInput');
+            const raw = input ? Number(input.value) : lineClusterMinRatio;
+            lineClusterMinRatio = Number.isFinite(raw) && raw > 0 ? raw : 3.0;
+            return lineClusterMinRatio;
+        }
+
         function pointConfidence(pt) {
             const snr = getPointSnr(pt);
             const noise = getPointNoise(pt);
             const safeSnr = snr !== null ? snr : 10;
             const safeNoise = noise !== null ? noise : getNoiseBaseline();
-            return safeSnr - 0.15 * Math.max(0, safeNoise - getNoiseBaseline());
+            if (!noiseFilterEnabled) return safeSnr;
+            return safeSnr + 0.15 * (safeNoise - getNoiseBaseline());
+            //return safeSnr - 0.15 * Math.max(0, safeNoise - getNoiseBaseline());
         }
 
         function isPointUsable(pt) {
@@ -1201,6 +1305,151 @@
 
         function snrToRadius(snr) {
             return POINT_DRAW_RADIUS;
+        }
+
+        function clusterPointsByDistance(points, eps) {
+            const clusters = [];
+            const visited = new Set();
+
+            points.forEach((seed, seedIdx) => {
+                if (visited.has(seedIdx)) return;
+                visited.add(seedIdx);
+                const cluster = [seed];
+                const queue = [seedIdx];
+
+                while (queue.length > 0) {
+                    const idx = queue.shift();
+                    const p = points[idx];
+                    points.forEach((candidate, candidateIdx) => {
+                        if (visited.has(candidateIdx)) return;
+                        if (Math.hypot(candidate.x - p.x, candidate.y - p.y) <= eps) {
+                            visited.add(candidateIdx);
+                            queue.push(candidateIdx);
+                            cluster.push(candidate);
+                        }
+                    });
+                }
+
+                clusters.push(cluster);
+            });
+
+            return clusters;
+        }
+
+        function getLinearClusterMetrics(points) {
+            if (points.length < 2) return { length: 0, width: Infinity, ratio: 0 };
+
+            const cx = points.reduce((sum, p) => sum + p.x, 0) / points.length;
+            const cy = points.reduce((sum, p) => sum + p.y, 0) / points.length;
+            let sxx = 0, syy = 0, sxy = 0;
+            points.forEach(p => {
+                const dx = p.x - cx;
+                const dy = p.y - cy;
+                sxx += dx * dx;
+                syy += dy * dy;
+                sxy += dx * dy;
+            });
+
+            const theta = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+            const ux = Math.cos(theta);
+            const uy = Math.sin(theta);
+            const vx = -uy;
+            const vy = ux;
+            let minMain = Infinity, maxMain = -Infinity;
+            let minSide = Infinity, maxSide = -Infinity;
+
+            points.forEach(p => {
+                const dx = p.x - cx;
+                const dy = p.y - cy;
+                const main = dx * ux + dy * uy;
+                const side = dx * vx + dy * vy;
+                minMain = Math.min(minMain, main);
+                maxMain = Math.max(maxMain, main);
+                minSide = Math.min(minSide, side);
+                maxSide = Math.max(maxSide, side);
+            });
+
+            const length = maxMain - minMain;
+            const width = Math.max(0.08, maxSide - minSide);
+            return { length, width, ratio: length / width };
+        }
+
+        function isLinearCluster(points) {
+            if (points.length < LINE_CLUSTER_MIN_POINTS) return false;
+            const metrics = getLinearClusterMetrics(points);
+            return metrics.length >= getLineMinLength() && metrics.ratio >= getLineMinRatio();
+        }
+
+        function updateStrongIsolatedTracks(points) {
+            strongIsolatedTracks.forEach(track => track.matched = false);
+            const stablePoints = new Set();
+            const strongPoints = points.filter(p => {
+                const snr = getPointSnr(p);
+                return snr !== null && snr >= STRONG_ISOLATED_SNR_DB && isPointUsable(p);
+            });
+
+            strongPoints.forEach(point => {
+                let bestTrack = null;
+                let bestDist = STRONG_ISOLATED_MATCH_GATE_M;
+
+                strongIsolatedTracks.forEach(track => {
+                    if (track.matched) return;
+                    const d = Math.hypot(track.x - point.x, track.y - point.y);
+                    if (d < bestDist) {
+                        bestDist = d;
+                        bestTrack = track;
+                    }
+                });
+
+                if (bestTrack) {
+                    const a = 0.35;
+                    bestTrack.x = (1 - a) * bestTrack.x + a * point.x;
+                    bestTrack.y = (1 - a) * bestTrack.y + a * point.y;
+                    bestTrack.hits += 1;
+                    bestTrack.missed = 0;
+                    bestTrack.matched = true;
+                    bestTrack.lastPoint = point;
+                } else {
+                    strongIsolatedTracks.push({
+                        x: point.x,
+                        y: point.y,
+                        hits: 1,
+                        missed: 0,
+                        matched: true,
+                        lastPoint: point
+                    });
+                }
+            });
+
+            strongIsolatedTracks.forEach(track => {
+                if (!track.matched) track.missed += 1;
+                if (track.matched && track.hits >= STRONG_ISOLATED_MIN_HITS && track.lastPoint) {
+                    stablePoints.add(track.lastPoint);
+                }
+            });
+
+            strongIsolatedTracks = strongIsolatedTracks.filter(track => track.missed <= STRONG_ISOLATED_MAX_MISSED);
+            return stablePoints;
+        }
+
+        function selectStructureAwareStaticPoints(points) {
+            const qualityPoints = points.filter(p => p.y >= 0 && Math.abs(p.v) <= STATIC_SPEED_MAX && isPointUsable(p));
+            if (!lineFilterEnabled) return qualityPoints;
+
+            const clusters = clusterPointsByDistance(qualityPoints, STRUCTURE_CLUSTER_EPS);
+            const linearPoints = new Set();
+
+            clusters.forEach(cluster => {
+                if (isLinearCluster(cluster)) {
+                    cluster.forEach(p => linearPoints.add(p));
+                }
+            });
+
+            const stableStrongPoints = updateStrongIsolatedTracks(
+                qualityPoints.filter(p => !linearPoints.has(p))
+            );
+
+            return qualityPoints.filter(p => linearPoints.has(p) || stableStrongPoints.has(p));
         }
 
         function drawGrid() {
@@ -1300,15 +1549,113 @@
             });
         }
 
+        function mapToCanvas360(x_m, y_m) {
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            const radiusPx = Math.min(canvas.width, canvas.height) * 0.46;
+            const rangeM = Math.max(radarRangeY, radarRangeX, 1);
+            return {
+                px: cx + (x_m / rangeM) * radiusPx,
+                py: cy - (y_m / rangeM) * radiusPx
+            };
+        }
+
+        function drawGrid360() {
+            updateRadarDisplayRange();
+            ctx.fillStyle = 'rgba(8, 12, 20, 0.55)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            const radiusPx = Math.min(canvas.width, canvas.height) * 0.46;
+            const rangeM = Math.max(radarRangeY, radarRangeX, 1);
+
+            ctx.save();
+            ctx.strokeStyle = 'rgba(0, 255, 204, 0.15)';
+            ctx.lineWidth = 1;
+            for (let i = 1; i <= 5; i++) {
+                const r = radiusPx * i / 5;
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.fillStyle = 'rgba(0, 255, 204, 0.45)';
+                ctx.font = '10px Arial';
+                ctx.fillText((rangeM * i / 5).toFixed(1) + 'm', cx + 5, cy - r + 12);
+            }
+
+            for (let deg = 0; deg < 360; deg += 30) {
+                const rad = deg * Math.PI / 180;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(cx + Math.sin(rad) * radiusPx, cy - Math.cos(rad) * radiusPx);
+                ctx.stroke();
+            }
+
+            ctx.fillStyle = '#00ffcc';
+            ctx.beginPath();
+            ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#35e6ff';
+            ctx.font = 'bold 12px Tahoma';
+            ctx.fillText('Motor 360 Scan', 12, 20);
+            ctx.restore();
+        }
+
+        function drawGimbalScanPoints(points) {
+            ctx.save();
+            points.forEach(pt => {
+                const { px, py } = mapToCanvas360(pt.x, pt.y);
+                if (px < 0 || px > canvas.width || py < 0 || py > canvas.height) return;
+                const snr = getPointSnr(pt);
+                const alpha = Math.max(0.25, confidenceToAlpha(pointConfidence(pt)));
+                ctx.shadowBlur = 4;
+                ctx.shadowColor = snrToColor(snr, alpha);
+                ctx.fillStyle = snrToColor(snr, alpha);
+                ctx.beginPath();
+                ctx.arc(px, py, POINT_DRAW_RADIUS, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.restore();
+        }
+
+        function renderGimbalScanFrame(data) {
+            updateRadarDisplayRange();
+            lastRangeProfile = Array.isArray(data.range_profile) ? data.range_profile : [];
+            drawRangeProfile(lastRangeProfile);
+
+            const scan = data.gimbal_scan || {};
+            const points = (scan.points || []).filter(pt => Math.hypot(pt.x, pt.y) >= BLIND_ZONE_M && isPointUsable(pt));
+            drawGrid360();
+            drawGimbalScanPoints(points);
+
+            const now = performance.now();
+            let fps = 1000 / (now - lastFrameTime);
+            lastFrameTime = now;
+            document.getElementById('frameDisplay').innerText = `#${data.frame_num} (${fps.toFixed(0)}Hz)`;
+            document.getElementById('pointsDisplay').innerText = `${points.length}/${(scan.points || []).length} (360合成)`;
+            document.getElementById('targetsDisplay').innerText = '扫描';
+            document.getElementById('gimbalScanStatusDisplay').innerText =
+                `${scan.status || '--'} ${scan.direction === 'ccw' ? '逆时针' : '顺时针'} ${Number(scan.rpm || 0).toFixed(1)}rpm 每帧${Number(scan.frame_angle_deg || 0).toFixed(2)}° 角度:${Number(scan.yaw_actual_deg || 0).toFixed(1)}°`;
+        }
+
         function renderRadarFrame(data) {
+            latestGimbalScan = data.gimbal_scan || latestGimbalScan;
+            if (data.gimbal_scan && data.gimbal_scan.enabled) {
+                gimbalScanEnabled = true;
+                updateGimbalScanButton();
+                renderGimbalScanFrame(data);
+                return;
+            }
             updateRadarDisplayRange();
             lastRangeProfile = Array.isArray(data.range_profile) ? data.range_profile : [];
             drawRangeProfile(lastRangeProfile);
             // 【近场补偿】过滤雷达中心 BLIND_ZONE_M 内部的天线串扰/安装结构鬼点。
             const visiblePoints = (data.points || []).filter(pt => Math.hypot(pt.x, pt.y) >= BLIND_ZONE_M);
             const usablePoints = visiblePoints.filter(pt => isPointUsable(pt));
-            const staticPoints = usablePoints.filter(pt => pt.y >= 0 && Math.abs(pt.v) <= STATIC_SPEED_MAX);
+            const staticCandidates = usablePoints.filter(pt => pt.y >= 0 && Math.abs(pt.v) <= STATIC_SPEED_MAX);
+            const staticPoints = selectStructureAwareStaticPoints(staticCandidates);
             const dynamicPoints = usablePoints.filter(pt => pt.y >= 0 && Math.abs(pt.v) >= DYNAMIC_SPEED_MIN);
+            const displayPoints = staticPoints.concat(dynamicPoints);
 
             staticObstacleMapper.processPoints(staticPoints);
             const promotedDynamicPoints = staticObstacleMapper.getMovingCandidates();
@@ -1324,7 +1671,7 @@
             drawStaticMap();
 
             // 1. 原始点云保留真实跳动；稳定地图开启时会自动淡化原始点
-            drawPoints(ctx, visiblePoints);
+            drawPoints(ctx, displayPoints);
             drawStableStaticPoints();
             drawStaticObstacles();
 
@@ -1420,7 +1767,7 @@
             lastFrameTime = now;
 
             document.getElementById('frameDisplay').innerText = `#${data.frame_num} (${fps.toFixed(0)}Hz)`;
-            document.getElementById('pointsDisplay').innerText = `${usablePoints.length}/${visiblePoints.length} (静:${staticPoints.length}/动:${dynamicPoints.length}+候:${promotedDynamicPoints.length})`;
+            document.getElementById('pointsDisplay').innerText = `${displayPoints.length}/${visiblePoints.length} (静:${staticPoints.length}/${staticCandidates.length}/动:${dynamicPoints.length}+候:${promotedDynamicPoints.length})`;
             document.getElementById('targetsDisplay').innerText = tracker.boats.filter(b => tracker.isBoatDrawable(b)).length;
             const tlvTypes = Array.isArray(data.tlv_types) ? data.tlv_types.join(',') : '--';
             const sideCount = Number.isFinite(Number(data.side_info_count)) ? Number(data.side_info_count) : 0;
@@ -1531,6 +1878,35 @@
             input.value = noiseBaselineDb;
         }
 
+        function loadLineFilterParams() {
+            const lengthInput = document.getElementById('lineMinLengthInput');
+            const ratioInput = document.getElementById('lineMinRatioInput');
+            const savedLength = Number(localStorage.getItem(LINE_MIN_LENGTH_STORAGE_KEY));
+            const savedRatio = Number(localStorage.getItem(LINE_MIN_RATIO_STORAGE_KEY));
+
+            lineClusterMinLengthM = Number.isFinite(savedLength) && savedLength > 0 ? savedLength : 1.35;
+            lineClusterMinRatio = Number.isFinite(savedRatio) && savedRatio > 0 ? savedRatio : 3.0;
+            lengthInput.value = lineClusterMinLengthM;
+            ratioInput.value = lineClusterMinRatio;
+        }
+
+        function updateFilterToggleButtons() {
+            const noiseBtn = document.getElementById('noiseFilterToggleBtn');
+            const lineBtn = document.getElementById('lineFilterToggleBtn');
+            noiseBtn.innerText = noiseFilterEnabled ? "Noise过滤: 开" : "Noise过滤: 关";
+            noiseBtn.style.backgroundColor = noiseFilterEnabled ? "rgba(127, 220, 255, 0.18)" : "transparent";
+            lineBtn.innerText = lineFilterEnabled ? "线结构: 开" : "线结构: 关";
+            lineBtn.style.backgroundColor = lineFilterEnabled ? "rgba(255, 85, 51, 0.18)" : "transparent";
+        }
+
+        function loadFilterToggles() {
+            const savedNoise = localStorage.getItem(NOISE_FILTER_ENABLED_STORAGE_KEY);
+            const savedLine = localStorage.getItem(LINE_FILTER_ENABLED_STORAGE_KEY);
+            noiseFilterEnabled = savedNoise === null ? true : savedNoise === 'true';
+            lineFilterEnabled = savedLine === null ? true : savedLine === 'true';
+            updateFilterToggleButtons();
+        }
+
         document.getElementById('noiseBaselineInput').addEventListener('input', (e) => {
             const next = Number(e.target.value);
             if (!Number.isFinite(next)) return;
@@ -1538,8 +1914,42 @@
             localStorage.setItem(NOISE_BASELINE_STORAGE_KEY, String(next));
         });
 
+        document.getElementById('lineMinLengthInput').addEventListener('input', (e) => {
+            const next = Number(e.target.value);
+            if (!Number.isFinite(next) || next <= 0) return;
+            lineClusterMinLengthM = next;
+            localStorage.setItem(LINE_MIN_LENGTH_STORAGE_KEY, String(next));
+        });
+
+        document.getElementById('lineMinRatioInput').addEventListener('input', (e) => {
+            const next = Number(e.target.value);
+            if (!Number.isFinite(next) || next <= 0) return;
+            lineClusterMinRatio = next;
+            localStorage.setItem(LINE_MIN_RATIO_STORAGE_KEY, String(next));
+        });
+
+        ['motorRpmInput', 'motorFramePeriodInput'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', updateMotorFrameAngleDisplay);
+        });
+
+        document.getElementById('noiseFilterToggleBtn').addEventListener('click', (e) => {
+            noiseFilterEnabled = !noiseFilterEnabled;
+            localStorage.setItem(NOISE_FILTER_ENABLED_STORAGE_KEY, String(noiseFilterEnabled));
+            updateFilterToggleButtons();
+        });
+
+        document.getElementById('lineFilterToggleBtn').addEventListener('click', (e) => {
+            lineFilterEnabled = !lineFilterEnabled;
+            localStorage.setItem(LINE_FILTER_ENABLED_STORAGE_KEY, String(lineFilterEnabled));
+            updateFilterToggleButtons();
+        });
+
         window.addEventListener('load', loadIpHistory);
         window.addEventListener('load', loadNoiseBaseline);
+        window.addEventListener('load', loadLineFilterParams);
+        window.addEventListener('load', loadFilterToggles);
+        window.addEventListener('load', updateMotorFrameAngleDisplay);
         window.addEventListener('load', () => drawRangeProfile([]));
 
         // 静态地图显示开关与清除逻辑
@@ -1639,6 +2049,51 @@
         });
 
         // WS 通信与控制指令处理
+
+        function computeMotorFrameAngleDeg() {
+            const rpm = Math.max(0, Number(document.getElementById('motorRpmInput').value) || 0);
+            const framePeriodS = Math.max(0.01, Number(document.getElementById('motorFramePeriodInput').value) || 0.656);
+            return rpm * 6 * framePeriodS;
+        }
+
+        function updateMotorFrameAngleDisplay() {
+            const display = document.getElementById('motorFrameAngleDisplay');
+            if (display) display.value = computeMotorFrameAngleDeg().toFixed(2);
+        }
+
+        function getGimbalScanParams() {
+            return {
+                mode: 'motor',
+                motor_pwm_gpio: 12,
+                motor_dir_gpio: 17,
+                direction: document.getElementById('motorDirectionInput').value,
+                rpm: Math.max(0, Number(document.getElementById('motorRpmInput').value) || 0),
+                pwm_duty: Math.max(0, Math.min(1, Number(document.getElementById('motorPwmDutyInput').value) || 0)),
+                frame_period_s: Math.max(0.01, Number(document.getElementById('motorFramePeriodInput').value) || 0.656)
+            };
+        }
+
+        function updateGimbalScanButton(status = '') {
+            const btn = document.getElementById('gimbalScanToggleBtn');
+            const display = document.getElementById('gimbalScanStatusDisplay');
+            if (!btn || !display) return;
+            btn.innerText = gimbalScanEnabled ? '停止扫描' : '开始扫描';
+            btn.style.backgroundColor = gimbalScanEnabled ? 'rgba(53, 230, 255, 0.20)' : 'transparent';
+            if (status) display.innerText = status;
+        }
+
+        document.getElementById('gimbalScanToggleBtn').addEventListener('click', () => {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('请先连接雷达服务，再开始扫描。');
+                return;
+            }
+            if (gimbalScanEnabled) {
+                ws.send(JSON.stringify({ type: 'gimbal_scan', action: 'stop' }));
+            } else {
+                ws.send(JSON.stringify({ type: 'gimbal_scan', action: 'start', params: getGimbalScanParams() }));
+            }
+        });
+
         document.getElementById('connectBtn').addEventListener('click', () => {
             let addr = document.getElementById('wsInput').value.trim();
             // 自动补全逻辑
@@ -1672,6 +2127,7 @@
                 // 修正 JSON 大小写
                 ws.send(JSON.stringify({ type: "list_configs" }));
                 ws.send(JSON.stringify({ type: "pointcloud_record", action: "status" }));
+                ws.send(JSON.stringify({ type: "gimbal_scan", action: "status" }));
             };
 
             ws.onmessage = (event) => {
@@ -1987,6 +2443,14 @@
                 if (!pointcloudRecording && data.path) {
                     alert(`点云记录已保存：\n${data.path}\n行数：${data.rows || 0}`);
                 }
+            } else if (data.type === 'gimbal_scan_status') {
+                gimbalScanEnabled = !!data.enabled;
+                const directionText = data.direction === 'ccw' ? '逆时针' : '顺时针';
+                const rpm = Number(data.rpm || 0).toFixed(1);
+                const frameAngle = Number(data.frame_angle_deg || 0).toFixed(2);
+                const yaw = Number(data.yaw_actual_deg || 0).toFixed(1);
+                updateGimbalScanButton(`${data.status || '--'} ${directionText} ${rpm}rpm 每帧${frameAngle}° 角度:${yaw}°`);
+                if (data.last_error) console.warn('gimbal scan:', data.last_error);
             }
         };
 

@@ -10,6 +10,7 @@ import websockets
 import logging
 import os
 import csv
+import math
 
 # 配置日志：同时输出到文件和控制台
 config_dir = os.path.dirname(os.path.abspath(__file__))
@@ -46,6 +47,320 @@ pointcloud_recording = {
     "rows": 0,
     "last_frame": -1
 }
+
+gimbal_scan = {
+    "enabled": False,
+    "thread": None,
+    "stop_event": None,
+    "last_error": "",
+    "status": "idle",
+    "cycle": 0,
+    "endpoint": "",
+    "yaw_actual_deg": 0.0,
+    "pitch_actual_deg": 0.0,
+    "direction": "cw",
+    "rpm": 1.0,
+    "frame_angle_deg": 3.936,
+    "start_time_s": 0.0,
+    "combined_points": [],
+    "last_update_s": 0.0,
+    "config": {
+        "mode": "motor",
+        "motor_pwm_gpio": 12,
+        "motor_dir_gpio": 17,
+        "direction": "cw",
+        "rpm": 1.0,
+        "pwm_duty": 0.25,
+        "frame_period_s": 0.656,
+        "servo_port": "/dev/ttyUSB0",
+        "baud": 115200,
+        "pitch_id": 1,
+        "yaw_id": 2,
+        "pitch_fixed_deg": 0.0,
+        "yaw0_deg": 0.0,
+        "yaw180_deg": 180.0,
+        "move_ms": 500,
+        "pause_ms": 250,
+        "center_pwm": 1500,
+        "min_pwm": 500,
+        "max_pwm": 2500,
+        "us_per_degree": 2000.0 / 270.0
+    }
+}
+
+SERVO_POS_RE = None
+
+def clamp_value(value, low, high):
+    return max(low, min(high, value))
+
+def servo_deg_to_pwm(deg, center_pwm, us_per_degree, min_pwm, max_pwm):
+    return int(round(clamp_value(center_pwm + deg * us_per_degree, min_pwm, max_pwm)))
+
+def servo_pwm_to_deg(pwm, center_pwm, us_per_degree):
+    return (pwm - center_pwm) / us_per_degree
+
+def build_servo_move_cmd(servo_id, pwm, move_ms):
+    return f"#{int(servo_id):03d}P{int(pwm):04d}T{int(move_ms):04d}!".encode("ascii")
+
+def read_servo_positions(ser, wait_s=0.12):
+    global SERVO_POS_RE
+    if SERVO_POS_RE is None:
+        import re
+        SERVO_POS_RE = re.compile(rb"#(\d{3})P(\d{3,4})!")
+    try:
+        ser.reset_input_buffer()
+        ser.write(b"#255PRAD!")
+        time.sleep(wait_s)
+        data = ser.read_all()
+        return {int(sid): int(pos) for sid, pos in SERVO_POS_RE.findall(data)}
+    except Exception:
+        return {}
+
+def rotate_point_xy(pt, yaw_deg):
+    yaw = yaw_deg * 3.141592653589793 / 180.0
+    cos_y = math.cos(yaw)
+    sin_y = math.sin(yaw)
+    x = float(pt.get("x", 0.0))
+    y = float(pt.get("y", 0.0))
+    out = dict(pt)
+    out["x"] = cos_y * x - sin_y * y
+    out["y"] = sin_y * x + cos_y * y
+    out["scan_yaw_deg"] = yaw_deg
+    return out
+
+def snapshot_rotated_points(yaw_deg):
+    frame = dict(latest_radar_frame)
+    return [rotate_point_xy(pt, yaw_deg) for pt in frame.get("points", [])]
+
+def motor_scan_angle_deg():
+    if not gimbal_scan.get("start_time_s"):
+        return 0.0
+    elapsed = max(0.0, time.time() - float(gimbal_scan["start_time_s"]))
+    sign = 1.0 if gimbal_scan.get("direction") == "cw" else -1.0
+    return (sign * float(gimbal_scan.get("rpm", 0.0)) * 6.0 * elapsed) % 360.0
+
+def motor_scan_loop(config, stop_event):
+    gimbal_scan["status"] = "opening"
+    gimbal_scan["last_error"] = ""
+    pwm = None
+    direction = None
+    try:
+        from gpiozero import DigitalOutputDevice, PWMOutputDevice
+
+        pwm_gpio = int(config["motor_pwm_gpio"])
+        dir_gpio = int(config["motor_dir_gpio"])
+        rpm = max(0.0, float(config["rpm"]))
+        duty = clamp_value(float(config["pwm_duty"]), 0.0, 1.0)
+        clockwise = str(config.get("direction", "cw")).lower() != "ccw"
+
+        pwm = PWMOutputDevice(pwm_gpio, frequency=1000)
+        direction = DigitalOutputDevice(dir_gpio)
+
+        if clockwise:
+            direction.off()
+            pwm.value = duty
+        else:
+            direction.on()
+            pwm.value = 1.0 - duty
+
+        gimbal_scan["status"] = "running"
+        gimbal_scan["last_update_s"] = time.time()
+        logger.info(
+            f"Motor scan started: PWM GPIO{pwm_gpio}, DIR GPIO{dir_gpio}, "
+            f"direction={'cw' if clockwise else 'ccw'}, rpm={rpm:.2f}, duty={duty:.2f}"
+        )
+
+        while not stop_event.is_set():
+            gimbal_scan["yaw_actual_deg"] = motor_scan_angle_deg()
+            gimbal_scan["last_update_s"] = time.time()
+            time.sleep(0.05)
+
+        gimbal_scan["status"] = "stopping"
+    except Exception as e:
+        gimbal_scan["last_error"] = str(e)
+        gimbal_scan["status"] = "error"
+        logger.error(f"Motor scan loop error: {e}")
+    finally:
+        try:
+            if pwm:
+                pwm.value = 0
+                pwm.close()
+            if direction:
+                direction.off()
+                direction.close()
+        except Exception:
+            pass
+        gimbal_scan["enabled"] = False
+        if gimbal_scan["status"] != "error":
+            gimbal_scan["status"] = "idle"
+
+def gimbal_scan_loop(config, stop_event):
+    gimbal_scan["status"] = "opening"
+    gimbal_scan["last_error"] = ""
+    logger.info(f"Gimbal scan opening servo port {config['servo_port']} baud={config['baud']}")
+    try:
+        ser = serial.Serial(config["servo_port"], int(config["baud"]), timeout=0.2)
+    except Exception as e:
+        gimbal_scan["enabled"] = False
+        gimbal_scan["status"] = "error"
+        gimbal_scan["last_error"] = f"open servo port failed: {e}"
+        logger.error(f"Gimbal scan open servo port failed: {e}")
+        return
+
+    try:
+        pitch_pwm = servo_deg_to_pwm(
+            float(config["pitch_fixed_deg"]),
+            int(config["center_pwm"]),
+            float(config["us_per_degree"]),
+            int(config["min_pwm"]),
+            int(config["max_pwm"])
+        )
+        logger.info(
+            f"Gimbal scan set pitch ID{int(config['pitch_id']):03d}: "
+            f"{float(config['pitch_fixed_deg']):.1f}deg -> P{pitch_pwm}"
+        )
+        ser.write(build_servo_move_cmd(config["pitch_id"], pitch_pwm, int(config["move_ms"])))
+        time.sleep(max(0.05, int(config["move_ms"]) / 1000.0))
+
+        yaw0_pwm = servo_deg_to_pwm(
+            float(config["yaw0_deg"]), int(config["center_pwm"]), float(config["us_per_degree"]),
+            int(config["min_pwm"]), int(config["max_pwm"])
+        )
+        yaw180_pwm = servo_deg_to_pwm(
+            float(config["yaw180_deg"]), int(config["center_pwm"]), float(config["us_per_degree"]),
+            int(config["min_pwm"]), int(config["max_pwm"])
+        )
+
+        cycle = 0
+        endpoint_points = {"yaw0": [], "yaw180": []}
+        while not stop_event.is_set():
+            for name, yaw_cmd_deg, yaw_pwm in [
+                ("yaw0", float(config["yaw0_deg"]), yaw0_pwm),
+                ("yaw180", float(config["yaw180_deg"]), yaw180_pwm),
+            ]:
+                if stop_event.is_set():
+                    break
+                gimbal_scan["status"] = "moving"
+                gimbal_scan["endpoint"] = name
+                logger.info(
+                    f"Gimbal scan move yaw ID{int(config['yaw_id']):03d} {name}: "
+                    f"{yaw_cmd_deg:.1f}deg -> P{yaw_pwm}, move_ms={int(config['move_ms'])}"
+                )
+                ser.write(build_servo_move_cmd(config["yaw_id"], yaw_pwm, int(config["move_ms"])))
+                time.sleep(max(0.02, int(config["move_ms"]) / 1000.0))
+
+                gimbal_scan["status"] = "settling"
+                time.sleep(max(0.0, int(config["pause_ms"]) / 1000.0))
+
+                positions = read_servo_positions(ser)
+                yaw_pwm_actual = positions.get(int(config["yaw_id"]), yaw_pwm)
+                pitch_pwm_actual = positions.get(int(config["pitch_id"]), pitch_pwm)
+                yaw_actual = servo_pwm_to_deg(yaw_pwm_actual, int(config["center_pwm"]), float(config["us_per_degree"]))
+                pitch_actual = servo_pwm_to_deg(pitch_pwm_actual, int(config["center_pwm"]), float(config["us_per_degree"]))
+
+                gimbal_scan["status"] = "capturing"
+                gimbal_scan["yaw_actual_deg"] = yaw_actual
+                gimbal_scan["pitch_actual_deg"] = pitch_actual
+                logger.info(
+                    f"Gimbal scan actual yaw={yaw_actual:.1f}deg P{yaw_pwm_actual}, "
+                    f"pitch={pitch_actual:.1f}deg P{pitch_pwm_actual}, points={len(latest_radar_frame.get('points', []))}"
+                )
+                endpoint_points[name] = snapshot_rotated_points(yaw_actual)
+                combined = endpoint_points["yaw0"] + endpoint_points["yaw180"]
+                if combined:
+                    gimbal_scan["combined_points"] = combined
+                    gimbal_scan["cycle"] = cycle
+                    gimbal_scan["last_update_s"] = time.time()
+                    gimbal_scan["status"] = "running"
+
+            cycle += 1
+
+        gimbal_scan["status"] = "stopping"
+        center_pwm = int(config["center_pwm"])
+        try:
+            ser.write(build_servo_move_cmd(config["yaw_id"], center_pwm, int(config["move_ms"])))
+            ser.write(build_servo_move_cmd(config["pitch_id"], pitch_pwm, int(config["move_ms"])))
+            time.sleep(max(0.05, int(config["move_ms"]) / 1000.0))
+        except Exception:
+            pass
+    except Exception as e:
+        gimbal_scan["last_error"] = str(e)
+        gimbal_scan["status"] = "error"
+        logger.error(f"Gimbal scan loop error: {e}")
+    finally:
+        try:
+            ser.close()
+        except Exception:
+            pass
+        gimbal_scan["enabled"] = False
+        if gimbal_scan["status"] != "error":
+            gimbal_scan["status"] = "idle"
+
+def start_gimbal_scan(params):
+    if gimbal_scan["enabled"]:
+        return False, "gimbal scan already running"
+
+    config = dict(gimbal_scan["config"])
+    for key in config:
+        if key in params:
+            config[key] = params[key]
+
+    numeric_int_keys = ["baud", "pitch_id", "yaw_id", "move_ms", "pause_ms", "center_pwm", "min_pwm", "max_pwm", "motor_pwm_gpio", "motor_dir_gpio"]
+    numeric_float_keys = ["pitch_fixed_deg", "yaw0_deg", "yaw180_deg", "us_per_degree", "rpm", "pwm_duty", "frame_period_s"]
+    for key in numeric_int_keys:
+        config[key] = int(float(config[key]))
+    for key in numeric_float_keys:
+        config[key] = float(config[key])
+
+    stop_event = threading.Event()
+    frame_angle_deg = abs(float(config["rpm"]) * 6.0 * float(config["frame_period_s"]))
+    if str(config.get("mode", "motor")).lower() == "servo":
+        thread_target = gimbal_scan_loop
+    else:
+        config["mode"] = "motor"
+        thread_target = motor_scan_loop
+    thread = threading.Thread(target=thread_target, args=(config, stop_event), daemon=True)
+    gimbal_scan.update({
+        "enabled": True,
+        "thread": thread,
+        "stop_event": stop_event,
+        "config": config,
+        "last_error": "",
+        "status": "starting",
+        "direction": str(config.get("direction", "cw")).lower(),
+        "rpm": float(config["rpm"]),
+        "frame_angle_deg": frame_angle_deg,
+        "start_time_s": time.time(),
+        "yaw_actual_deg": 0.0,
+        "combined_points": [],
+        "last_update_s": 0.0
+    })
+    thread.start()
+    return True, "motor scan started" if config["mode"] == "motor" else "gimbal scan started"
+
+def stop_gimbal_scan():
+    ev = gimbal_scan.get("stop_event")
+    if ev:
+        ev.set()
+    return True, "gimbal scan stopping"
+
+def get_gimbal_scan_status():
+    return {
+        "type": "gimbal_scan_status",
+        "enabled": gimbal_scan["enabled"],
+        "status": gimbal_scan["status"],
+        "cycle": gimbal_scan["cycle"],
+        "endpoint": gimbal_scan["endpoint"],
+        "yaw_actual_deg": gimbal_scan["yaw_actual_deg"],
+        "pitch_actual_deg": gimbal_scan["pitch_actual_deg"],
+        "direction": gimbal_scan["direction"],
+        "rpm": gimbal_scan["rpm"],
+        "frame_angle_deg": gimbal_scan["frame_angle_deg"],
+        "points": len(gimbal_scan["combined_points"]),
+        "last_update_s": gimbal_scan["last_update_s"],
+        "last_error": gimbal_scan["last_error"],
+        "config": gimbal_scan["config"]
+    }
 
 def start_pointcloud_recording():
     if pointcloud_recording["enabled"]:
@@ -544,7 +859,22 @@ async def handle_client(websocket):
                                 "path": pointcloud_recording["path"],
                                 "rows": pointcloud_recording["rows"]
                             }))
-                            
+                    elif ctype == "gimbal_scan":
+                        action = cmd.get("action")
+                        params = cmd.get("params") or {}
+                        if action == "start":
+                            ok, message = start_gimbal_scan(params)
+                            payload = get_gimbal_scan_status()
+                            payload.update({"success": ok, "message": message})
+                            await websocket.send(json.dumps(payload))
+                        elif action == "stop":
+                            ok, message = stop_gimbal_scan()
+                            payload = get_gimbal_scan_status()
+                            payload.update({"success": ok, "message": message})
+                            await websocket.send(json.dumps(payload))
+                        elif action == "status":
+                            await websocket.send(json.dumps(get_gimbal_scan_status()))
+
                 except Exception as e:
                     logger.error(f"❌ 指令处理解析错误: {e}")
         except websockets.exceptions.ConnectionClosed:
@@ -560,6 +890,25 @@ async def handle_client(websocket):
                     try:
                         frame = dict(latest_radar_frame)
                         frame["pointcloud_recording"] = get_recording_status()
+                        if gimbal_scan["enabled"] and gimbal_scan["config"].get("mode") == "motor":
+                            yaw_deg = motor_scan_angle_deg()
+                            gimbal_scan["yaw_actual_deg"] = yaw_deg
+                            gimbal_scan["combined_points"] = [rotate_point_xy(pt, yaw_deg) for pt in frame.get("points", [])]
+                            gimbal_scan["last_update_s"] = time.time()
+                        frame["gimbal_scan"] = {
+                            "enabled": gimbal_scan["enabled"],
+                            "status": gimbal_scan["status"],
+                            "cycle": gimbal_scan["cycle"],
+                            "endpoint": gimbal_scan["endpoint"],
+                            "yaw_actual_deg": gimbal_scan["yaw_actual_deg"],
+                            "pitch_actual_deg": gimbal_scan["pitch_actual_deg"],
+                            "direction": gimbal_scan["direction"],
+                            "rpm": gimbal_scan["rpm"],
+                            "frame_angle_deg": gimbal_scan["frame_angle_deg"],
+                            "points": gimbal_scan["combined_points"],
+                            "last_update_s": gimbal_scan["last_update_s"],
+                            "last_error": gimbal_scan["last_error"]
+                        }
                         await websocket.send(json.dumps(frame))
                         last_sent_frame = latest_radar_frame["frame_num"]
                     except: break
@@ -583,7 +932,9 @@ if __name__ == "__main__":
     parser.add_argument('--cfg_file', type=str, default='')
     parser.add_argument('--ws_port', type=int, default=8765)
     parser.add_argument('--log_file', type=str, default='')
+    parser.add_argument('--gimbal_port', type=str, default='/dev/ttyUSB0')
     ARGS = parser.parse_args()
+    gimbal_scan["config"]["servo_port"] = ARGS.gimbal_port
     
     # 【战前清场】：自动猎杀全系统内所有残留的前代 radar_server.py 进程
     import os, signal
