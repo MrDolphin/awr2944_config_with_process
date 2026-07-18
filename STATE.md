@@ -2,9 +2,9 @@
 
 ## Active, hardware-independent work
 
-- Integrate the tested encoder sweep plan with a disabled-by-default Raspberry
-  Pi GPIO adapter and expose only measured scan angle to the radar pipeline.
-- Add simulation tests proving the adapter does not require real GPIO hardware.
+- Integrate the tested encoder sweep plan and GPIO adapter with the radar server
+  as a disabled-by-default scan mode; expose only measured scan angle to the
+  radar pipeline.
 - Preserve the static-capture policy: point-cloud frames are accepted only after
   the scan plan reports that an endpoint has settled.
 
@@ -20,3 +20,4 @@
 - Commit `8785554`: encoder sweep planning module, 5 unit tests.
 - Commit `3afced6`: canonical worktree and background-loop rules.
 - Full test suite: 27 passed, 1 optional browser test skipped.
+- GPIO adapter simulation: 2 tests passed; no real GPIO was created or tested.
