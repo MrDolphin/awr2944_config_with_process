@@ -55,6 +55,23 @@ class EncoderSweepPlanTests(unittest.TestCase):
         self.assertEqual(90.0, plan.angle_for_count(180))
         self.assertEqual(180.0, plan.angle_for_count(500))
 
+    def test_capture_gated_plan_holds_at_endpoint_until_capture_is_released(self):
+        plan = EncoderSweepPlan(
+            counts_per_rev=360,
+            min_angle_deg=0,
+            max_angle_deg=180,
+            settle_s=0.25,
+            require_capture_release=True,
+        )
+
+        plan.command_for_count(180, now_s=10.0)
+        ready = plan.command_for_count(180, now_s=10.25)
+
+        self.assertEqual("hold", ready.mode)
+        self.assertEqual("capture_ready_at_max", ready.reason)
+        self.assertTrue(plan.release_capture())
+        self.assertEqual("reverse", plan.command_for_count(180, now_s=10.26).mode)
+
 
 if __name__ == "__main__":
     unittest.main()

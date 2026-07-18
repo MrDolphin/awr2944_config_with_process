@@ -37,6 +37,7 @@ class EncoderSweepPlan:
         approach_duty: float = 0.18,
         approach_window_deg: float = 15.0,
         settle_s: float = 0.25,
+        require_capture_release: bool = False,
     ) -> None:
         if counts_per_rev <= 0:
             raise ValueError("counts_per_rev must be positive")
@@ -54,13 +55,24 @@ class EncoderSweepPlan:
         self.cruise_duty = cruise_duty
         self.approach_duty = approach_duty
         self.settle_s = settle_s
+        self.require_capture_release = require_capture_release
         self._direction: Literal["forward", "reverse"] = "forward"
         self._endpoint_since_s: float | None = None
+        self._capture_ready = False
 
     def angle_for_count(self, count: int) -> float:
         """Return the physical scan angle, clamped to the configured sweep."""
         bounded_count = min(self.max_count, max(self.min_count, count))
         return bounded_count * 360.0 / self.counts_per_rev
+
+    def release_capture(self) -> bool:
+        """Allow travel away from a settled endpoint after a static frame is saved."""
+        if not self.require_capture_release or not self._capture_ready:
+            return False
+        self._direction = "reverse" if self._direction == "forward" else "forward"
+        self._endpoint_since_s = None
+        self._capture_ready = False
+        return True
 
     def command_for_count(self, count: int, *, now_s: float = 0.0) -> SweepCommand:
         """Return the safe command for the latest measured encoder count."""
@@ -74,6 +86,9 @@ class EncoderSweepPlan:
                 return SweepCommand("hold", 0.0, f"{endpoint}_endpoint")
             if now_s - self._endpoint_since_s < self.settle_s:
                 return SweepCommand("hold", 0.0, f"settling_at_{endpoint}")
+            if self.require_capture_release:
+                self._capture_ready = True
+                return SweepCommand("hold", 0.0, f"capture_ready_at_{endpoint}")
             self._direction = "reverse" if self._direction == "forward" else "forward"
             self._endpoint_since_s = None
             return SweepCommand(self._direction, self.cruise_duty, f"settled_at_{endpoint}")
