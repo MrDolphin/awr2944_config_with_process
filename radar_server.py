@@ -790,21 +790,16 @@ async def handle_client(websocket):
                         if action == "start":
                             path = start_pointcloud_recording()
                             status = get_recording_status()
-                            await websocket.send(json.dumps({
-                                "type": "pointcloud_record_status",
-                                "recording": True,
-                                "path": path,
-                                "rows": status["rows"],
-                                "frames": status["frames"]
-                            }))
+                            status.update({"type": "pointcloud_record_status", "recording": True, "path": path})
+                            await websocket.send(json.dumps(status))
                         elif action == "stop":
                             path, rows = stop_pointcloud_recording()
-                            await websocket.send(json.dumps({
-                                "type": "pointcloud_record_status",
-                                "recording": False,
-                                "path": path,
-                                "rows": rows
-                            }))
+                            status = get_recording_status()
+                            status.update({
+                                "type": "pointcloud_record_status", "recording": False,
+                                "path": path, "rows": rows
+                            })
+                            await websocket.send(json.dumps(status))
                         elif action == "status":
                             status = get_recording_status()
                             status["type"] = "pointcloud_record_status"
@@ -819,7 +814,10 @@ async def handle_client(websocket):
                                 }))
                             elif action == "frame":
                                 frame = capture_catalog.get_frame(cmd.get("capture_id"), cmd.get("record_index"))
-                                await websocket.send(json.dumps({"type": "replay_frame", "capture_id": cmd.get("capture_id"), "frame": frame}))
+                                await websocket.send(json.dumps({
+                                    "type": "replay_frame", "capture_id": cmd.get("capture_id"),
+                                    "request_id": cmd.get("request_id"), "frame": frame
+                                }))
                             elif action == "frames":
                                 offset = cmd.get("offset", 0)
                                 limit = cmd.get("limit", 200)
@@ -828,7 +826,8 @@ async def handle_client(websocket):
                                 ))
                                 await websocket.send(json.dumps({
                                     "type": "replay_frame_list", "capture_id": cmd.get("capture_id"),
-                                    "offset": int(offset), "frames": frames
+                                    "offset": int(offset), "frames": frames,
+                                    "has_more": len(frames) == min(200, max(1, int(limit)))
                                 }))
                             else:
                                 await websocket.send(json.dumps({"type": "command_error", "message": "unknown replay action"}))

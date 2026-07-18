@@ -425,6 +425,22 @@
                     <div>点云记录</div>
                     <div class="value" id="recordDisplay">未记录</div>
                 </div>
+                <div class="hud-box" id="replayPanel" style="border-color: #b99cff; color: #d7c8ff;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                        <span>离线回放</span>
+                        <button id="refreshReplayBtn" type="button" style="padding:2px 6px; font-size:11px;">刷新</button>
+                    </div>
+                    <select id="replayCaptureSelect" aria-label="选择离线采集" style="width:100%; margin:6px 0;">
+                        <option value="">选择已保存采集</option>
+                    </select>
+                    <div class="value" id="replayStatusDisplay" style="font-size:12px; color:#d7c8ff;">等待连接</div>
+                    <div style="display:flex; gap:6px; margin-top:6px;">
+                        <button id="replayLiveBtn" type="button" style="flex:1; padding:3px 4px;">实时</button>
+                        <button id="replayPreviousBtn" type="button" disabled style="flex:1; padding:3px 4px;">上一帧</button>
+                        <button id="replayPlayBtn" type="button" disabled style="flex:1; padding:3px 4px;">播放</button>
+                        <button id="replayNextBtn" type="button" disabled style="flex:1; padding:3px 4px;">下一帧</button>
+                    </div>
+                </div>
                 <div class="hud-box filter-tune-panel">
                     <div class="filter-title">点云过滤调参</div>
                     <label>Noise基线(dB)
@@ -660,6 +676,11 @@
         let showTrails = false; // 默认关闭航迹显示
         let showSnrLabels = false; // 默认关闭 SNR/noise 文字，避免点多时遮挡
         let pointcloudRecording = false;
+        let lastRecordingHealthSignature = '';
+        const replayState = {
+            active: false, captureId: '', frames: [], position: -1, playing: false,
+            hasMore: false, loadingFrames: false, requestId: 0, pendingRequestId: null
+        };
         let noiseBaselineDb = 80;
         let lineClusterMinLengthM = 1.35;
         let lineClusterMinRatio = 3.0;
@@ -1638,6 +1659,37 @@
                 `${scan.status || '--'} ${scan.direction === 'ccw' ? '逆时针' : '顺时针'} ${Number(scan.rpm || 0).toFixed(1)}rpm 每帧${Number(scan.frame_angle_deg || 0).toFixed(2)}° 角度:${Number(scan.yaw_actual_deg || 0).toFixed(1)}°`;
         }
 
+        function updateRecordingHealth(status) {
+            pointcloudRecording = !!(status.recording ?? status.enabled);
+            const recordDisplay = document.getElementById('recordDisplay');
+            const healthParts = [];
+            if (status.dropped_frames) healthParts.push(`丢帧 ${status.dropped_frames}`);
+            if (status.writer_error) healthParts.push('写盘异常');
+            const healthSuffix = healthParts.length ? ` · ${healthParts.join(' · ')}` : '';
+            recordDisplay.innerText = pointcloudRecording ? `记录中 ${status.rows || 0}行${healthSuffix}` : `已保存 ${status.rows || 0}行${healthSuffix}`;
+            recordDisplay.title = [status.path, status.writer_error].filter(Boolean).join('\n');
+            const healthSignature = healthParts.join(' | ') + (status.writer_error || '');
+            if (healthSignature && healthSignature !== lastRecordingHealthSignature) {
+                lastRecordingHealthSignature = healthSignature;
+                alert(`点云记录告警：${healthParts.join('；')} ${status.writer_error || ''}`.trim());
+            }
+        }
+
+        function renderReplayFrame(frame) {
+            updateRadarDisplayRange();
+            const points = (frame.points || []).filter(pt => Math.hypot(pt.x, pt.y) >= BLIND_ZONE_M && isPointUsable(pt));
+            pointTrails = [];
+            drawGrid();
+            drawPoints(ctx, points);
+            document.getElementById('frameDisplay').innerText = `回放 #${frame.frame_num}`;
+            document.getElementById('pointsDisplay').innerText = `${points.length}/${(frame.points || []).length} 点`;
+            document.getElementById('targetsDisplay').innerText = '离线';
+            const tlvTypes = Array.isArray(frame.tlv_types) ? frame.tlv_types.join(',') : '--';
+            document.getElementById('sideInfoDisplay').innerText = `TLV:${tlvTypes}`;
+            lastRangeProfile = [];
+            drawRangeProfile([]);
+        }
+
         function renderRadarFrame(data) {
             latestGimbalScan = data.gimbal_scan || latestGimbalScan;
             if (data.gimbal_scan && data.gimbal_scan.enabled) {
@@ -1774,11 +1826,7 @@
             const sideText = data.has_side_info ? `有 SNR (${sideCount})` : `无 SNR / TLV:${tlvTypes}`;
             document.getElementById('sideInfoDisplay').innerText = sideText;
             if (data.pointcloud_recording) {
-                pointcloudRecording = !!data.pointcloud_recording.enabled;
-                const rows = data.pointcloud_recording.rows || 0;
-                const recordDisplay = document.getElementById('recordDisplay');
-                recordDisplay.innerText = pointcloudRecording ? `记录中 ${rows}行` : recordDisplay.innerText;
-                recordDisplay.title = data.pointcloud_recording.path || recordDisplay.title;
+                updateRecordingHealth(data.pointcloud_recording);
             }
         }
 
@@ -2020,6 +2068,141 @@
             document.getElementById('recordDisplay').innerText = action === "start" ? "记录中..." : "正在停止";
         });
 
+        function replaySocketReady() {
+            return ws && ws.readyState === WebSocket.OPEN;
+        }
+
+        function setReplayStatus(message) {
+            document.getElementById('replayStatusDisplay').innerText = message;
+        }
+
+        function updateReplayControls() {
+            const hasFrames = replayState.active && replayState.frames.length > 0 && replaySocketReady();
+            document.getElementById('replayPreviousBtn').disabled = !hasFrames || replayState.position <= 0;
+            document.getElementById('replayNextBtn').disabled = !hasFrames || (
+                replayState.position >= replayState.frames.length - 1 && !replayState.hasMore
+            );
+            const playBtn = document.getElementById('replayPlayBtn');
+            playBtn.disabled = !hasFrames;
+            playBtn.innerText = replayState.playing ? '暂停' : '播放';
+        }
+
+        function clearReplayVisualState() {
+            resetStaticMap();
+            staticObstacleMapper.currentObstacles = [];
+            staticObstacleMapper.tracks = [];
+            tracker.boats = [];
+            tracker.currentClusters = [];
+            pointTrails = [];
+        }
+
+        function enterReplayMode() {
+            if (!replayState.active) clearReplayVisualState();
+            replayState.active = true;
+            document.getElementById('replayLiveBtn').style.backgroundColor = 'rgba(185, 156, 255, 0.22)';
+        }
+
+        function exitReplayMode() {
+            stopReplay();
+            replayState.active = false;
+            replayState.pendingRequestId = null;
+            clearReplayVisualState();
+            document.getElementById('replayLiveBtn').style.backgroundColor = 'transparent';
+            setReplayStatus('已切回实时雷达');
+        }
+
+        function requestReplayCaptures() {
+            if (!replaySocketReady()) {
+                setReplayStatus('连接雷达服务后可查看采集');
+                return;
+            }
+            setReplayStatus('正在读取采集列表...');
+            ws.send(JSON.stringify({ type: 'replay', action: 'list' }));
+        }
+
+        function requestReplayFrames(offset = 0) {
+            if (!replaySocketReady() || !replayState.captureId || replayState.loadingFrames) return;
+            replayState.loadingFrames = true;
+            ws.send(JSON.stringify({
+                type: 'replay', action: 'frames', capture_id: replayState.captureId, offset, limit: 200
+            }));
+        }
+
+        function requestReplayFrame(position) {
+            if (!replaySocketReady() || position < 0 || position >= replayState.frames.length) return;
+            replayState.position = position;
+            const summary = replayState.frames[position];
+            const requestId = ++replayState.requestId;
+            replayState.pendingRequestId = requestId;
+            setReplayStatus(`正在加载 ${position + 1}/${replayState.frames.length} 帧`);
+            ws.send(JSON.stringify({
+                type: 'replay', action: 'frame', capture_id: replayState.captureId,
+                record_index: summary.record_index, request_id: requestId
+            }));
+            updateReplayControls();
+        }
+
+        function stopReplay() {
+            replayState.playing = false;
+            updateReplayControls();
+        }
+
+        function continueReplayAfterFrame() {
+            if (!replayState.playing) return;
+            window.setTimeout(() => {
+                if (!replayState.playing) return;
+                if (replayState.position < replayState.frames.length - 1) {
+                    requestReplayFrame(replayState.position + 1);
+                } else if (replayState.hasMore) {
+                    requestReplayFrames(replayState.frames.length);
+                } else {
+                    stopReplay();
+                    setReplayStatus('回放完成');
+                }
+            }, 400);
+        }
+
+        document.getElementById('refreshReplayBtn').addEventListener('click', requestReplayCaptures);
+        document.getElementById('replayLiveBtn').addEventListener('click', exitReplayMode);
+        document.getElementById('replayCaptureSelect').addEventListener('change', (event) => {
+            if (!replaySocketReady()) {
+                setReplayStatus('连接已断开，无法加载采集');
+                return;
+            }
+            stopReplay();
+            replayState.captureId = event.target.value;
+            replayState.frames = [];
+            replayState.position = -1;
+            replayState.hasMore = false;
+            if (!replayState.captureId) {
+                exitReplayMode();
+                setReplayStatus('选择已保存采集');
+                updateReplayControls();
+                return;
+            }
+            enterReplayMode();
+            setReplayStatus('正在读取帧目录...');
+            requestReplayFrames(0);
+        });
+        document.getElementById('replayPreviousBtn').addEventListener('click', () => requestReplayFrame(replayState.position - 1));
+        document.getElementById('replayNextBtn').addEventListener('click', () => {
+            if (replayState.position >= replayState.frames.length - 1 && replayState.hasMore) {
+                requestReplayFrames(replayState.frames.length);
+            } else {
+                requestReplayFrame(replayState.position + 1);
+            }
+        });
+        document.getElementById('replayPlayBtn').addEventListener('click', () => {
+            if (replayState.playing) {
+                stopReplay();
+                return;
+            }
+            replayState.playing = true;
+            if (replayState.position < 0) requestReplayFrame(0);
+            else continueReplayAfterFrame();
+            updateReplayControls();
+        });
+
         document.getElementById('clearMapBtn').addEventListener('click', () => {
             resetStaticMap();
             staticObstacleMapper.currentObstacles = [];
@@ -2128,13 +2311,14 @@
                 ws.send(JSON.stringify({ type: "list_configs" }));
                 ws.send(JSON.stringify({ type: "pointcloud_record", action: "status" }));
                 ws.send(JSON.stringify({ type: "gimbal_scan", action: "status" }));
+                requestReplayCaptures();
             };
 
             ws.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
                     if (data.frame_num !== undefined) {
-                        renderRadarFrame(data);
+                        if (!replayState.active) renderRadarFrame(data);
                     } else {
                         handleConfigResponse(data);
                     }
@@ -2155,6 +2339,9 @@
                 lastRangeProfile = [];
                 drawRangeProfile([]);
                 document.getElementById('configPanel').style.display = 'none';
+                stopReplay();
+                updateReplayControls();
+                setReplayStatus('连接已断开');
             };
             ws.onerror = (err) => { alert("连接雷达服务失败，请检查 IP 端口是否正确。"); };
         });
@@ -2227,6 +2414,14 @@
                 else alert("❌ 应用失败，请检查雷达串口状态。");
             } else if (data.type === 'pointcloud_record_status') {
                 pointcloudRecording = !!data.recording;
+                const healthParts = [];
+                if (data.dropped_frames) healthParts.push(`丢帧 ${data.dropped_frames}`);
+                if (data.writer_error) healthParts.push(`写盘异常: ${data.writer_error}`);
+                const healthSignature = healthParts.join(' | ');
+                if (healthSignature && healthSignature !== lastRecordingHealthSignature) {
+                    lastRecordingHealthSignature = healthSignature;
+                    alert(`点云记录告警：${healthSignature}`);
+                }
                 const btn = document.getElementById('recordPointcloudBtn');
                 const recordDisplay = document.getElementById('recordDisplay');
                 btn.innerText = pointcloudRecording ? "记录点云: 开" : "记录点云: 关";
@@ -2443,6 +2638,46 @@
                 if (!pointcloudRecording && data.path) {
                     alert(`点云记录已保存：\n${data.path}\n行数：${data.rows || 0}`);
                 }
+            } else if (data.type === 'replay_capture_list') {
+                const select = document.getElementById('replayCaptureSelect');
+                select.innerHTML = '<option value="">选择已保存采集</option>';
+                (data.captures || []).forEach(capture => {
+                    const option = document.createElement('option');
+                    option.value = capture.id;
+                    const quality = capture.writer_error ? '写盘异常' : (capture.dropped_frames ? `丢帧 ${capture.dropped_frames}` : capture.recording_status || '未知状态');
+                    option.innerText = `${capture.id} · ${capture.frames || 0} 帧 · ${quality}`;
+                    select.appendChild(option);
+                });
+                setReplayStatus(data.captures && data.captures.length ? '选择一个采集开始回放' : '尚无已保存采集');
+            } else if (data.type === 'replay_frame_list') {
+                replayState.loadingFrames = false;
+                const incomingFrames = data.frames || [];
+                if (Number(data.offset) === 0) {
+                    replayState.frames = incomingFrames;
+                    replayState.position = -1;
+                } else {
+                    replayState.frames = replayState.frames.concat(incomingFrames);
+                }
+                replayState.hasMore = !!data.has_more && incomingFrames.length > 0;
+                setReplayStatus(replayState.frames.length ? `已加载 ${replayState.frames.length} 帧目录` : '该采集没有可回放帧');
+                updateReplayControls();
+                if (replayState.frames.length && replayState.position < 0) {
+                    requestReplayFrame(0);
+                } else if (replayState.playing && replayState.position < replayState.frames.length - 1) {
+                    requestReplayFrame(replayState.position + 1);
+                } else if (replayState.playing && !replayState.hasMore) {
+                    stopReplay();
+                    setReplayStatus('回放完成');
+                }
+            } else if (data.type === 'replay_frame') {
+                if (!replayState.active || data.capture_id !== replayState.captureId || data.request_id !== replayState.pendingRequestId) return;
+                const frame = data.frame || {};
+                renderReplayFrame(frame);
+                setReplayStatus(`回放帧 ${replayState.position + 1}/${replayState.frames.length} · 雷达帧 ${frame.frame_num}`);
+                continueReplayAfterFrame();
+            } else if (data.type === 'replay_error' || data.type === 'command_error' || data.type === 'config_error') {
+                setReplayStatus(`回放/控制错误：${data.message || '未知错误'}`);
+                console.warn('radar control error:', data);
             } else if (data.type === 'gimbal_scan_status') {
                 gimbalScanEnabled = !!data.enabled;
                 const directionText = data.direction === 'ccw' ? '逆时针' : '顺时针';
@@ -2452,6 +2687,22 @@
                 updateGimbalScanButton(`${data.status || '--'} ${directionText} ${rpm}rpm 每帧${frameAngle}° 角度:${yaw}°`);
                 if (data.last_error) console.warn('gimbal scan:', data.last_error);
             }
+        };
+
+        const handleControlResponse = handleConfigResponse;
+        handleConfigResponse = function (data) {
+            if (data.type === 'save_status' && !data.success) {
+                alert(`配置保存失败：${data.message || '请检查文件名和服务端磁盘状态'}`);
+                return;
+            }
+            if (data.type === 'apply_status' && !data.success && data.message) {
+                alert(`配置下发失败：${data.message}`);
+                return;
+            }
+            if (data.type === 'pointcloud_record_status') {
+                updateRecordingHealth(data);
+            }
+            return handleControlResponse(data);
         };
 
         function rebindConfigActionButtons() {
