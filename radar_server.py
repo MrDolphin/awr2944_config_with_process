@@ -595,7 +595,12 @@ def send_config_to_radar(cfg_port_name, config_file_path):
         if 'cfg_port' in locals(): cfg_port.close()
         return False
 
-def radar_serial_thread(data_port_name, baud_rate, log_file=""):
+def radar_serial_thread(data_port_name, baud_rate, log_file="", stop_event=None):
+    """Parse the radar data UART until the optional shutdown event is set.
+
+    ``stop_event`` is optional for compatibility with existing launch scripts;
+    it also gives deployment supervision and no-hardware tests a clean exit.
+    """
     global latest_radar_frame
     buffer = bytearray()
     stats = {"count": 0, "last": time.time(), "last_tlv": time.time()}
@@ -608,7 +613,7 @@ def radar_serial_thread(data_port_name, baud_rate, log_file=""):
     except Exception as e:
         logger.error(f"❌ 无法开启数据口: {e}"); return
 
-    while True:
+    while stop_event is None or not stop_event.is_set():
         try:
             if ser.in_waiting > 0:
                 chunk = ser.read(ser.in_waiting)

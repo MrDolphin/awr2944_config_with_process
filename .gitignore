@@ -5,6 +5,8 @@ record/
 record/*.bin
 record/*.dat
 record/*.jsonl
+captures/
+radar_debug.log
 
 # MATLAB 自动备份
 *.asv
