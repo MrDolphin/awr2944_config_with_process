@@ -1,0 +1,30 @@
+name: Validate radar runtime
+
+on:
+  pull_request:
+  push:
+    branches: [main, feat/codex]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install runtime dependencies
+        run: python -m pip install pyserial websockets
+      - name: Check deployment shell syntax
+        run: bash -n deploy/setup_rpi.sh
+      - name: Check browser script syntax
+        run: |
+          python - <<'PY' > /tmp/radar_app.js
+          import re
+          from pathlib import Path
+          html = Path('radar_app.html').read_text(encoding='utf-8')
+          print(re.search(r'<script>(.*?)</script>', html, re.S).group(1))
+          PY
+          node --check /tmp/radar_app.js
+      - name: Run hardware-free tests
+        run: python -B -m unittest discover -s test -v
