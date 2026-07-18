@@ -79,6 +79,7 @@ class PointCloudRecorder:
         self._monotonic = monotonic
         self._lock = threading.RLock()
         self._capture_dir: Path | None = None
+        self._metadata_path: Path | None = None
         self._frames_file = None
         self._raw_file = None
         self._points_file = None
@@ -116,12 +117,13 @@ class PointCloudRecorder:
                 created_paths.append(capture_dir / "points.csv")
                 self._points_writer = csv.writer(self._points_file)
                 self._points_writer.writerow([
-                    "host_time_s", "frame_num", "point_index", "x_m", "y_m", "z_m", "v_mps", "snr_db", "noise_db"
+                    "record_index", "host_time_s", "frame_num", "point_index", "x_m", "y_m", "z_m", "v_mps", "snr_db", "noise_db"
                 ])
                 metadata = {
-                    "schema_version": 1,
+                    "schema_version": 2,
                     "started_at_s": self._clock(),
                     "active_config": dict(active_config or {}),
+                    "recording_status": "active",
                     "files": {"frames": "frames.jsonl", "raw_tlv": "frames.tlv", "points": "points.csv"},
                     "recording_policy": {
                         "max_queue_size": self._max_queue_size,
@@ -144,6 +146,7 @@ class PointCloudRecorder:
                     pass
                 raise
             self._capture_dir = capture_dir
+            self._metadata_path = metadata_path
             self._frames = 0
             self._points = 0
             self._last_frame = None
@@ -185,10 +188,12 @@ class PointCloudRecorder:
         with self._lock:
             self._flush(sync=True)
             status = self.status()
+            self._persist_completion_status(status)
             self._close_files()
             self._queue = None
             self._writer_thread = None
             self._capture_dir = None
+            self._metadata_path = None
             self._last_frame = None
             return status
 
@@ -234,6 +239,7 @@ class PointCloudRecorder:
                 self._raw_file.write(raw_packet)
             points = list(frame.get("points") or [])
             frame_record = {
+                "record_index": self._frames,
                 "host_time_s": host_time_s,
                 "host_monotonic_s": frame.get("host_monotonic_s", self._monotonic()),
                 "frame_num": int(frame.get("frame_num", -1)),
@@ -248,7 +254,7 @@ class PointCloudRecorder:
             self._frames_file.write(json.dumps(frame_record, ensure_ascii=False) + "\n")
             for index, point in enumerate(points):
                 self._points_writer.writerow([
-                    f"{host_time_s:.6f}", frame_record["frame_num"], index,
+                    frame_record["record_index"], f"{host_time_s:.6f}", frame_record["frame_num"], index,
                     point.get("x", ""), point.get("y", ""), point.get("z", ""), point.get("v", ""),
                     point.get("snr", ""), point.get("noise", ""),
                 ])
@@ -268,3 +274,29 @@ class PointCloudRecorder:
             if file_obj is not None:
                 file_obj.close()
         self._frames_file = self._raw_file = self._points_file = self._points_writer = None
+
+    def _persist_completion_status(self, status: Mapping[str, Any]) -> None:
+        """Make capture quality available to later offline replay and field triage."""
+
+        if self._metadata_path is None:
+            return
+        try:
+            metadata = json.loads(self._metadata_path.read_text(encoding="utf-8"))
+            metadata.update({
+                "recording_status": "failed" if status["writer_error"] else (
+                    "completed_with_drops" if status["dropped_frames"] else "completed"
+                ),
+                "completed_at_s": self._clock(),
+                "frames": status["frames"],
+                "points": status["points"],
+                "dropped_frames": status["dropped_frames"],
+                "writer_error": status["writer_error"],
+            })
+            temporary_path = self._metadata_path.with_suffix(".json.tmp")
+            with temporary_path.open("w", encoding="utf-8") as handle:
+                json.dump(metadata, handle, ensure_ascii=False, indent=2)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary_path, self._metadata_path)
+        except (OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            self._writer_error = self._writer_error or f"metadata update failed: {exc}"

@@ -53,6 +53,8 @@ class RecorderTests(unittest.TestCase):
             metadata = json.loads((capture_dir / "metadata.json").read_text(encoding="utf-8"))
             self.assertEqual(metadata["active_config"]["name"], "dock.cfg")
             self.assertEqual(metadata["recording_policy"]["sync_every_frames"], 1)
+            self.assertEqual(metadata["recording_status"], "completed")
+            self.assertEqual(metadata["frames"], 2)
 
     def test_writer_error_stops_accepting_frames_without_blocking_stop(self):
         class BrokenRecorder(PointCloudRecorder):

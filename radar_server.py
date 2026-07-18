@@ -12,6 +12,7 @@ import os
 import math
 from pathlib import Path
 from radar_control import RadarConfigManager
+from radar_replay import CaptureAccessError, CaptureCatalog
 from radar_runtime import PointCloudRecorder
 
 # 配置日志：同时输出到文件和控制台
@@ -55,7 +56,9 @@ runtime_state = {
     "data_port": "",
     "active_config": {"name": None, "sha256": None, "content": None},
 }
-pointcloud_recorder = PointCloudRecorder(Path(config_dir) / "captures" / "pointcloud_logs")
+capture_root = Path(config_dir) / "captures" / "pointcloud_logs"
+pointcloud_recorder = PointCloudRecorder(capture_root)
+capture_catalog = CaptureCatalog(capture_root)
 config_manager = RadarConfigManager(Path(config_dir) / "Config")
 
 gimbal_scan = {
@@ -807,6 +810,30 @@ async def handle_client(websocket):
                             status["type"] = "pointcloud_record_status"
                             status["recording"] = status["enabled"]
                             await websocket.send(json.dumps(status))
+                    elif ctype == "replay":
+                        action = cmd.get("action")
+                        try:
+                            if action == "list":
+                                await websocket.send(json.dumps({
+                                    "type": "replay_capture_list", "captures": capture_catalog.list_captures()
+                                }))
+                            elif action == "frame":
+                                frame = capture_catalog.get_frame(cmd.get("capture_id"), cmd.get("record_index"))
+                                await websocket.send(json.dumps({"type": "replay_frame", "capture_id": cmd.get("capture_id"), "frame": frame}))
+                            elif action == "frames":
+                                offset = cmd.get("offset", 0)
+                                limit = cmd.get("limit", 200)
+                                frames = list(capture_catalog.iter_frame_summaries(
+                                    cmd.get("capture_id"), offset=offset, limit=limit
+                                ))
+                                await websocket.send(json.dumps({
+                                    "type": "replay_frame_list", "capture_id": cmd.get("capture_id"),
+                                    "offset": int(offset), "frames": frames
+                                }))
+                            else:
+                                await websocket.send(json.dumps({"type": "command_error", "message": "unknown replay action"}))
+                        except (CaptureAccessError, OSError, UnicodeError, ValueError, json.JSONDecodeError) as exc:
+                            await websocket.send(json.dumps({"type": "replay_error", "message": str(exc)}))
                     elif ctype == "gimbal_scan":
                         action = cmd.get("action")
                         params = cmd.get("params") or {}
