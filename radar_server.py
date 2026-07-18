@@ -761,7 +761,7 @@ async def handle_client(websocket):
                             fpath = resolve_config_path(profiles_dir, fname, must_exist=True)
                             content = fpath.read_text(encoding="utf-8")
                             await websocket.send(json.dumps({"type": "config_content", "filename": fpath.name, "content": content}))
-                        except ConfigPathError as exc:
+                        except (ConfigPathError, OSError, UnicodeError, TypeError) as exc:
                             await websocket.send(json.dumps({"type": "config_error", "message": str(exc)}))
                     
                     elif ctype == "save_config":
@@ -773,7 +773,7 @@ async def handle_client(websocket):
                             fpath = resolve_config_path(profiles_dir, fname)
                             fpath.write_text(content, encoding="utf-8")
                             await websocket.send(json.dumps({"type": "save_status", "success": True, "message": f"已存入 Config 目录: {fpath.name}"}))
-                        except ConfigPathError as exc:
+                        except (ConfigPathError, OSError, UnicodeError, TypeError) as exc:
                             await websocket.send(json.dumps({"type": "save_status", "success": False, "message": str(exc)}))
                     
                     elif ctype == "apply_config":
@@ -789,7 +789,7 @@ async def handle_client(websocket):
                             if success:
                                 runtime_state["active_config"] = config_snapshot(fpath)
                             await websocket.send(json.dumps({"type": "apply_status", "success": success}))
-                        except ConfigPathError as exc:
+                        except (ConfigPathError, OSError, UnicodeError, TypeError) as exc:
                             logger.warning(f"⚠️ 配置请求被拒绝: {exc}")
                             await websocket.send(json.dumps({"type": "apply_status", "success": False, "message": str(exc)}))
 

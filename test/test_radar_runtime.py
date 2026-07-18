@@ -1,5 +1,6 @@
 import json
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -15,7 +16,7 @@ class ConfigPathTests(unittest.TestCase):
 
     def test_rejects_path_traversal_and_non_cfg_name(self):
         with tempfile.TemporaryDirectory() as directory:
-            for filename in ("../outside.cfg", "nested/profile.cfg", "profile.txt", ""):
+            for filename in ("../outside.cfg", "nested/profile.cfg", "profile.txt", "profile.CFG", ""):
                 with self.assertRaises(ConfigPathError):
                     resolve_config_path(directory, filename)
 
@@ -51,6 +52,23 @@ class RecorderTests(unittest.TestCase):
             self.assertEqual([record["raw_length"] for record in records], [9, 9])
             metadata = json.loads((capture_dir / "metadata.json").read_text(encoding="utf-8"))
             self.assertEqual(metadata["active_config"]["name"], "dock.cfg")
+            self.assertEqual(metadata["recording_policy"]["sync_every_frames"], 1)
+
+    def test_writer_error_stops_accepting_frames_without_blocking_stop(self):
+        class BrokenRecorder(PointCloudRecorder):
+            def _write_frame(self, frame, raw_packet):
+                raise OSError("disk unavailable")
+
+        with tempfile.TemporaryDirectory() as directory:
+            recorder = BrokenRecorder(directory)
+            recorder.start()
+            self.assertTrue(recorder.record_frame({"frame_num": 1, "points": []}))
+            deadline = time.monotonic() + 1
+            while recorder.status()["writer_error"] is None and time.monotonic() < deadline:
+                time.sleep(0.01)
+            self.assertEqual(recorder.status()["writer_error"], "OSError: disk unavailable")
+            self.assertFalse(recorder.record_frame({"frame_num": 2, "points": []}))
+            self.assertEqual(recorder.stop()["frames"], 0)
 
 
 if __name__ == "__main__":
