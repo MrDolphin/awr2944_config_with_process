@@ -9,8 +9,10 @@ import asyncio
 import websockets
 import logging
 import os
-import csv
 import math
+from pathlib import Path
+
+from radar_runtime import ConfigPathError, PointCloudRecorder, config_snapshot, resolve_config_path
 
 # 配置日志：同时输出到文件和控制台
 config_dir = os.path.dirname(os.path.abspath(__file__))
@@ -47,6 +49,13 @@ pointcloud_recording = {
     "rows": 0,
     "last_frame": -1
 }
+
+runtime_state = {
+    "cfg_port": "",
+    "data_port": "",
+    "active_config": {"name": None, "sha256": None, "content": None},
+}
+pointcloud_recorder = PointCloudRecorder(Path(config_dir) / "captures" / "pointcloud_logs")
 
 gimbal_scan = {
     "enabled": False,
@@ -363,89 +372,33 @@ def get_gimbal_scan_status():
     }
 
 def start_pointcloud_recording():
-    if pointcloud_recording["enabled"]:
-        return pointcloud_recording["path"]
-
-    out_dir = os.path.join(config_dir, "captures", "pointcloud_logs")
-    os.makedirs(out_dir, exist_ok=True)
-    timestamp = time.strftime("%Y%m%d_%H%M%S")
-    out_path = os.path.join(out_dir, f"pointcloud_{timestamp}.csv")
-    f = open(out_path, "w", newline="", encoding="utf-8")
-    writer = csv.writer(f)
-    writer.writerow([
-        "timestamp_s", "frame_num", "point_index",
-        "x_m", "y_m", "z_m", "v_mps",
-        "snr_db", "noise_db"
-    ])
-
-    pointcloud_recording.update({
-        "enabled": True,
-        "file": f,
-        "writer": writer,
-        "path": out_path,
-        "rows": 0,
-        "last_frame": -1
-    })
+    out_path = pointcloud_recorder.start(runtime_state["active_config"])
+    _sync_recording_status()
     logger.info(f"📝 点云记录已开启: {out_path}")
     return out_path
 
 def stop_pointcloud_recording():
-    out_path = pointcloud_recording.get("path", "")
-    f = pointcloud_recording.get("file")
-    if f:
-        try:
-            f.flush()
-            f.close()
-        except Exception:
-            pass
-    rows = pointcloud_recording.get("rows", 0)
-    pointcloud_recording.update({
-        "enabled": False,
-        "file": None,
-        "writer": None,
-        "path": "",
-        "rows": 0,
-        "last_frame": -1
-    })
-    logger.info(f"🛑 点云记录已关闭: {out_path} rows={rows}")
-    return out_path, rows
+    status = pointcloud_recorder.stop()
+    _sync_recording_status()
+    logger.info(f"🛑 点云记录已关闭: {status['path']} rows={status['rows']}")
+    return status["path"], status["rows"]
 
-def record_pointcloud_frame(frame):
-    if not pointcloud_recording["enabled"]:
-        return
-    frame_num = frame.get("frame_num", -1)
-    if frame_num == pointcloud_recording["last_frame"]:
-        return
-    writer = pointcloud_recording.get("writer")
-    if not writer:
-        return
-
-    now_s = time.time()
-    for idx, pt in enumerate(frame.get("points", [])):
-        writer.writerow([
-            f"{now_s:.3f}",
-            frame_num,
-            idx,
-            pt.get("x", ""),
-            pt.get("y", ""),
-            pt.get("z", ""),
-            pt.get("v", ""),
-            pt.get("snr", ""),
-            pt.get("noise", "")
-        ])
-        pointcloud_recording["rows"] += 1
-
-    pointcloud_recording["last_frame"] = frame_num
-    f = pointcloud_recording.get("file")
-    if f and pointcloud_recording["rows"] % 200 == 0:
-        f.flush()
+def record_pointcloud_frame(frame, raw_packet=None):
+    pointcloud_recorder.record_frame(frame, raw_packet)
+    _sync_recording_status()
 
 def get_recording_status():
-    return {
-        "enabled": pointcloud_recording["enabled"],
-        "path": pointcloud_recording["path"],
-        "rows": pointcloud_recording["rows"]
-    }
+    _sync_recording_status()
+    return pointcloud_recorder.status()
+
+
+def _sync_recording_status():
+    status = pointcloud_recorder.status()
+    pointcloud_recording.update({
+        "enabled": status["enabled"],
+        "path": status["path"],
+        "rows": status["rows"],
+    })
 
 def auto_detect_ports():
     import glob
@@ -678,7 +631,9 @@ def radar_serial_thread(data_port_name, baud_rate, log_file=""):
                 
                 try:
                     h_data = struct.unpack('<8sIIIIIIII', buffer[:40])
-                    p_len, f_num, n_tlvs = h_data[2], h_data[4], h_data[7]
+                    p_len, f_num, cpu_cycles, detected_objects, n_tlvs = (
+                        h_data[2], h_data[4], h_data[5], h_data[6], h_data[7]
+                    )
                 except: 
                     buffer = buffer[1:] # 错开一位继续找
                     continue
@@ -695,6 +650,7 @@ def radar_serial_thread(data_port_name, baud_rate, log_file=""):
                 if len(buffer) < p_len: break # 这一帧还没吐完，保留现场，去等喂饭
                 
                 # 开始大解包！
+                raw_packet = bytes(buffer[:p_len])
                 f_data = buffer[40:p_len]
                 buffer = buffer[p_len:] # 💥核 心：切下一块肉，必须马上吞掉！
                 progress_made = True
@@ -743,13 +699,17 @@ def radar_serial_thread(data_port_name, baud_rate, log_file=""):
                 
                 latest_radar_frame = {
                     "frame_num": f_num,
+                    "host_time_s": time.time(),
+                    "host_monotonic_s": time.monotonic(),
+                    "device_time_cpu_cycles": cpu_cycles,
+                    "detected_object_count": detected_objects,
                     "points": pts,
                     "range_profile": range_profile,
                     "tlv_types": tlv_types,
                     "side_info_count": len(point_side_info),
                     "has_side_info": len(point_side_info) > 0
                 }
-                record_pointcloud_frame(latest_radar_frame)
+                record_pointcloud_frame(latest_radar_frame, raw_packet)
                 if time.time() - stats["last_tlv"] > 5:
                     logger.info(
                         f"📦 [TLV] frame={f_num} types={tlv_types} "
@@ -788,61 +748,62 @@ async def handle_client(websocket):
                 try:
                     cmd = json.loads(message)
                     ctype = cmd.get("type")
+                    profiles_dir = Path(config_dir) / "Config"
                     
                     if ctype == "list_configs":
-                        import os
-                        # 设置统一的配置文件存放目录
-                        config_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Config')
-                        if not os.path.exists(config_dir): os.makedirs(config_dir)
-                        files = [f for f in os.listdir(config_dir) if f.endswith('.cfg')]
+                        profiles_dir.mkdir(parents=True, exist_ok=True)
+                        files = sorted(path.name for path in profiles_dir.glob("*.cfg") if path.is_file())
                         await websocket.send(json.dumps({"type": "config_list", "files": files}))
                     
                     elif ctype == "read_config":
                         fname = cmd.get("filename")
-                        config_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Config')
-                        fpath = os.path.join(config_dir, fname)
-                        if fname and os.path.exists(fpath):
-                            with open(fpath, 'r', encoding='utf-8') as f:
-                                content = f.read()
-                            await websocket.send(json.dumps({"type": "config_content", "filename": fname, "content": content}))
+                        try:
+                            fpath = resolve_config_path(profiles_dir, fname, must_exist=True)
+                            content = fpath.read_text(encoding="utf-8")
+                            await websocket.send(json.dumps({"type": "config_content", "filename": fpath.name, "content": content}))
+                        except ConfigPathError as exc:
+                            await websocket.send(json.dumps({"type": "config_error", "message": str(exc)}))
                     
                     elif ctype == "save_config":
                         fname = cmd.get("filename")
                         content = cmd.get("content")
-                        if fname and content is not None:
-                            config_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Config')
-                            if not os.path.exists(config_dir): os.makedirs(config_dir)
-                            fpath = os.path.join(config_dir, fname)
-                            with open(fpath, 'w', encoding='utf-8') as f:
-                                f.write(content)
-                            await websocket.send(json.dumps({"type": "save_status", "success": True, "message": f"已存入 Config 目录: {fname}"}))
+                        try:
+                            if content is None:
+                                raise ConfigPathError("配置内容不能为空")
+                            fpath = resolve_config_path(profiles_dir, fname)
+                            fpath.write_text(content, encoding="utf-8")
+                            await websocket.send(json.dumps({"type": "save_status", "success": True, "message": f"已存入 Config 目录: {fpath.name}"}))
+                        except ConfigPathError as exc:
+                            await websocket.send(json.dumps({"type": "save_status", "success": False, "message": str(exc)}))
                     
                     elif ctype == "apply_config":
                         fname = cmd.get("filename")
                         content = cmd.get("content")
-                        config_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Config')
-                        fpath = os.path.join(config_dir, fname)
-                        if fname and content is not None:
-                            if not os.path.exists(config_dir): os.makedirs(config_dir)
-                            with open(fpath, 'w', encoding='utf-8') as f:
-                                f.write(content)
-                        if fname and os.path.exists(fpath):
+                        try:
+                            fpath = resolve_config_path(profiles_dir, fname)
+                            if content is not None:
+                                fpath.write_text(content, encoding="utf-8")
+                            fpath = resolve_config_path(profiles_dir, fname, must_exist=True)
                             logger.info(f"⚙️ 正在应用 Config 下的动态配置: {fpath}")
-                            success = send_config_to_radar(ARGS.cfg_port, fpath)
+                            success = send_config_to_radar(runtime_state["cfg_port"], str(fpath))
+                            if success:
+                                runtime_state["active_config"] = config_snapshot(fpath)
                             await websocket.send(json.dumps({"type": "apply_status", "success": success}))
-                        else:
-                            logger.warn(f"⚠️ 找不到配置文件: {fpath}")
-                            await websocket.send(json.dumps({"type": "apply_status", "success": False, "message": "找不到配置文件"}))
+                        except ConfigPathError as exc:
+                            logger.warning(f"⚠️ 配置请求被拒绝: {exc}")
+                            await websocket.send(json.dumps({"type": "apply_status", "success": False, "message": str(exc)}))
 
                     elif ctype == "pointcloud_record":
                         action = cmd.get("action")
                         if action == "start":
                             path = start_pointcloud_recording()
+                            status = get_recording_status()
                             await websocket.send(json.dumps({
                                 "type": "pointcloud_record_status",
                                 "recording": True,
                                 "path": path,
-                                "rows": pointcloud_recording["rows"]
+                                "rows": status["rows"],
+                                "frames": status["frames"]
                             }))
                         elif action == "stop":
                             path, rows = stop_pointcloud_recording()
@@ -853,12 +814,10 @@ async def handle_client(websocket):
                                 "rows": rows
                             }))
                         elif action == "status":
-                            await websocket.send(json.dumps({
-                                "type": "pointcloud_record_status",
-                                "recording": pointcloud_recording["enabled"],
-                                "path": pointcloud_recording["path"],
-                                "rows": pointcloud_recording["rows"]
-                            }))
+                            status = get_recording_status()
+                            status["type"] = "pointcloud_record_status"
+                            status["recording"] = status["enabled"]
+                            await websocket.send(json.dumps(status))
                     elif ctype == "gimbal_scan":
                         action = cmd.get("action")
                         params = cmd.get("params") or {}
@@ -984,6 +943,11 @@ if __name__ == "__main__":
         real_data_port = rem_ports[0] if rem_ports else '/dev/ttyACM1'
     
     logger.info(f"📍 最终映射确定: Config={real_cfg_port}, Data={real_data_port}")
+    # WebSocket 配置下发必须使用自动探测后的真实端口，而不是空的启动参数。
+    ARGS.cfg_port = real_cfg_port
+    ARGS.data_port = real_data_port
+    runtime_state["cfg_port"] = real_cfg_port
+    runtime_state["data_port"] = real_data_port
 
     # 等待端口上线且未被占用的自愈容错逻辑
     logger.info(f"⏳ 等待雷达串口连接与就绪 ({real_cfg_port}, {real_data_port})...")
