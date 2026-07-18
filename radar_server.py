@@ -11,8 +11,8 @@ import logging
 import os
 import math
 from pathlib import Path
-
-from radar_runtime import ConfigPathError, PointCloudRecorder, config_snapshot, resolve_config_path
+from radar_control import RadarConfigManager
+from radar_runtime import PointCloudRecorder
 
 # 配置日志：同时输出到文件和控制台
 config_dir = os.path.dirname(os.path.abspath(__file__))
@@ -56,6 +56,7 @@ runtime_state = {
     "active_config": {"name": None, "sha256": None, "content": None},
 }
 pointcloud_recorder = PointCloudRecorder(Path(config_dir) / "captures" / "pointcloud_logs")
+config_manager = RadarConfigManager(Path(config_dir) / "Config")
 
 gimbal_scan = {
     "enabled": False,
@@ -752,51 +753,34 @@ async def handle_client(websocket):
             async for message in websocket:
                 try:
                     cmd = json.loads(message)
+                    if not isinstance(cmd, dict):
+                        await websocket.send(json.dumps({"type": "command_error", "message": "command must be a JSON object"}))
+                        continue
                     ctype = cmd.get("type")
-                    profiles_dir = Path(config_dir) / "Config"
-                    
                     if ctype == "list_configs":
-                        profiles_dir.mkdir(parents=True, exist_ok=True)
-                        files = sorted(path.name for path in profiles_dir.glob("*.cfg") if path.is_file())
-                        await websocket.send(json.dumps({"type": "config_list", "files": files}))
+                        result = config_manager.list_configs()
+                        result["type"] = "config_list"
+                        await websocket.send(json.dumps(result))
                     
                     elif ctype == "read_config":
-                        fname = cmd.get("filename")
-                        try:
-                            fpath = resolve_config_path(profiles_dir, fname, must_exist=True)
-                            content = fpath.read_text(encoding="utf-8")
-                            await websocket.send(json.dumps({"type": "config_content", "filename": fpath.name, "content": content}))
-                        except (ConfigPathError, OSError, UnicodeError, TypeError) as exc:
-                            await websocket.send(json.dumps({"type": "config_error", "message": str(exc)}))
+                        result = config_manager.read(cmd.get("filename"))
+                        response_type = "config_content" if result.pop("success") else "config_error"
+                        result["type"] = response_type
+                        await websocket.send(json.dumps(result))
                     
                     elif ctype == "save_config":
-                        fname = cmd.get("filename")
-                        content = cmd.get("content")
-                        try:
-                            if content is None:
-                                raise ConfigPathError("配置内容不能为空")
-                            fpath = resolve_config_path(profiles_dir, fname)
-                            fpath.write_text(content, encoding="utf-8")
-                            await websocket.send(json.dumps({"type": "save_status", "success": True, "message": f"已存入 Config 目录: {fpath.name}"}))
-                        except (ConfigPathError, OSError, UnicodeError, TypeError) as exc:
-                            await websocket.send(json.dumps({"type": "save_status", "success": False, "message": str(exc)}))
+                        result = config_manager.save(cmd.get("filename"), cmd.get("content"))
+                        result["type"] = "save_status"
+                        await websocket.send(json.dumps(result))
                     
                     elif ctype == "apply_config":
-                        fname = cmd.get("filename")
-                        content = cmd.get("content")
-                        try:
-                            fpath = resolve_config_path(profiles_dir, fname)
-                            if content is not None:
-                                fpath.write_text(content, encoding="utf-8")
-                            fpath = resolve_config_path(profiles_dir, fname, must_exist=True)
-                            logger.info(f"⚙️ 正在应用 Config 下的动态配置: {fpath}")
-                            success = send_config_to_radar(runtime_state["cfg_port"], str(fpath))
-                            if success:
-                                runtime_state["active_config"] = config_snapshot(fpath)
-                            await websocket.send(json.dumps({"type": "apply_status", "success": success}))
-                        except (ConfigPathError, OSError, UnicodeError, TypeError) as exc:
-                            logger.warning(f"⚠️ 配置请求被拒绝: {exc}")
-                            await websocket.send(json.dumps({"type": "apply_status", "success": False, "message": str(exc)}))
+                        result = config_manager.apply(
+                            cmd.get("filename"), cmd.get("content"), runtime_state["cfg_port"], send_config_to_radar
+                        )
+                        if result["success"]:
+                            runtime_state["active_config"] = result.pop("active_config")
+                        result["type"] = "apply_status"
+                        await websocket.send(json.dumps(result))
 
                     elif ctype == "pointcloud_record":
                         action = cmd.get("action")
@@ -838,8 +822,13 @@ async def handle_client(websocket):
                             await websocket.send(json.dumps(payload))
                         elif action == "status":
                             await websocket.send(json.dumps(get_gimbal_scan_status()))
+                        else:
+                            await websocket.send(json.dumps({"type": "command_error", "message": "unknown gimbal action"}))
+                    else:
+                        await websocket.send(json.dumps({"type": "command_error", "message": "unknown command"}))
 
                 except Exception as e:
+                    await websocket.send(json.dumps({"type": "command_error", "message": str(e)}))
                     logger.error(f"❌ 指令处理解析错误: {e}")
         except websockets.exceptions.ConnectionClosed:
             pass
