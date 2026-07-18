@@ -425,6 +425,10 @@
                     <div>点云记录</div>
                     <div class="value" id="recordDisplay">未记录</div>
                 </div>
+                <div class="hud-box" style="border-color: #87d7a5; color: #a9edc2;">
+                    <div>系统健康</div>
+                    <div class="value" id="healthDisplay" style="font-size:12px;">等待连接</div>
+                </div>
                 <div class="hud-box" id="replayPanel" style="border-color: #b99cff; color: #d7c8ff;">
                     <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
                         <span>离线回放</span>
@@ -677,6 +681,7 @@
         let showSnrLabels = false; // 默认关闭 SNR/noise 文字，避免点多时遮挡
         let pointcloudRecording = false;
         let lastRecordingHealthSignature = '';
+        let healthPollTimer = null;
         const replayState = {
             active: false, captureId: '', frames: [], position: -1, playing: false,
             hasMore: false, loadingFrames: false, requestId: 0, pendingRequestId: null
@@ -1675,6 +1680,39 @@
             }
         }
 
+        function updateSystemHealth(status) {
+            const display = document.getElementById('healthDisplay');
+            const labels = {
+                streaming: '数据流正常', waiting_for_frame: '等待雷达帧', stale: '数据帧超时', offline: '串口离线'
+            };
+            const age = Number.isFinite(Number(status.last_frame_age_s)) ? ` · ${Number(status.last_frame_age_s).toFixed(1)}s` : '';
+            const errors = status.parser_errors ? ` · 解析错 ${status.parser_errors}` : '';
+            display.innerText = `${labels[status.data_status] || '未知状态'}${age}${errors}`;
+            display.title = [
+                status.data_port && `数据口: ${status.data_port}`,
+                status.cfg_port && `配置口: ${status.cfg_port}`,
+                status.last_error && `最近错误: ${status.last_error}`,
+                status.active_config && status.active_config.name && `配置: ${status.active_config.name}`
+            ].filter(Boolean).join('\n');
+            display.style.color = status.data_status === 'streaming' ? '#a9edc2' : (
+                status.data_status === 'stale' ? '#ffd37a' : '#ff9baa'
+            );
+        }
+
+        function startHealthPolling() {
+            if (healthPollTimer) clearInterval(healthPollTimer);
+            healthPollTimer = setInterval(() => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'system_health' }));
+                }
+            }, 1000);
+        }
+
+        function stopHealthPolling() {
+            if (healthPollTimer) clearInterval(healthPollTimer);
+            healthPollTimer = null;
+        }
+
         function renderReplayFrame(frame) {
             updateRadarDisplayRange();
             const points = (frame.points || []).filter(pt => Math.hypot(pt.x, pt.y) >= BLIND_ZONE_M && isPointUsable(pt));
@@ -1828,6 +1866,7 @@
             if (data.pointcloud_recording) {
                 updateRecordingHealth(data.pointcloud_recording);
             }
+            if (data.runtime_health) updateSystemHealth(data.runtime_health);
         }
 
         // 点云绘制：精细小点 + 轻微光晕，适合密集环境扫描
@@ -2311,6 +2350,8 @@
                 ws.send(JSON.stringify({ type: "list_configs" }));
                 ws.send(JSON.stringify({ type: "pointcloud_record", action: "status" }));
                 ws.send(JSON.stringify({ type: "gimbal_scan", action: "status" }));
+                ws.send(JSON.stringify({ type: "system_health" }));
+                startHealthPolling();
                 requestReplayCaptures();
             };
 
@@ -2336,10 +2377,12 @@
                 recordBtn.innerText = "记录点云: 关";
                 recordBtn.style.backgroundColor = "transparent";
                 document.getElementById('recordDisplay').innerText = '未记录';
+                document.getElementById('healthDisplay').innerText = '连接已断开';
                 lastRangeProfile = [];
                 drawRangeProfile([]);
                 document.getElementById('configPanel').style.display = 'none';
                 stopReplay();
+                stopHealthPolling();
                 updateReplayControls();
                 setReplayStatus('连接已断开');
             };
@@ -2701,6 +2744,9 @@
             }
             if (data.type === 'pointcloud_record_status') {
                 updateRecordingHealth(data);
+            }
+            if (data.type === 'system_health_status') {
+                updateSystemHealth(data);
             }
             return handleControlResponse(data);
         };

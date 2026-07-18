@@ -12,6 +12,7 @@ import os
 import math
 from pathlib import Path
 from radar_control import RadarConfigManager
+from radar_health import RadarHealthMonitor
 from radar_replay import CaptureAccessError, CaptureCatalog
 from radar_runtime import PointCloudRecorder
 
@@ -60,6 +61,7 @@ capture_root = Path(config_dir) / "captures" / "pointcloud_logs"
 pointcloud_recorder = PointCloudRecorder(capture_root)
 capture_catalog = CaptureCatalog(capture_root)
 config_manager = RadarConfigManager(Path(config_dir) / "Config")
+radar_health = RadarHealthMonitor()
 
 gimbal_scan = {
     "enabled": False,
@@ -396,6 +398,18 @@ def get_recording_status():
     return pointcloud_recorder.status()
 
 
+def get_runtime_health():
+    status = radar_health.snapshot(recording=get_recording_status())
+    status.update({
+        "cfg_port": runtime_state["cfg_port"],
+        "active_config": {
+            "name": runtime_state["active_config"].get("name"),
+            "sha256": runtime_state["active_config"].get("sha256"),
+        },
+    })
+    return status
+
+
 def _sync_recording_status():
     status = pointcloud_recorder.status()
     pointcloud_recording.update({
@@ -613,8 +627,10 @@ def radar_serial_thread(data_port_name, baud_rate, log_file="", stop_event=None)
     try:
         ser = serial.Serial(data_port_name, baud_rate, timeout=1)
         ser.reset_input_buffer()
+        radar_health.mark_serial_open(data_port_name)
         logger.info(f"✅ [Engine 3.27+] 解析引擎就绪: {data_port_name}")
     except Exception as e:
+        radar_health.mark_error(e, disconnected=True)
         logger.error(f"❌ 无法开启数据口: {e}"); return
 
     while stop_event is None or not stop_event.is_set():
@@ -622,6 +638,7 @@ def radar_serial_thread(data_port_name, baud_rate, log_file="", stop_event=None)
             if ser.in_waiting > 0:
                 chunk = ser.read(ser.in_waiting)
                 buffer.extend(chunk)
+                radar_health.mark_bytes(len(chunk))
                 stats["count"] += len(chunk)
                 
                 if time.time() - stats["last"] > 5:
@@ -649,9 +666,11 @@ def radar_serial_thread(data_port_name, baud_rate, log_file="", stop_event=None)
 
                 # 【防死循环终极护甲】：绝不能允许 p_len 小于最小帧头（40），否则若 p_len=0 会导致 buffer 永远不缩减！
                 if p_len < 40:
+                    radar_health.mark_error(f"invalid radar packet length: {p_len}")
                     buffer = buffer[8:] # 这是一个伪装的破损头部，跳过魔数继续往后搜！
                     continue
                 if p_len > MAX_PACKET_LEN:
+                    radar_health.mark_error(f"oversized radar packet: {p_len}")
                     logger.warning(f"⚠️ 异常包长 {p_len}，疑似破损帧或非预期TLV，丢弃当前魔法字后继续同步")
                     buffer = buffer[8:]
                     continue
@@ -718,6 +737,7 @@ def radar_serial_thread(data_port_name, baud_rate, log_file="", stop_event=None)
                     "side_info_count": len(point_side_info),
                     "has_side_info": len(point_side_info) > 0
                 }
+                radar_health.mark_frame(f_num)
                 record_pointcloud_frame(latest_radar_frame, raw_packet)
                 if time.time() - stats["last_tlv"] > 5:
                     logger.info(
@@ -732,9 +752,24 @@ def radar_serial_thread(data_port_name, baud_rate, log_file="", stop_event=None)
                 
         except Exception as e:
             err_msg = str(e)
+            radar_health.mark_error(e, disconnected=("Input/output error" in err_msg or "Errno 5" in err_msg))
             if "Input/output error" in err_msg or "Errno 5" in err_msg:
                 # 物理拔插或设备离线导致的端口句柄失效，不再无限刷屏报错，静默等待重连或重启
                 time.sleep(2)
+                try:
+                    ser.close()
+                except Exception:
+                    pass
+                while stop_event is None or not stop_event.is_set():
+                    try:
+                        ser = serial.Serial(data_port_name, baud_rate, timeout=1)
+                        ser.reset_input_buffer()
+                        radar_health.mark_serial_open(data_port_name)
+                        logger.info(f"Radar data port reconnected: {data_port_name}")
+                        break
+                    except Exception as reconnect_error:
+                        radar_health.mark_error(reconnect_error, disconnected=True)
+                        time.sleep(2)
             else:
                 logger.error(f"⚠️ 核心引擎跑飞: {e}，正在尝试自愈...")
                 time.sleep(1)
@@ -743,6 +778,12 @@ def radar_serial_thread(data_port_name, baud_rate, log_file="", stop_event=None)
             buffer = bytearray()
             try: ser.reset_input_buffer() 
             except: pass
+
+    try:
+        ser.close()
+    except Exception:
+        pass
+    radar_health.mark_serial_closed()
 
 # WebSocket 广播与指令处理逻辑
 async def handle_client(websocket):
@@ -805,6 +846,10 @@ async def handle_client(websocket):
                             status["type"] = "pointcloud_record_status"
                             status["recording"] = status["enabled"]
                             await websocket.send(json.dumps(status))
+                    elif ctype == "system_health":
+                        status = get_runtime_health()
+                        status["type"] = "system_health_status"
+                        await websocket.send(json.dumps(status))
                     elif ctype == "replay":
                         action = cmd.get("action")
                         try:
@@ -869,6 +914,7 @@ async def handle_client(websocket):
                     try:
                         frame = dict(latest_radar_frame)
                         frame["pointcloud_recording"] = get_recording_status()
+                        frame["runtime_health"] = get_runtime_health()
                         if gimbal_scan["enabled"] and gimbal_scan["config"].get("mode") == "motor":
                             yaw_deg = motor_scan_angle_deg()
                             gimbal_scan["yaw_actual_deg"] = yaw_deg
