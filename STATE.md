@@ -2,11 +2,10 @@
 
 ## Active, hardware-independent work
 
-- Integrate the tested encoder sweep plan and GPIO adapter with the radar server
-  as a disabled-by-default scan mode; expose only measured scan angle to the
-  radar pipeline.
-- Preserve the static-capture policy: point-cloud frames are accepted only after
-  the scan plan reports that an endpoint has settled.
+- Add a front-end control only after the disabled-by-default encoder mode has
+  been exercised with real GPIO and an explicit operator opt-in.
+- Preserve the static-capture policy: the server waits for a new radar frame
+  after `capture_ready`, then releases the reverse command.
 
 ## Hardware acceptance items
 
@@ -23,3 +22,5 @@
 - GPIO adapter simulation: 2 tests passed; no real GPIO was created or tested.
 - Encoder session simulation: 3 tests passed; it exposes measured angle and
   `capture_ready` before applying a reverse command.
+- Encoder server mode: disabled by default, requires explicit opt-in and a
+  calibrated `counts_per_rev`; full automated suite: 34 passed, 1 skipped.

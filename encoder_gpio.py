@@ -70,3 +70,51 @@ class EncoderSweepSession:
 
     def release_capture(self) -> bool:
         return self._plan.release_capture()
+
+
+@dataclass
+class EncoderGpioResources:
+    """GPIO objects retained for encoder callbacks and explicit shutdown."""
+
+    counter: EncoderCounter
+    pwm: object
+    direction: object
+    encoder_a: object
+    encoder_b: object
+
+    def close(self) -> None:
+        for device in (self.pwm, self.direction, self.encoder_a, self.encoder_b):
+            close = getattr(device, "close", None)
+            if callable(close):
+                close()
+
+
+def open_encoder_sweep_session(
+    plan: EncoderSweepPlan,
+    *,
+    pwm_gpio: int,
+    direction_gpio: int,
+    encoder_a_gpio: int,
+    encoder_b_gpio: int,
+    pwm_factory,
+    direction_factory,
+    input_factory,
+) -> tuple[EncoderSweepSession, EncoderGpioResources]:
+    """Create a GPIO-backed session through injected factories.
+
+    The factory seam keeps GPIO imports and hardware access outside the motion
+    policy, allowing the exact same wiring to be simulated in tests.
+    """
+    pwm = pwm_factory(pwm_gpio, frequency=1000)
+    direction = direction_factory(direction_gpio)
+    encoder_a = input_factory(encoder_a_gpio)
+    encoder_b = input_factory(encoder_b_gpio)
+    counter = EncoderCounter()
+
+    def on_encoder_edge() -> None:
+        counter.on_a_edge(a_value=bool(encoder_a.value), b_value=bool(encoder_b.value))
+
+    encoder_a.when_activated = on_encoder_edge
+    encoder_a.when_deactivated = on_encoder_edge
+    resources = EncoderGpioResources(counter, pwm, direction, encoder_a, encoder_b)
+    return EncoderSweepSession(plan, counter, GpioMotorDriver(pwm, direction)), resources

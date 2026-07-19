@@ -15,6 +15,8 @@ from radar_control import RadarConfigManager
 from radar_health import RadarHealthMonitor
 from radar_replay import CaptureAccessError, CaptureCatalog
 from radar_runtime import PointCloudRecorder
+from encoder_gpio import open_encoder_sweep_session
+from encoder_scan import EncoderSweepPlan
 
 # 配置日志：同时输出到文件和控制台
 config_dir = os.path.dirname(os.path.abspath(__file__))
@@ -87,6 +89,16 @@ gimbal_scan = {
         "rpm": 1.0,
         "pwm_duty": 0.25,
         "frame_period_s": 0.656,
+        "encoder_enabled": False,
+        "encoder_a_gpio": 22,
+        "encoder_b_gpio": 23,
+        "counts_per_rev": 0,
+        "scan_min_angle_deg": 0.0,
+        "scan_max_angle_deg": 180.0,
+        "scan_cruise_duty": 0.45,
+        "scan_approach_duty": 0.18,
+        "scan_approach_window_deg": 15.0,
+        "scan_settle_s": 0.25,
         "servo_port": "/dev/ttyUSB0",
         "baud": 115200,
         "pitch_id": 1,
@@ -209,6 +221,85 @@ def motor_scan_loop(config, stop_event):
         if gimbal_scan["status"] != "error":
             gimbal_scan["status"] = "idle"
 
+
+def encoder_scan_loop(config, stop_event):
+    """Run the hardware-backed, stop-settle-capture encoder scan mode.
+
+    This loop is selected only after an explicit ``encoder_enabled`` opt-in.
+    A new radar frame is required after a settled endpoint before the platform
+    reverses, so all stitched endpoint points come from a stationary sensor.
+    """
+    gimbal_scan["status"] = "opening"
+    gimbal_scan["last_error"] = ""
+    resources = None
+    try:
+        from gpiozero import DigitalInputDevice, DigitalOutputDevice, PWMOutputDevice
+
+        plan = EncoderSweepPlan(
+            counts_per_rev=int(config["counts_per_rev"]),
+            min_angle_deg=float(config["scan_min_angle_deg"]),
+            max_angle_deg=float(config["scan_max_angle_deg"]),
+            cruise_duty=float(config["scan_cruise_duty"]),
+            approach_duty=float(config["scan_approach_duty"]),
+            approach_window_deg=float(config["scan_approach_window_deg"]),
+            settle_s=float(config["scan_settle_s"]),
+            require_capture_release=True,
+        )
+        session, resources = open_encoder_sweep_session(
+            plan,
+            pwm_gpio=int(config["motor_pwm_gpio"]),
+            direction_gpio=int(config["motor_dir_gpio"]),
+            encoder_a_gpio=int(config["encoder_a_gpio"]),
+            encoder_b_gpio=int(config["encoder_b_gpio"]),
+            pwm_factory=PWMOutputDevice,
+            direction_factory=DigitalOutputDevice,
+            input_factory=DigitalInputDevice,
+        )
+        endpoint_points = {"min": [], "max": []}
+        ready_frame_num = None
+        gimbal_scan["status"] = "running"
+
+        while not stop_event.is_set():
+            snapshot = session.tick(now_s=time.monotonic())
+            gimbal_scan["yaw_actual_deg"] = snapshot.angle_deg
+            gimbal_scan["direction"] = snapshot.command.mode
+            gimbal_scan["last_update_s"] = time.time()
+            gimbal_scan["status"] = "capturing" if snapshot.capture_ready else "running"
+
+            if snapshot.capture_ready:
+                frame = dict(latest_radar_frame)
+                frame_num = int(frame.get("frame_num", -1))
+                if ready_frame_num is None:
+                    ready_frame_num = frame_num
+                elif frame_num != ready_frame_num:
+                    endpoint = "max" if snapshot.command.reason.endswith("_max") else "min"
+                    endpoint_points[endpoint] = [
+                        rotate_point_xy(point, snapshot.angle_deg) for point in frame.get("points", [])
+                    ]
+                    gimbal_scan["endpoint"] = endpoint
+                    gimbal_scan["combined_points"] = endpoint_points["min"] + endpoint_points["max"]
+                    gimbal_scan["cycle"] += 1 if endpoint == "min" else 0
+                    session.release_capture()
+                    ready_frame_num = None
+            else:
+                ready_frame_num = None
+            time.sleep(0.01)
+
+        gimbal_scan["status"] = "stopping"
+    except Exception as e:
+        gimbal_scan["last_error"] = str(e)
+        gimbal_scan["status"] = "error"
+        logger.error(f"Encoder scan loop error: {e}")
+    finally:
+        if resources:
+            try:
+                resources.close()
+            except Exception:
+                pass
+        gimbal_scan["enabled"] = False
+        if gimbal_scan["status"] != "error":
+            gimbal_scan["status"] = "idle"
+
 def gimbal_scan_loop(config, stop_event):
     gimbal_scan["status"] = "opening"
     gimbal_scan["last_error"] = ""
@@ -320,16 +411,24 @@ def start_gimbal_scan(params):
         if key in params:
             config[key] = params[key]
 
-    numeric_int_keys = ["baud", "pitch_id", "yaw_id", "move_ms", "pause_ms", "center_pwm", "min_pwm", "max_pwm", "motor_pwm_gpio", "motor_dir_gpio"]
-    numeric_float_keys = ["pitch_fixed_deg", "yaw0_deg", "yaw180_deg", "us_per_degree", "rpm", "pwm_duty", "frame_period_s"]
+    numeric_int_keys = ["baud", "pitch_id", "yaw_id", "move_ms", "pause_ms", "center_pwm", "min_pwm", "max_pwm", "motor_pwm_gpio", "motor_dir_gpio", "encoder_a_gpio", "encoder_b_gpio", "counts_per_rev"]
+    numeric_float_keys = ["pitch_fixed_deg", "yaw0_deg", "yaw180_deg", "us_per_degree", "rpm", "pwm_duty", "frame_period_s", "scan_min_angle_deg", "scan_max_angle_deg", "scan_cruise_duty", "scan_approach_duty", "scan_approach_window_deg", "scan_settle_s"]
     for key in numeric_int_keys:
         config[key] = int(float(config[key]))
     for key in numeric_float_keys:
         config[key] = float(config[key])
+    config["encoder_enabled"] = bool(config.get("encoder_enabled"))
 
     stop_event = threading.Event()
     frame_angle_deg = abs(float(config["rpm"]) * 6.0 * float(config["frame_period_s"]))
-    if str(config.get("mode", "motor")).lower() == "servo":
+    mode = str(config.get("mode", "motor")).lower()
+    if mode == "encoder":
+        if not config["encoder_enabled"]:
+            return False, "encoder scan is disabled until explicit hardware opt-in"
+        if config["counts_per_rev"] <= 0:
+            return False, "encoder counts_per_rev must be calibrated before start"
+        thread_target = encoder_scan_loop
+    elif mode == "servo":
         thread_target = gimbal_scan_loop
     else:
         config["mode"] = "motor"

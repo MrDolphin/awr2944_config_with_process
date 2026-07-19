@@ -1,6 +1,11 @@
 import unittest
 
-from encoder_gpio import EncoderCounter, EncoderSweepSession, GpioMotorDriver
+from encoder_gpio import (
+    EncoderCounter,
+    EncoderSweepSession,
+    GpioMotorDriver,
+    open_encoder_sweep_session,
+)
 from encoder_scan import EncoderSweepPlan
 from encoder_scan import SweepCommand
 
@@ -19,6 +24,14 @@ class FakeDirection:
 
     def off(self):
         self.state = "off"
+
+
+class FakeInput:
+    def __init__(self, pin):
+        self.pin = pin
+        self.value = False
+        self.when_activated = None
+        self.when_deactivated = None
 
 
 class EncoderCounterTests(unittest.TestCase):
@@ -76,6 +89,33 @@ class EncoderSweepSessionTests(unittest.TestCase):
         self.assertEqual("hold", snapshot.command.mode)
         self.assertTrue(session.release_capture())
         self.assertEqual("reverse", session.tick(now_s=10.26).command.mode)
+
+    def test_gpio_session_wires_encoder_a_edges_without_importing_gpiozero(self):
+        inputs = {}
+
+        def input_factory(pin):
+            device = FakeInput(pin)
+            inputs[pin] = device
+            return device
+
+        plan = EncoderSweepPlan(counts_per_rev=360, min_angle_deg=0, max_angle_deg=180)
+        session, resources = open_encoder_sweep_session(
+            plan,
+            pwm_gpio=12,
+            direction_gpio=17,
+            encoder_a_gpio=22,
+            encoder_b_gpio=23,
+            pwm_factory=lambda _pin, **_kwargs: FakePwm(),
+            direction_factory=lambda _pin: FakeDirection(),
+            input_factory=input_factory,
+        )
+
+        inputs[22].value = True
+        inputs[23].value = True
+        inputs[22].when_activated()
+
+        self.assertEqual(1, resources.counter.count)
+        self.assertEqual(1.0, session.tick(now_s=1.0).angle_deg)
 
 
 if __name__ == "__main__":

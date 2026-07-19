@@ -18,4 +18,6 @@
 
 ## Alerts This Period
 
-- None.
+- 2026-07-19 14:55 +08:00: 39,000 estimated tokens already spent on
+  `hardware-independent-development`; defer the larger radar-server integration
+  until a fresh budget period to avoid crossing the 80% report-only threshold.
