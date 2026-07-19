@@ -1,6 +1,7 @@
 import unittest
 
-from encoder_gpio import EncoderCounter, GpioMotorDriver
+from encoder_gpio import EncoderCounter, EncoderSweepSession, GpioMotorDriver
+from encoder_scan import EncoderSweepPlan
 from encoder_scan import SweepCommand
 
 
@@ -48,6 +49,33 @@ class GpioMotorDriverTests(unittest.TestCase):
         self.driver.apply(SweepCommand("hold", 0.0, "capture_ready"))
         self.assertEqual("off", self.direction.state)
         self.assertEqual(0.0, self.pwm.value)
+
+
+class EncoderSweepSessionTests(unittest.TestCase):
+    def test_exposes_measured_angle_and_capture_ready_before_reversing(self):
+        counter = EncoderCounter(initial_count=180)
+        pwm = FakePwm()
+        direction = FakeDirection()
+        session = EncoderSweepSession(
+            EncoderSweepPlan(
+                counts_per_rev=360,
+                min_angle_deg=0,
+                max_angle_deg=180,
+                settle_s=0.25,
+                require_capture_release=True,
+            ),
+            counter,
+            GpioMotorDriver(pwm, direction),
+        )
+
+        session.tick(now_s=10.0)
+        snapshot = session.tick(now_s=10.25)
+
+        self.assertEqual(180.0, snapshot.angle_deg)
+        self.assertTrue(snapshot.capture_ready)
+        self.assertEqual("hold", snapshot.command.mode)
+        self.assertTrue(session.release_capture())
+        self.assertEqual("reverse", session.tick(now_s=10.26).command.mode)
 
 
 if __name__ == "__main__":

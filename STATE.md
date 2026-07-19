@@ -21,3 +21,5 @@
 - Commit `3afced6`: canonical worktree and background-loop rules.
 - Full test suite: 27 passed, 1 optional browser test skipped.
 - GPIO adapter simulation: 2 tests passed; no real GPIO was created or tested.
+- Encoder session simulation: 3 tests passed; it exposes measured angle and
+  `capture_ready` before applying a reverse command.

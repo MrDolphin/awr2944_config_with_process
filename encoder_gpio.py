@@ -4,7 +4,9 @@ The module deliberately has no GPIO side effects at import time.  Hardware is
 created only by a caller after a real-device acceptance check.
 """
 
-from encoder_scan import SweepCommand
+from dataclasses import dataclass
+
+from encoder_scan import EncoderSweepPlan, SweepCommand
 
 
 class EncoderCounter:
@@ -38,3 +40,33 @@ class GpioMotorDriver:
         else:
             self._pwm.value = 0.0
             self._direction.off()
+
+
+@dataclass(frozen=True)
+class EncoderSweepSnapshot:
+    count: int
+    angle_deg: float
+    command: SweepCommand
+    capture_ready: bool
+
+
+class EncoderSweepSession:
+    """Join measured encoder state, motion policy, and motor output at one seam."""
+
+    def __init__(self, plan: EncoderSweepPlan, counter: EncoderCounter, driver: GpioMotorDriver) -> None:
+        self._plan = plan
+        self._counter = counter
+        self._driver = driver
+
+    def tick(self, *, now_s: float) -> EncoderSweepSnapshot:
+        command = self._plan.command_for_count(self._counter.count, now_s=now_s)
+        self._driver.apply(command)
+        return EncoderSweepSnapshot(
+            count=self._counter.count,
+            angle_deg=self._plan.angle_for_count(self._counter.count),
+            command=command,
+            capture_ready=command.reason.startswith("capture_ready_"),
+        )
+
+    def release_capture(self) -> bool:
+        return self._plan.release_capture()
