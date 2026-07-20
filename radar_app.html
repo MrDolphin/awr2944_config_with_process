@@ -2040,6 +2040,42 @@
             return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
         }
 
+        function describeReplayClusterShape(members, center) {
+            if (members.length < 2) {
+                return { kind: 'compact', label: 'compact', lengthM: 0, widthM: 0, angleRad: 0, elongation: 1 };
+            }
+            const covariance = members.reduce((acc, point) => {
+                const dx = Number(point.x) - center.x;
+                const dy = Number(point.y) - center.y;
+                acc.xx += dx * dx;
+                acc.yy += dy * dy;
+                acc.xy += dx * dy;
+                return acc;
+            }, { xx: 0, yy: 0, xy: 0 });
+            covariance.xx /= members.length;
+            covariance.yy /= members.length;
+            covariance.xy /= members.length;
+            const angleRad = 0.5 * Math.atan2(2 * covariance.xy, covariance.xx - covariance.yy);
+            const cos = Math.cos(angleRad);
+            const sin = Math.sin(angleRad);
+            const projected = members.map(point => {
+                const dx = Number(point.x) - center.x;
+                const dy = Number(point.y) - center.y;
+                return { major: dx * cos + dy * sin, minor: -dx * sin + dy * cos };
+            });
+            const majorValues = projected.map(point => point.major);
+            const minorValues = projected.map(point => point.minor);
+            const lengthM = Math.max(...majorValues) - Math.min(...majorValues);
+            const widthM = Math.max(...minorValues) - Math.min(...minorValues);
+            const elongation = lengthM / Math.max(widthM, 0.05);
+            const isEdge = members.length >= 5 && lengthM >= 0.65 && elongation >= 2.8;
+            return {
+                kind: isEdge ? 'edge' : 'compact',
+                label: isEdge ? 'edge/shoreline' : 'compact',
+                lengthM, widthM, angleRad, elongation,
+            };
+        }
+
         function clusterReplayPoints(points, radiusM = REPLAY_CLUSTER_RADIUS_M, minPoints = REPLAY_CLUSTER_MIN_POINTS) {
             const remaining = new Set(points.map((_, index) => index));
             const clusters = [];
@@ -2067,13 +2103,19 @@
                     z: members.reduce((sum, point) => sum + (Number(point.z) || 0), 0) / members.length,
                 };
                 const polar = polarPointInfo(center);
-                const ranges = members.map(polarPointInfo).map(info => info.rangeM);
+                const rangeInfos = members.map(point => ({ point, ...polarPointInfo(point) }));
+                const ranges = rangeInfos.map(info => info.rangeM);
+                const nearest = rangeInfos.reduce((best, info) => info.rangeM < best.rangeM ? info : best, rangeInfos[0]);
+                const shape = describeReplayClusterShape(members, center);
                 const snr = members.map(getPointSnr).filter(value => value !== null);
                 const speed = members.map(point => Number(point.v)).filter(Number.isFinite);
                 const spreadM = Math.max(...members.map(point => Math.hypot(point.x - center.x, point.y - center.y)), 0);
                 clusters.push({
                     points: members, center, rangeM: polar.rangeM, bearingDeg: polar.bearingDeg, direction: polar.direction,
+                    nearestPoint: nearest.point, nearestRangeM: nearest.rangeM, nearestDirection: nearest.direction,
                     rangeMinM: Math.min(...ranges), rangeMaxM: Math.max(...ranges), spreadM,
+                    shapeKind: shape.kind, shapeLabel: shape.label, shapeLengthM: shape.lengthM,
+                    shapeWidthM: shape.widthM, shapeAngleRad: shape.angleRad, shapeElongation: shape.elongation,
                     snrMedianDb: median(snr), speedMedianMps: median(speed),
                 });
             }
@@ -2133,17 +2175,32 @@
             ctx.save();
             clusters.filter(cluster => cluster.isStable || cluster.id === selectedClusterId).forEach(cluster => {
                 const center = mapToCanvas(cluster.center.x, cluster.center.y);
-                const radiusPx = Math.max(10, cluster.spreadM / radarRangeX * canvas.width / 2 + 7);
+                const meterPxX = canvas.width / (2 * radarRangeX);
+                const meterPxY = canvas.height / radarRangeY;
+                const radiusPx = Math.max(10, cluster.spreadM * meterPxX + 7);
                 const selected = cluster.id === selectedClusterId;
                 ctx.strokeStyle = selected ? '#ffbd6b' : 'rgba(125, 255, 220, 0.76)';
                 ctx.fillStyle = selected ? 'rgba(255, 140, 66, 0.13)' : 'rgba(64, 255, 198, 0.07)';
                 ctx.lineWidth = selected ? 2.5 : 1.2;
                 ctx.setLineDash(selected ? [] : [4, 3]);
-                ctx.beginPath(); ctx.arc(center.px, center.py, radiusPx, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                ctx.beginPath();
+                if (cluster.shapeKind === 'edge') {
+                    const radiusX = Math.max(12, cluster.shapeLengthM * meterPxX / 2 + 8);
+                    const radiusY = Math.max(8, cluster.shapeWidthM * meterPxY / 2 + 8);
+                    ctx.ellipse(center.px, center.py, radiusX, radiusY, -cluster.shapeAngleRad, 0, Math.PI * 2);
+                } else {
+                    ctx.arc(center.px, center.py, radiusPx, 0, Math.PI * 2);
+                }
+                ctx.fill(); ctx.stroke();
                 ctx.setLineDash([]);
+                if (cluster.nearestPoint) {
+                    const near = mapToCanvas(cluster.nearestPoint.x, cluster.nearestPoint.y);
+                    ctx.fillStyle = selected ? '#ff5533' : '#ffbd6b';
+                    ctx.beginPath(); ctx.arc(near.px, near.py, 4, 0, Math.PI * 2); ctx.fill();
+                }
                 ctx.fillStyle = selected ? '#ffdfaa' : '#c7fff0';
                 ctx.font = selected ? 'bold 12px Tahoma' : '11px Tahoma';
-                ctx.fillText(`T${cluster.id} ${cluster.rangeM.toFixed(2)}m ${cluster.bearingDeg >= 0 ? '+' : ''}${cluster.bearingDeg.toFixed(0)}°`, center.px + 7, center.py - 8);
+                ctx.fillText(`T${cluster.id} near ${cluster.nearestRangeM.toFixed(2)}m`, center.px + 7, center.py - 8);
             });
             if (selectedPoint) {
                 const point = mapToCanvas(selectedPoint.x, selectedPoint.y);
@@ -2170,7 +2227,7 @@
                 const stateLabel = cluster.isStable ? `stable H${cluster.stableHits}` : `candidate H${cluster.stableHits || 1}`;
                 button.type = 'button';
                 button.className = `analysis-target-row${activeClass}${stateClass}`;
-                button.innerHTML = `<span class="analysis-target-id">T${cluster.id}</span><span><strong>${cluster.rangeM.toFixed(2)} m / ${cluster.direction}</strong><br><small>${cluster.rangeMinM.toFixed(2)}-${cluster.rangeMaxM.toFixed(2)} m / SNR ${formatMetric(cluster.snrMedianDb, ' dB')}</small></span><span><span class="analysis-target-count">${cluster.points.length} pts</span><br><span class="analysis-target-badge">${stateLabel}</span></span>`;
+                button.innerHTML = `<span class="analysis-target-id">T${cluster.id}</span><span><strong>near ${cluster.nearestRangeM.toFixed(2)} m / ${cluster.nearestDirection}</strong><br><small>center ${cluster.rangeM.toFixed(2)} m / ${cluster.shapeLabel} ${cluster.shapeLengthM.toFixed(2)}x${cluster.shapeWidthM.toFixed(2)} m / SNR ${formatMetric(cluster.snrMedianDb, ' dB')}</small></span><span><span class="analysis-target-count">${cluster.points.length} pts</span><br><span class="analysis-target-badge">${stateLabel}</span></span>`;
                 button.addEventListener('click', () => {
                     replaySpatialAnalysis.selectedClusterId = cluster.id;
                     replaySpatialAnalysis.selectedPoint = null;
@@ -2183,16 +2240,16 @@
         function renderReplayPointDetail(point) {
             const panel = document.getElementById('replayPointDetail');
             if (!point) {
-                panel.innerText = '点击 PPI 图上的点，查看精确距离、方位、速度、SNR 与 Noise。';
+                panel.innerText = 'Click a PPI point to inspect range, bearing, speed, SNR and Noise.';
                 return;
             }
             const polar = polarPointInfo(point);
             const cluster = replaySpatialAnalysis.clusters.find(item => item.points.includes(point));
             panel.innerText = [
-                `距离 ${polar.rangeM.toFixed(3)} m · ${polar.direction}`,
-                `坐标 X ${Number(point.x).toFixed(3)} · Y ${Number(point.y).toFixed(3)} · Z ${(Number(point.z) || 0).toFixed(3)} m`,
-                `径向速度 ${formatMetric(point.v, ' m/s')} · SNR ${formatMetric(getPointSnr(point), ' dB')} · Noise ${formatMetric(getPointNoise(point), ' dB')}`,
-                `归属 ${cluster ? `目标簇 T${cluster.id}` : '离散点（未聚类）'}`,
+                `Point range ${polar.rangeM.toFixed(3)} m / ${polar.direction}`,
+                `XYZ ${Number(point.x).toFixed(3)}, ${Number(point.y).toFixed(3)}, ${(Number(point.z) || 0).toFixed(3)} m`,
+                `Radial speed ${formatMetric(point.v, ' m/s')} / SNR ${formatMetric(getPointSnr(point), ' dB')} / Noise ${formatMetric(getPointNoise(point), ' dB')}`,
+                cluster ? `Cluster T${cluster.id} / near ${cluster.nearestRangeM.toFixed(3)} m / ${cluster.shapeLabel} / ${cluster.points.length} pts` : 'Scattered point / no cluster',
             ].join('\n');
         }
 
