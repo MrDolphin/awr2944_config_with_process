@@ -171,6 +171,11 @@
             pointer-events: none;
         }
 
+        /* The sidebar contains form controls and owns its own scroll region. */
+        .hud-overlay.hud-sidebar {
+            pointer-events: auto;
+        }
+
         .hud-box {
             background: rgba(0, 30, 30, 0.7);
             border-left: 3px solid #00ffcc;

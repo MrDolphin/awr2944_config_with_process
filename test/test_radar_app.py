@@ -19,6 +19,8 @@ class RadarAppMarkupTests(unittest.TestCase):
         self.assertIn("max-height: calc(100vh - 124px)", app_html)
         self.assertIn("overflow-y: auto", app_html)
         self.assertIn(".hud-sidebar::-webkit-scrollbar-thumb", app_html)
+        self.assertIn(".hud-overlay.hud-sidebar", app_html)
+        self.assertIn("pointer-events: auto", app_html)
 
 
 @unittest.skipUnless(sync_playwright is not None, "Playwright is not installed")
