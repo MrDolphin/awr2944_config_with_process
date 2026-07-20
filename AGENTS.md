@@ -11,8 +11,10 @@
 
 ## Hardware-aware development
 
-- Hardware is not currently connected. Do not claim GPIO, serial, radar, motor,
-  encoder, or deployment behaviour has been verified without a recorded test.
+- The Raspberry Pi target is now reachable. Do not claim GPIO, serial, radar,
+  motor, encoder, or deployment behaviour has been verified without a recorded
+  test. Never initiate motion or change a hardware safety setting without an
+  explicit operator action.
 - Keep hardware adapters disabled by default. Put motion policy and point-cloud
   metadata logic behind pure, testable modules first.
 - Treat pin polarity, counts per output revolution, safe end angles, settling

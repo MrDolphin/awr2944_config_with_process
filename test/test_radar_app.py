@@ -8,6 +8,19 @@ except ImportError:  # pragma: no cover - development environment may not bundle
     sync_playwright = None
 
 
+class RadarAppMarkupTests(unittest.TestCase):
+    def test_control_sidebar_declares_independent_scroll_contract(self):
+        """The operator controls must remain reachable on short displays."""
+        app_html = (Path(__file__).resolve().parents[1] / "radar_app.html").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn(".hud-sidebar", app_html)
+        self.assertIn("max-height: calc(100vh - 124px)", app_html)
+        self.assertIn("overflow-y: auto", app_html)
+        self.assertIn(".hud-sidebar::-webkit-scrollbar-thumb", app_html)
+
+
 @unittest.skipUnless(sync_playwright is not None, "Playwright is not installed")
 class RadarAppTests(unittest.TestCase):
     def test_offline_replay_controls_render_without_javascript_errors(self):
