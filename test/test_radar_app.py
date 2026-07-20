@@ -37,6 +37,7 @@ class RadarAppMarkupTests(unittest.TestCase):
             ".analysis-target-row.candidate",
             "const stateClass = cluster.isStable ? '' : ' candidate'",
             "scrollIntoView({ block: 'nearest' })",
+            "if (position <= previousPosition) resetReplayClusterTracks()",
             "handleReplayCanvasClick",
         ):
             self.assertIn(selector, app_html)

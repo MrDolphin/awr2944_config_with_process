@@ -2786,6 +2786,8 @@
 
         function requestReplayFrame(position) {
             if (!replaySocketReady() || position < 0 || position >= replayState.frames.length) return;
+            const previousPosition = replayState.position;
+            if (position <= previousPosition) resetReplayClusterTracks();
             replayState.position = position;
             const summary = replayState.frames[position];
             const requestId = ++replayState.requestId;
