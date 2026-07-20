@@ -21,6 +21,7 @@ class RadarAppMarkupTests(unittest.TestCase):
         self.assertIn(".hud-sidebar::-webkit-scrollbar-thumb", app_html)
         self.assertIn(".hud-overlay.hud-sidebar", app_html)
         self.assertIn("pointer-events: auto", app_html)
+        self.assertNotIn(".status-panel button:not(#connectBtn)", app_html)
 
 
 @unittest.skipUnless(sync_playwright is not None, "Playwright is not installed")
