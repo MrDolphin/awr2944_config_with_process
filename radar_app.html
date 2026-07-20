@@ -419,6 +419,46 @@
             font: 12px/1.55 "Courier New", monospace;
         }
 
+        .analysis-target-list {
+            display: grid;
+            gap: 5px;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
+        .analysis-target-row {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 36px minmax(0, 1fr) auto;
+            gap: 6px;
+            align-items: center;
+            padding: 7px;
+            text-align: left;
+            color: #d6fbff;
+            border-color: rgba(53, 230, 255, 0.35);
+            background: rgba(6, 24, 33, 0.82);
+        }
+
+        .analysis-target-row.active {
+            border-color: #ffbd6b;
+            box-shadow: inset 3px 0 #ff8c42;
+            background: rgba(76, 41, 19, 0.5);
+        }
+
+        .analysis-target-id { color: #ffbd6b; font: 700 11px "Courier New", monospace; }
+        .analysis-target-row small { color: rgba(184, 225, 240, 0.72); }
+        .analysis-target-count { color: #7dffdc; font: 700 12px "Courier New", monospace; }
+
+        .analysis-point-detail {
+            min-height: 52px;
+            padding: 8px;
+            border-left: 2px solid #35e6ff;
+            background: rgba(8, 25, 33, 0.72);
+            color: #cfefff;
+            font: 12px/1.55 "Courier New", monospace;
+            white-space: pre-line;
+        }
+
         .param-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -860,6 +900,10 @@
                 <div class="analysis-legend"><span class="points">每帧点数</span><span class="snr">平均 SNR</span></div>
                 <div class="analysis-section-title">当前回放帧</div>
                 <div id="replayFrameDetail" class="analysis-frame-detail">选择采集后会显示帧质量、TLV 和点云统计。</div>
+                <div class="analysis-section-title">空间目标簇 <span id="replayClusterSummary"></span></div>
+                <div id="replayTargetList" class="analysis-target-list">选择回放帧后按空间邻近自动分组。</div>
+                <div class="analysis-section-title">点位详情</div>
+                <div id="replayPointDetail" class="analysis-point-detail">点击 PPI 图上的点，查看精确距离、方位、速度、SNR 与 Noise。</div>
             </div>
         </div> <!-- 闭合 configPanel -->
     </div> <!-- 闭合 radar-container -->
@@ -893,6 +937,10 @@
         const POINT_TRAIL_DECAY = 0.82;
         const POINT_TRAIL_MIN_ALPHA = 0.12;
         const POINT_TRAIL_MAX_POINTS = 900;
+        const REPLAY_CLUSTER_RADIUS_M = 0.24;
+        const REPLAY_CLUSTER_MIN_POINTS = 3;
+        const REPLAY_POINT_PICK_RADIUS_PX = 15;
+        let replaySpatialAnalysis = { frame: null, points: [], clusters: [], selectedClusterId: null, selectedPoint: null };
         const TRAIL_MIN_POINTS_TO_DRAW = 8;
         const TRAIL_MIN_DISPLACEMENT_M = 0.8;
         const TRAIL_KEEP_POINTS = 14;
@@ -1961,12 +2009,160 @@
             healthPollTimer = null;
         }
 
-        function renderReplayFrame(frame) {
+        function polarPointInfo(point) {
+            const rangeM = Math.hypot(Number(point.x), Number(point.y), Number(point.z) || 0);
+            const bearingDeg = Math.atan2(Number(point.x), Number(point.y)) * 180 / Math.PI;
+            const lateral = bearingDeg >= 0 ? '右前' : '左前';
+            return { rangeM, bearingDeg, direction: `${lateral} ${Math.abs(bearingDeg).toFixed(1)}°` };
+        }
+
+        function median(values) {
+            if (!values.length) return null;
+            const sorted = [...values].sort((a, b) => a - b);
+            const middle = Math.floor(sorted.length / 2);
+            return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+        }
+
+        function clusterReplayPoints(points, radiusM = REPLAY_CLUSTER_RADIUS_M, minPoints = REPLAY_CLUSTER_MIN_POINTS) {
+            const remaining = new Set(points.map((_, index) => index));
+            const clusters = [];
+            while (remaining.size) {
+                const seedIndex = remaining.values().next().value;
+                remaining.delete(seedIndex);
+                const memberIndexes = [seedIndex];
+                const queue = [seedIndex];
+                while (queue.length) {
+                    const index = queue.pop();
+                    const source = points[index];
+                    for (const candidateIndex of [...remaining]) {
+                        const candidate = points[candidateIndex];
+                        if (Math.hypot(candidate.x - source.x, candidate.y - source.y) > radiusM) continue;
+                        remaining.delete(candidateIndex);
+                        queue.push(candidateIndex);
+                        memberIndexes.push(candidateIndex);
+                    }
+                }
+                if (memberIndexes.length < minPoints) continue;
+                const members = memberIndexes.map(index => points[index]);
+                const center = {
+                    x: members.reduce((sum, point) => sum + Number(point.x), 0) / members.length,
+                    y: members.reduce((sum, point) => sum + Number(point.y), 0) / members.length,
+                    z: members.reduce((sum, point) => sum + (Number(point.z) || 0), 0) / members.length,
+                };
+                const polar = polarPointInfo(center);
+                const ranges = members.map(polarPointInfo).map(info => info.rangeM);
+                const snr = members.map(getPointSnr).filter(value => value !== null);
+                const speed = members.map(point => Number(point.v)).filter(Number.isFinite);
+                const spreadM = Math.max(...members.map(point => Math.hypot(point.x - center.x, point.y - center.y)), 0);
+                clusters.push({
+                    points: members, center, rangeM: polar.rangeM, bearingDeg: polar.bearingDeg, direction: polar.direction,
+                    rangeMinM: Math.min(...ranges), rangeMaxM: Math.max(...ranges), spreadM,
+                    snrMedianDb: median(snr), speedMedianMps: median(speed),
+                });
+            }
+            return clusters.sort((left, right) => right.points.length - left.points.length || left.rangeM - right.rangeM)
+                .map((cluster, index) => ({ ...cluster, id: index + 1 }));
+        }
+
+        function drawReplayClusterOverlay(clusters, selectedClusterId, selectedPoint) {
+            ctx.save();
+            clusters.forEach(cluster => {
+                const center = mapToCanvas(cluster.center.x, cluster.center.y);
+                const radiusPx = Math.max(10, cluster.spreadM / radarRangeX * canvas.width / 2 + 7);
+                const selected = cluster.id === selectedClusterId;
+                ctx.strokeStyle = selected ? '#ffbd6b' : 'rgba(185, 156, 255, 0.72)';
+                ctx.fillStyle = selected ? 'rgba(255, 140, 66, 0.13)' : 'rgba(185, 156, 255, 0.06)';
+                ctx.lineWidth = selected ? 2.5 : 1.2;
+                ctx.setLineDash(selected ? [] : [4, 3]);
+                ctx.beginPath(); ctx.arc(center.px, center.py, radiusPx, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = selected ? '#ffdfaa' : '#d9d0ff';
+                ctx.font = selected ? 'bold 12px Tahoma' : '11px Tahoma';
+                ctx.fillText(`T${cluster.id} ${cluster.rangeM.toFixed(2)}m ${cluster.bearingDeg >= 0 ? '+' : ''}${cluster.bearingDeg.toFixed(0)}°`, center.px + 7, center.py - 8);
+            });
+            if (selectedPoint) {
+                const point = mapToCanvas(selectedPoint.x, selectedPoint.y);
+                ctx.strokeStyle = '#35e6ff'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(point.px, point.py, 8, 0, Math.PI * 2); ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        function renderReplayTargetList(clusters, pointCount) {
+            const list = document.getElementById('replayTargetList');
+            const summary = document.getElementById('replayClusterSummary');
+            const clusteredPoints = clusters.reduce((total, cluster) => total + cluster.points.length, 0);
+            summary.innerText = `${clusters.length} 簇 / ${Math.max(0, pointCount - clusteredPoints)} 离散点`;
+            if (!clusters.length) {
+                list.innerText = '没有达到 3 点、0.24m 邻近条件的目标簇。';
+                return;
+            }
+            list.replaceChildren(...clusters.map(cluster => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = `analysis-target-row${cluster.id === replaySpatialAnalysis.selectedClusterId ? ' active' : ''}`;
+                button.innerHTML = `<span class="analysis-target-id">T${cluster.id}</span><span><strong>${cluster.rangeM.toFixed(2)} m · ${cluster.direction}</strong><br><small>${cluster.rangeMinM.toFixed(2)}–${cluster.rangeMaxM.toFixed(2)} m · SNR ${formatMetric(cluster.snrMedianDb, ' dB')}</small></span><span class="analysis-target-count">${cluster.points.length} 点</span>`;
+                button.addEventListener('click', () => {
+                    replaySpatialAnalysis.selectedClusterId = cluster.id;
+                    replaySpatialAnalysis.selectedPoint = null;
+                    renderReplayFrame(replaySpatialAnalysis.frame, true);
+                });
+                return button;
+            }));
+        }
+
+        function renderReplayPointDetail(point) {
+            const panel = document.getElementById('replayPointDetail');
+            if (!point) {
+                panel.innerText = '点击 PPI 图上的点，查看精确距离、方位、速度、SNR 与 Noise。';
+                return;
+            }
+            const polar = polarPointInfo(point);
+            const cluster = replaySpatialAnalysis.clusters.find(item => item.points.includes(point));
+            panel.innerText = [
+                `距离 ${polar.rangeM.toFixed(3)} m · ${polar.direction}`,
+                `坐标 X ${Number(point.x).toFixed(3)} · Y ${Number(point.y).toFixed(3)} · Z ${(Number(point.z) || 0).toFixed(3)} m`,
+                `径向速度 ${formatMetric(point.v, ' m/s')} · SNR ${formatMetric(getPointSnr(point), ' dB')} · Noise ${formatMetric(getPointNoise(point), ' dB')}`,
+                `归属 ${cluster ? `目标簇 T${cluster.id}` : '离散点（未聚类）'}`,
+            ].join('\n');
+        }
+
+        function handleReplayCanvasClick(event) {
+            if (!replayState.active || !replaySpatialAnalysis.points.length) return;
+            const bounds = canvas.getBoundingClientRect();
+            const px = (event.clientX - bounds.left) * canvas.width / bounds.width;
+            const py = (event.clientY - bounds.top) * canvas.height / bounds.height;
+            let closest = null;
+            let closestDistance = REPLAY_POINT_PICK_RADIUS_PX;
+            replaySpatialAnalysis.points.forEach(point => {
+                const mapped = mapToCanvas(point.x, point.y);
+                const distance = Math.hypot(mapped.px - px, mapped.py - py);
+                if (distance < closestDistance) { closest = point; closestDistance = distance; }
+            });
+            if (!closest) return;
+            const cluster = replaySpatialAnalysis.clusters.find(item => item.points.includes(closest));
+            replaySpatialAnalysis.selectedPoint = closest;
+            replaySpatialAnalysis.selectedClusterId = cluster ? cluster.id : null;
+            renderReplayFrame(replaySpatialAnalysis.frame, true);
+        }
+
+        function renderReplayFrame(frame, preserveSelection = false) {
             updateRadarDisplayRange();
             const points = (frame.points || []).filter(pt => Math.hypot(pt.x, pt.y) >= BLIND_ZONE_M && isPointUsable(pt));
+            const previousClusterId = preserveSelection ? replaySpatialAnalysis.selectedClusterId : null;
+            const previousPoint = preserveSelection ? replaySpatialAnalysis.selectedPoint : null;
+            const clusters = clusterReplayPoints(points);
+            replaySpatialAnalysis = {
+                frame, points, clusters,
+                selectedClusterId: clusters.some(cluster => cluster.id === previousClusterId) ? previousClusterId : null,
+                selectedPoint: points.includes(previousPoint) ? previousPoint : null,
+            };
             pointTrails = [];
             drawGrid();
             drawPoints(ctx, points);
+            drawReplayClusterOverlay(clusters, replaySpatialAnalysis.selectedClusterId, replaySpatialAnalysis.selectedPoint);
+            renderReplayTargetList(clusters, points.length);
+            renderReplayPointDetail(replaySpatialAnalysis.selectedPoint);
             document.getElementById('frameDisplay').innerText = `回放 #${frame.frame_num}`;
             document.getElementById('pointsDisplay').innerText = `${points.length}/${(frame.points || []).length} 点`;
             document.getElementById('targetsDisplay').innerText = '离线';
@@ -2593,6 +2789,7 @@
             else continueReplayAfterFrame();
             updateReplayControls();
         });
+        canvas.addEventListener('click', handleReplayCanvasClick);
 
         document.getElementById('clearMapBtn').addEventListener('click', () => {
             resetStaticMap();

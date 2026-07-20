@@ -27,8 +27,12 @@ class RadarAppMarkupTests(unittest.TestCase):
             'id="replayAnalysisSummary"',
             'id="replayTrendCanvas"',
             'id="replayFrameDetail"',
+            'id="replayTargetList"',
+            'id="replayPointDetail"',
             "requestReplayAnalysis",
             "replay_analysis",
+            "clusterReplayPoints",
+            "handleReplayCanvasClick",
         ):
             self.assertIn(selector, app_html)
 
