@@ -22,6 +22,15 @@ class RadarAppMarkupTests(unittest.TestCase):
         self.assertIn(".hud-overlay.hud-sidebar", app_html)
         self.assertIn("pointer-events: auto", app_html)
         self.assertNotIn(".status-panel button:not(#connectBtn)", app_html)
+        for selector in (
+            'id="analysisContent"',
+            'id="replayAnalysisSummary"',
+            'id="replayTrendCanvas"',
+            'id="replayFrameDetail"',
+            "requestReplayAnalysis",
+            "replay_analysis",
+        ):
+            self.assertIn(selector, app_html)
 
 
 @unittest.skipUnless(sync_playwright is not None, "Playwright is not installed")

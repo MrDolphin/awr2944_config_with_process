@@ -973,6 +973,12 @@ async def handle_client(websocket):
                                     "offset": int(offset), "frames": frames,
                                     "has_more": len(frames) == min(200, max(1, int(limit)))
                                 }))
+                            elif action == "analysis":
+                                await websocket.send(json.dumps({
+                                    "type": "replay_analysis",
+                                    "capture_id": cmd.get("capture_id"),
+                                    "analysis": capture_catalog.get_analysis(cmd.get("capture_id")),
+                                }))
                             else:
                                 await websocket.send(json.dumps({"type": "command_error", "message": "unknown replay action"}))
                         except (CaptureAccessError, OSError, UnicodeError, ValueError, json.JSONDecodeError) as exc:

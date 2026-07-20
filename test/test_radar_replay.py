@@ -12,13 +12,13 @@ class CaptureCatalogTests(unittest.TestCase):
         self.root = Path(self._temporary_directory.name)
         recorder = PointCloudRecorder(self.root, clock=lambda: 1_700_000_000.0)
         self.capture_id = Path(recorder.start({"name": "dock.cfg"})).name
-        recorder.record_frame({"frame_num": 1, "points": []}, b"empty")
+        recorder.record_frame({"frame_num": 1, "host_time_s": 10.0, "points": []}, b"empty")
         recorder.record_frame({
-            "frame_num": 2,
+            "frame_num": 2, "host_time_s": 10.1,
             "points": [{"x": 1.0, "y": 2.0, "z": 0.5, "v": -0.3, "snr": 9.0, "noise": 4.0}],
         }, b"point")
         recorder.record_frame({
-            "frame_num": 1,
+            "frame_num": 1, "host_time_s": 10.3,
             "points": [{"x": 3.0, "y": 4.0, "z": 0.5, "v": 0.1}],
         }, b"reset")
         recorder.stop()
@@ -57,6 +57,20 @@ class CaptureCatalogTests(unittest.TestCase):
         self.assertEqual([frame["record_index"] for frame in summaries], [1, 2])
         with self.assertRaises(CaptureAccessError):
             list(self.catalog.iter_frame_summaries(self.capture_id, limit="many"))
+
+    def test_builds_analysis_for_quality_review(self):
+        analysis = self.catalog.get_analysis(self.capture_id)
+
+        self.assertEqual(analysis["capture_id"], self.capture_id)
+        self.assertEqual(analysis["summary"]["frame_count"], 3)
+        self.assertEqual(analysis["summary"]["point_count"], 2)
+        self.assertEqual(analysis["summary"]["empty_frame_count"], 1)
+        self.assertAlmostEqual(analysis["summary"]["duration_s"], 0.3)
+        self.assertAlmostEqual(analysis["summary"]["frame_interval_ms"]["median"], 150.0)
+        self.assertAlmostEqual(analysis["summary"]["snr_db"]["mean"], 9.0)
+        self.assertAlmostEqual(analysis["summary"]["noise_db"]["mean"], 4.0)
+        self.assertEqual(analysis["trend"][1]["point_count"], 1)
+        self.assertAlmostEqual(analysis["trend"][1]["range_mean_m"], 2.291287847, places=6)
 
 
 if __name__ == "__main__":

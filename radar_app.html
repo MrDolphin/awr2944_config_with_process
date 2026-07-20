@@ -268,7 +268,8 @@
             display: none;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
             transition: all 0.3s ease;
-            overflow: hidden;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
         }
 
         .config-panel.collapsed {
@@ -293,7 +294,8 @@
         }
 
         .config-panel.collapsed #panelHeader,
-        .config-panel.collapsed #configContent {
+        .config-panel.collapsed #configContent,
+        .config-panel.collapsed #analysisContent {
             display: none !important;
         }
 
@@ -307,6 +309,114 @@
 
         .config-panel.collapsed .collapsed-icon {
             display: block;
+        }
+
+        .panel-mode-switch {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .panel-mode-switch button {
+            padding: 4px 7px;
+            font-size: 11px;
+            border-color: rgba(127, 220, 255, 0.55);
+            color: #9deaff;
+            background: rgba(8, 22, 34, 0.88);
+        }
+
+        .panel-mode-switch button.active {
+            background: rgba(53, 230, 255, 0.2);
+            border-color: #35e6ff;
+            color: #d6fbff;
+        }
+
+        .analysis-workbench {
+            color: #d7edff;
+        }
+
+        .analysis-eyebrow {
+            color: #ffbd6b;
+            font: 700 10px/1.2 "Courier New", monospace;
+            letter-spacing: 0.12em;
+        }
+
+        .analysis-capture-name {
+            margin: 4px 0 10px;
+            color: #fff;
+            font-weight: 700;
+            overflow-wrap: anywhere;
+        }
+
+        .analysis-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 7px;
+        }
+
+        .analysis-metric {
+            padding: 7px 8px;
+            border: 1px solid rgba(127, 220, 255, 0.22);
+            border-left: 2px solid #35e6ff;
+            background: rgba(5, 20, 29, 0.7);
+        }
+
+        .analysis-metric span {
+            display: block;
+            color: rgba(167, 221, 242, 0.78);
+            font-size: 11px;
+        }
+
+        .analysis-metric strong {
+            display: block;
+            margin-top: 2px;
+            color: #fff;
+            font-size: 15px;
+        }
+
+        .analysis-section-title {
+            margin: 14px 0 6px;
+            color: #ffbd6b;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .analysis-trend-chart {
+            display: block;
+            width: 100%;
+            height: 145px;
+            background: #071019;
+            border: 1px solid rgba(255, 189, 107, 0.34);
+        }
+
+        .analysis-legend {
+            display: flex;
+            gap: 12px;
+            margin-top: 5px;
+            color: rgba(180, 220, 240, 0.82);
+            font-size: 11px;
+        }
+
+        .analysis-legend .points::before,
+        .analysis-legend .snr::before {
+            content: "";
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            margin-right: 4px;
+            border-radius: 50%;
+            background: #35e6ff;
+        }
+
+        .analysis-legend .snr::before { background: #ff8c42; }
+
+        .analysis-frame-detail {
+            min-height: 72px;
+            padding: 8px;
+            border-left: 2px solid #b99cff;
+            background: rgba(18, 16, 36, 0.62);
+            color: #d9d0ff;
+            font: 12px/1.55 "Courier New", monospace;
         }
 
         .param-grid {
@@ -623,8 +733,12 @@
 
             <div id="panelHeader"
                 style="font-weight: bold; margin-bottom: 10px; color: #00ffcc; border-bottom: 1px solid #005f5f; padding-bottom: 5px; display: flex; justify-content: space-between; align-items: center;">
-                <span>📡 雷达参数配置</span>
-                <span id="panelToggleBtn" style="cursor:pointer; font-size: 20px;" title="收起面板">×</span>
+                <span id="panelHeading">📡 雷达参数配置</span>
+                <div class="panel-mode-switch">
+                    <button id="configModeBtn" type="button" class="active">配置</button>
+                    <button id="analysisModeBtn" type="button">离线分析</button>
+                    <span id="panelToggleBtn" style="cursor:pointer; font-size: 20px; margin-left:4px;" title="收起面板">×</span>
+                </div>
             </div>
             <div id="configContent">
                 <div style="margin-bottom: 10px;">
@@ -737,6 +851,16 @@
                         style="flex: 1; padding: 5px; background: #005f5f;">下发运行</button>
                 </div>
             </div> <!-- 闭合 configContent -->
+            <div id="analysisContent" class="analysis-workbench" style="display:none;">
+                <div class="analysis-eyebrow">OFFLINE CAPTURE QUALITY</div>
+                <div id="replayAnalysisCapture" class="analysis-capture-name">选择一个离线采集</div>
+                <div id="replayAnalysisSummary" class="analysis-summary-grid"></div>
+                <div class="analysis-section-title">质量轨迹</div>
+                <canvas id="replayTrendCanvas" class="analysis-trend-chart" width="390" height="145"></canvas>
+                <div class="analysis-legend"><span class="points">每帧点数</span><span class="snr">平均 SNR</span></div>
+                <div class="analysis-section-title">当前回放帧</div>
+                <div id="replayFrameDetail" class="analysis-frame-detail">选择采集后会显示帧质量、TLV 和点云统计。</div>
+            </div>
         </div> <!-- 闭合 configPanel -->
     </div> <!-- 闭合 radar-container -->
 
@@ -1848,6 +1972,7 @@
             document.getElementById('targetsDisplay').innerText = '离线';
             const tlvTypes = Array.isArray(frame.tlv_types) ? frame.tlv_types.join(',') : '--';
             document.getElementById('sideInfoDisplay').innerText = `TLV:${tlvTypes}`;
+            renderReplayFrameDetail(frame);
             lastRangeProfile = [];
             drawRangeProfile([]);
         }
@@ -2239,6 +2364,107 @@
             document.getElementById('replayStatusDisplay').innerText = message;
         }
 
+        function setPanelMode(mode) {
+            const analysisMode = mode === 'analysis';
+            document.getElementById('configContent').style.display = analysisMode ? 'none' : 'block';
+            document.getElementById('analysisContent').style.display = analysisMode ? 'block' : 'none';
+            document.getElementById('configModeBtn').classList.toggle('active', !analysisMode);
+            document.getElementById('analysisModeBtn').classList.toggle('active', analysisMode);
+            document.getElementById('panelHeading').innerText = analysisMode ? '离线分析工作台' : '📡 雷达参数配置';
+        }
+
+        function formatMetric(value, suffix = '', digits = 1) {
+            return Number.isFinite(Number(value)) ? `${Number(value).toFixed(digits)}${suffix}` : '--';
+        }
+
+        function requestReplayAnalysis() {
+            if (!replaySocketReady() || !replayState.captureId) return;
+            ws.send(JSON.stringify({ type: 'replay', action: 'analysis', capture_id: replayState.captureId }));
+        }
+
+        function renderReplayAnalysis(analysis) {
+            const summary = analysis.summary || {};
+            document.getElementById('replayAnalysisCapture').innerText = analysis.capture_id || '未命名采集';
+            const metrics = [
+                ['时长', formatMetric(summary.duration_s, ' s')],
+                ['采集帧 / 空帧', `${summary.frame_count || 0} / ${summary.empty_frame_count || 0}`],
+                ['总点数', String(summary.point_count || 0)],
+                ['帧率', formatMetric(summary.frames_per_second, ' Hz')],
+                ['点数/帧 (中位)', formatMetric(summary.points_per_frame?.median, '', 0)],
+                ['帧间隔 P95', formatMetric(summary.frame_interval_ms?.p95, ' ms')],
+                ['平均 SNR', formatMetric(summary.snr_db?.mean, ' dB')],
+                ['平均 Noise', formatMetric(summary.noise_db?.mean, ' dB')],
+                ['丢帧 / 写盘', `${summary.dropped_frames || 0} / ${summary.writer_error ? '异常' : '正常'}`],
+                ['配置', summary.active_config?.name || '未记录'],
+            ];
+            const grid = document.getElementById('replayAnalysisSummary');
+            grid.replaceChildren(...metrics.map(([label, value]) => {
+                const item = document.createElement('div');
+                item.className = 'analysis-metric';
+                const name = document.createElement('span');
+                name.innerText = label;
+                const result = document.createElement('strong');
+                result.innerText = value;
+                item.append(name, result);
+                return item;
+            }));
+            drawReplayTrend(analysis.trend || []);
+        }
+
+        function drawReplayTrend(trend) {
+            const canvas = document.getElementById('replayTrendCanvas');
+            const context = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            context.clearRect(0, 0, width, height);
+            context.fillStyle = '#071019';
+            context.fillRect(0, 0, width, height);
+            context.strokeStyle = 'rgba(88, 180, 190, 0.18)';
+            context.lineWidth = 1;
+            for (let y = 24; y < height; y += 30) {
+                context.beginPath(); context.moveTo(30, y); context.lineTo(width - 8, y); context.stroke();
+            }
+            if (!trend.length) {
+                context.fillStyle = '#8caeba'; context.font = '12px Segoe UI';
+                context.fillText('暂无可分析的帧数据', 12, 28);
+                return;
+            }
+            const chart = { left: 30, right: width - 8, top: 10, bottom: height - 22 };
+            const drawSeries = (values, color) => {
+                const finite = values.filter(Number.isFinite);
+                const max = Math.max(...finite, 1);
+                context.strokeStyle = color; context.lineWidth = 2; context.beginPath();
+                values.forEach((value, index) => {
+                    const x = chart.left + (chart.right - chart.left) * (trend.length === 1 ? 0 : index / (trend.length - 1));
+                    const y = Number.isFinite(value) ? chart.bottom - (chart.bottom - chart.top) * (value / max) : chart.bottom;
+                    if (index === 0) context.moveTo(x, y); else context.lineTo(x, y);
+                });
+                context.stroke();
+            };
+            drawSeries(trend.map(frame => Number(frame.point_count)), '#35e6ff');
+            drawSeries(trend.map(frame => Number(frame.snr_mean_db)), '#ff8c42');
+            context.fillStyle = '#a9c7d2'; context.font = '10px Courier New';
+            context.fillText(`0`, 8, chart.bottom + 3);
+            context.fillText(`${trend.length} 帧`, width - 43, height - 6);
+        }
+
+        function renderReplayFrameDetail(frame) {
+            const points = Array.isArray(frame.points) ? frame.points : [];
+            const finite = (values) => values.filter(Number.isFinite);
+            const snr = finite(points.map(point => Number(point.snr)));
+            const noise = finite(points.map(point => Number(point.noise)));
+            const speed = finite(points.map(point => Math.abs(Number(point.v))));
+            const ranges = finite(points.map(point => Math.hypot(Number(point.x), Number(point.y), Number(point.z))));
+            const average = values => values.length ? values.reduce((total, value) => total + value, 0) / values.length : NaN;
+            const tlv = Array.isArray(frame.tlv_types) ? frame.tlv_types.join(', ') : '--';
+            document.getElementById('replayFrameDetail').innerText = [
+                `雷达帧 ${frame.frame_num ?? '--'} · 记录帧 ${frame.record_index ?? '--'}`,
+                `点数 ${points.length} · Side Info ${frame.side_info_count ?? 0} · TLV ${tlv}`,
+                `距离均值 ${formatMetric(average(ranges), ' m')} · |速度|均值 ${formatMetric(average(speed), ' m/s')}`,
+                `SNR 均值 ${formatMetric(average(snr), ' dB')} · Noise 均值 ${formatMetric(average(noise), ' dB')}`,
+            ].join('\n');
+        }
+
         function updateReplayControls() {
             const hasFrames = replayState.active && replayState.frames.length > 0 && replaySocketReady();
             document.getElementById('replayPreviousBtn').disabled = !hasFrames || replayState.position <= 0;
@@ -2344,8 +2570,10 @@
                 return;
             }
             enterReplayMode();
+            setPanelMode('analysis');
             setReplayStatus('正在读取帧目录...');
             requestReplayFrames(0);
+            requestReplayAnalysis();
         });
         document.getElementById('replayPreviousBtn').addEventListener('click', () => requestReplayFrame(replayState.position - 1));
         document.getElementById('replayNextBtn').addEventListener('click', () => {
@@ -2644,6 +2872,11 @@
 
         document.getElementById('configPanel').addEventListener('click', togglePanel);
         document.getElementById('panelToggleBtn').addEventListener('click', togglePanel);
+        document.getElementById('configModeBtn').addEventListener('click', () => setPanelMode('config'));
+        document.getElementById('analysisModeBtn').addEventListener('click', () => {
+            setPanelMode('analysis');
+            requestReplayAnalysis();
+        });
 
         // --- 参数解析与同步逻辑 ---
         function switchTab(type) {
@@ -2842,6 +3075,9 @@
                 renderReplayFrame(frame);
                 setReplayStatus(`回放帧 ${replayState.position + 1}/${replayState.frames.length} · 雷达帧 ${frame.frame_num}`);
                 continueReplayAfterFrame();
+            } else if (data.type === 'replay_analysis') {
+                if (data.capture_id !== replayState.captureId) return;
+                renderReplayAnalysis(data.analysis || {});
             } else if (data.type === 'replay_error' || data.type === 'command_error' || data.type === 'config_error') {
                 setReplayStatus(`回放/控制错误：${data.message || '未知错误'}`);
                 console.warn('radar control error:', data);
