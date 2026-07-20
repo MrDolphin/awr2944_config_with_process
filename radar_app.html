@@ -333,6 +333,7 @@
 
         .analysis-workbench {
             color: #d7edff;
+            padding-bottom: 64px;
         }
 
         .analysis-eyebrow {
@@ -422,7 +423,7 @@
         .analysis-target-list {
             display: grid;
             gap: 5px;
-            max-height: 220px;
+            max-height: clamp(132px, 22vh, 190px);
             overflow-y: auto;
         }
 
@@ -443,6 +444,18 @@
             border-color: #ffbd6b;
             box-shadow: inset 3px 0 #ff8c42;
             background: rgba(76, 41, 19, 0.5);
+        }
+
+        .analysis-target-row.candidate {
+            opacity: 0.58;
+        }
+
+        .analysis-target-badge {
+            justify-self: end;
+            padding: 2px 5px;
+            border: 1px solid rgba(125, 255, 220, 0.35);
+            color: #7dffdc;
+            font: 700 10px "Courier New", monospace;
         }
 
         .analysis-target-id { color: #ffbd6b; font: 700 11px "Courier New", monospace; }
@@ -939,8 +952,12 @@
         const POINT_TRAIL_MAX_POINTS = 900;
         const REPLAY_CLUSTER_RADIUS_M = 0.24;
         const REPLAY_CLUSTER_MIN_POINTS = 3;
+        const REPLAY_STABLE_CLUSTER_MATCH_GATE_M = 0.42;
+        const REPLAY_STABLE_CLUSTER_MIN_HITS = 3;
+        const REPLAY_STABLE_CLUSTER_MAX_MISSED = 8;
         const REPLAY_POINT_PICK_RADIUS_PX = 15;
         let replaySpatialAnalysis = { frame: null, points: [], clusters: [], selectedClusterId: null, selectedPoint: null };
+        let replayClusterTracks = [];
         const TRAIL_MIN_POINTS_TO_DRAW = 8;
         const TRAIL_MIN_DISPLACEMENT_M = 0.8;
         const TRAIL_KEEP_POINTS = 14;
@@ -2064,19 +2081,67 @@
                 .map((cluster, index) => ({ ...cluster, id: index + 1 }));
         }
 
+        function resetReplayClusterTracks() {
+            replayClusterTracks = [];
+        }
+
+        function updateReplayClusterTracks(clusters) {
+            replayClusterTracks.forEach(track => { track.missed += 1; });
+            clusters.forEach(cluster => {
+                let bestTrack = null;
+                let bestDistance = REPLAY_STABLE_CLUSTER_MATCH_GATE_M;
+                replayClusterTracks.forEach(track => {
+                    if (track.updated) return;
+                    const distance = Math.hypot(track.center.x - cluster.center.x, track.center.y - cluster.center.y);
+                    if (distance <= bestDistance) {
+                        bestDistance = distance;
+                        bestTrack = track;
+                    }
+                });
+                if (!bestTrack) {
+                    bestTrack = {
+                        id: replayClusterTracks.length ? Math.max(...replayClusterTracks.map(track => track.id)) + 1 : 1,
+                        hits: 0,
+                        missed: 0,
+                        center: { ...cluster.center },
+                        updated: false,
+                    };
+                    replayClusterTracks.push(bestTrack);
+                }
+                bestTrack.hits += 1;
+                bestTrack.missed = 0;
+                bestTrack.updated = true;
+                bestTrack.center = {
+                    x: bestTrack.center.x * 0.72 + cluster.center.x * 0.28,
+                    y: bestTrack.center.y * 0.72 + cluster.center.y * 0.28,
+                    z: bestTrack.center.z * 0.72 + cluster.center.z * 0.28,
+                };
+                cluster.trackId = bestTrack.id;
+                cluster.stableHits = bestTrack.hits;
+                cluster.isStable = bestTrack.hits >= REPLAY_STABLE_CLUSTER_MIN_HITS;
+            });
+            replayClusterTracks = replayClusterTracks
+                .filter(track => track.missed <= REPLAY_STABLE_CLUSTER_MAX_MISSED)
+                .map(track => ({ ...track, updated: false }));
+            return clusters.sort((left, right) => {
+                if (left.isStable !== right.isStable) return left.isStable ? -1 : 1;
+                return right.stableHits - left.stableHits || right.points.length - left.points.length || left.rangeM - right.rangeM;
+            }).map((cluster, index) => ({ ...cluster, id: index + 1 }));
+        }
+
         function drawReplayClusterOverlay(clusters, selectedClusterId, selectedPoint) {
             ctx.save();
-            clusters.forEach(cluster => {
+            clusters.filter(cluster => cluster.isStable || cluster.id === selectedClusterId).forEach(cluster => {
                 const center = mapToCanvas(cluster.center.x, cluster.center.y);
                 const radiusPx = Math.max(10, cluster.spreadM / radarRangeX * canvas.width / 2 + 7);
                 const selected = cluster.id === selectedClusterId;
-                ctx.strokeStyle = selected ? '#ffbd6b' : 'rgba(185, 156, 255, 0.72)';
-                ctx.fillStyle = selected ? 'rgba(255, 140, 66, 0.13)' : 'rgba(185, 156, 255, 0.06)';
+                ctx.strokeStyle = selected ? '#ffbd6b' : 'rgba(125, 255, 220, 0.76)';
+                ctx.fillStyle = selected ? 'rgba(255, 140, 66, 0.13)' : 'rgba(64, 255, 198, 0.07)';
                 ctx.lineWidth = selected ? 2.5 : 1.2;
                 ctx.setLineDash(selected ? [] : [4, 3]);
                 ctx.beginPath(); ctx.arc(center.px, center.py, radiusPx, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
                 ctx.setLineDash([]);
-                ctx.fillStyle = selected ? '#ffdfaa' : '#d9d0ff';
+                ctx.fillStyle = selected ? '#ffdfaa' : '#c7fff0';
                 ctx.font = selected ? 'bold 12px Tahoma' : '11px Tahoma';
                 ctx.fillText(`T${cluster.id} ${cluster.rangeM.toFixed(2)}m ${cluster.bearingDeg >= 0 ? '+' : ''}${cluster.bearingDeg.toFixed(0)}°`, center.px + 7, center.py - 8);
             });
@@ -2091,17 +2156,21 @@
         function renderReplayTargetList(clusters, pointCount) {
             const list = document.getElementById('replayTargetList');
             const summary = document.getElementById('replayClusterSummary');
+            const stableClusters = clusters.filter(cluster => cluster.isStable);
             const clusteredPoints = clusters.reduce((total, cluster) => total + cluster.points.length, 0);
-            summary.innerText = `${clusters.length} 簇 / ${Math.max(0, pointCount - clusteredPoints)} 离散点`;
+            summary.innerText = `${stableClusters.length} stable / ${clusters.length} total / ${Math.max(0, pointCount - clusteredPoints)} scattered`;
             if (!clusters.length) {
-                list.innerText = '没有达到 3 点、0.24m 邻近条件的目标簇。';
+                list.innerText = 'No cluster reached the 3-point / 0.24 m neighborhood rule.';
                 return;
             }
             list.replaceChildren(...clusters.map(cluster => {
                 const button = document.createElement('button');
+                const activeClass = cluster.id === replaySpatialAnalysis.selectedClusterId ? ' active' : '';
+                const stateClass = cluster.isStable ? '' : ' candidate';
+                const stateLabel = cluster.isStable ? `stable H${cluster.stableHits}` : `candidate H${cluster.stableHits || 1}`;
                 button.type = 'button';
-                button.className = `analysis-target-row${cluster.id === replaySpatialAnalysis.selectedClusterId ? ' active' : ''}`;
-                button.innerHTML = `<span class="analysis-target-id">T${cluster.id}</span><span><strong>${cluster.rangeM.toFixed(2)} m · ${cluster.direction}</strong><br><small>${cluster.rangeMinM.toFixed(2)}–${cluster.rangeMaxM.toFixed(2)} m · SNR ${formatMetric(cluster.snrMedianDb, ' dB')}</small></span><span class="analysis-target-count">${cluster.points.length} 点</span>`;
+                button.className = `analysis-target-row${activeClass}${stateClass}`;
+                button.innerHTML = `<span class="analysis-target-id">T${cluster.id}</span><span><strong>${cluster.rangeM.toFixed(2)} m / ${cluster.direction}</strong><br><small>${cluster.rangeMinM.toFixed(2)}-${cluster.rangeMaxM.toFixed(2)} m / SNR ${formatMetric(cluster.snrMedianDb, ' dB')}</small></span><span><span class="analysis-target-count">${cluster.points.length} pts</span><br><span class="analysis-target-badge">${stateLabel}</span></span>`;
                 button.addEventListener('click', () => {
                     replaySpatialAnalysis.selectedClusterId = cluster.id;
                     replaySpatialAnalysis.selectedPoint = null;
@@ -2144,6 +2213,7 @@
             replaySpatialAnalysis.selectedPoint = closest;
             replaySpatialAnalysis.selectedClusterId = cluster ? cluster.id : null;
             renderReplayFrame(replaySpatialAnalysis.frame, true);
+            document.getElementById('replayPointDetail').scrollIntoView({ block: 'nearest' });
         }
 
         function renderReplayFrame(frame, preserveSelection = false) {
@@ -2151,7 +2221,7 @@
             const points = (frame.points || []).filter(pt => Math.hypot(pt.x, pt.y) >= BLIND_ZONE_M && isPointUsable(pt));
             const previousClusterId = preserveSelection ? replaySpatialAnalysis.selectedClusterId : null;
             const previousPoint = preserveSelection ? replaySpatialAnalysis.selectedPoint : null;
-            const clusters = clusterReplayPoints(points);
+            const clusters = updateReplayClusterTracks(clusterReplayPoints(points));
             replaySpatialAnalysis = {
                 frame, points, clusters,
                 selectedClusterId: clusters.some(cluster => cluster.id === previousClusterId) ? previousClusterId : null,
@@ -2679,6 +2749,7 @@
             tracker.boats = [];
             tracker.currentClusters = [];
             pointTrails = [];
+            resetReplayClusterTracks();
         }
 
         function enterReplayMode() {
