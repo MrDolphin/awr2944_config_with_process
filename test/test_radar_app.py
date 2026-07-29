@@ -51,6 +51,13 @@ class RadarAppMarkupTests(unittest.TestCase):
             "renderLivePointDetail",
             "nearest raw",
             "nearest shown",
+            'id="nearestObstacleCard"',
+            "DOCKING OBSTACLE VIEW",
+            "NEAREST STABLE OBSTACLE",
+            "采集质量 / 调试信息",
+            "renderNearestObstacleCard",
+            "nearestStable",
+            "LIVE NEAREST POINT",
         ):
             self.assertIn(selector, app_html)
 

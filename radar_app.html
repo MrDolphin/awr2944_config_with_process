@@ -349,6 +349,59 @@
             overflow-wrap: anywhere;
         }
 
+        .analysis-nearest-card {
+            margin: 8px 0 12px;
+            padding: 12px;
+            border: 1px solid rgba(255, 189, 107, 0.78);
+            border-left: 4px solid #ff8c42;
+            border-radius: 6px;
+            background:
+                linear-gradient(135deg, rgba(255, 140, 66, 0.18), rgba(7, 18, 28, 0.86) 58%),
+                rgba(9, 22, 32, 0.88);
+            box-shadow: 0 0 20px rgba(255, 140, 66, 0.08);
+        }
+
+        .analysis-nearest-card .label {
+            color: #ffbd6b;
+            font: 700 10px/1.2 "Courier New", monospace;
+            letter-spacing: 0.1em;
+        }
+
+        .analysis-nearest-card strong {
+            display: block;
+            margin-top: 3px;
+            color: #fff;
+            font-size: 22px;
+            line-height: 1.2;
+        }
+
+        .analysis-nearest-card small {
+            display: block;
+            margin-top: 5px;
+            color: rgba(210, 238, 247, 0.82);
+            line-height: 1.45;
+        }
+
+        .analysis-quality-details {
+            margin-top: 14px;
+            border-top: 1px solid rgba(53, 230, 255, 0.22);
+            padding-top: 8px;
+        }
+
+        .analysis-quality-details summary {
+            cursor: pointer;
+            color: #8feeff;
+            font-weight: 700;
+            user-select: none;
+        }
+
+        .analysis-quality-details summary small {
+            display: block;
+            margin-top: 2px;
+            color: rgba(180, 220, 240, 0.68);
+            font-weight: 400;
+        }
+
         .analysis-summary-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -909,18 +962,26 @@
                 </div>
             </div> <!-- 闭合 configContent -->
             <div id="analysisContent" class="analysis-workbench" style="display:none;">
-                <div class="analysis-eyebrow">OFFLINE CAPTURE QUALITY</div>
+                <div class="analysis-eyebrow">DOCKING OBSTACLE VIEW</div>
                 <div id="replayAnalysisCapture" class="analysis-capture-name">选择一个离线采集</div>
-                <div id="replayAnalysisSummary" class="analysis-summary-grid"></div>
-                <div class="analysis-section-title">质量轨迹</div>
-                <canvas id="replayTrendCanvas" class="analysis-trend-chart" width="390" height="145"></canvas>
-                <div class="analysis-legend"><span class="points">每帧点数</span><span class="snr">平均 SNR</span></div>
-                <div class="analysis-section-title">当前回放帧</div>
-                <div id="replayFrameDetail" class="analysis-frame-detail">选择采集后会显示帧质量、TLV 和点云统计。</div>
+                <div id="nearestObstacleCard" class="analysis-nearest-card">
+                    <span class="label">NEAREST STABLE OBSTACLE</span>
+                    <strong>等待目标簇</strong>
+                    <small>选择回放帧或点击实时 PPI 点后，会优先显示最近稳定目标。</small>
+                </div>
                 <div class="analysis-section-title">空间目标簇 <span id="replayClusterSummary"></span></div>
                 <div id="replayTargetList" class="analysis-target-list">选择回放帧后按空间邻近自动分组。</div>
                 <div class="analysis-section-title">点位详情</div>
                 <div id="replayPointDetail" class="analysis-point-detail">点击 PPI 图上的点，查看精确距离、方位、速度、SNR 与 Noise。</div>
+                <details class="analysis-quality-details">
+                    <summary>采集质量 / 调试信息<small>用于判断这段数据是否适合标定，不直接作为避障结论。</small></summary>
+                    <div id="replayAnalysisSummary" class="analysis-summary-grid"></div>
+                    <div class="analysis-section-title">质量轨迹</div>
+                    <canvas id="replayTrendCanvas" class="analysis-trend-chart" width="390" height="145"></canvas>
+                    <div class="analysis-legend"><span class="points">每帧点数</span><span class="snr">平均 SNR</span></div>
+                    <div class="analysis-section-title">当前回放帧</div>
+                    <div id="replayFrameDetail" class="analysis-frame-detail">选择采集后会显示帧质量、TLV 和点云统计。</div>
+                </details>
             </div>
         </div> <!-- 闭合 configPanel -->
     </div> <!-- 闭合 radar-container -->
@@ -2244,12 +2305,34 @@
             ctx.restore();
         }
 
+        function renderNearestObstacleCard(cluster = null, mode = 'replay') {
+            const card = document.getElementById('nearestObstacleCard');
+            if (!card) return;
+            if (!cluster) {
+                card.innerHTML = [
+                    '<span class="label">NEAREST STABLE OBSTACLE</span>',
+                    '<strong>暂无稳定目标</strong>',
+                    '<small>优先显示连续出现的空间目标簇；偶发散点请到下方点位详情排查。</small>',
+                ].join('');
+                return;
+            }
+            const modeLabel = mode === 'live' ? 'LIVE NEAREST POINT' : 'NEAREST STABLE OBSTACLE';
+            const stableText = cluster.isStable ? `stable H${cluster.stableHits}` : `candidate H${cluster.stableHits || 1}`;
+            card.innerHTML = [
+                `<span class="label">${modeLabel}</span>`,
+                `<strong>${cluster.nearestRangeM.toFixed(2)} m / ${cluster.nearestDirection}</strong>`,
+                `<small>T${cluster.id} · center ${cluster.rangeM.toFixed(2)} m · ${cluster.shapeLabel} ${cluster.shapeLengthM.toFixed(2)}x${cluster.shapeWidthM.toFixed(2)} m · ${cluster.points.length} pts · ${stableText} · SNR ${formatMetric(cluster.snrMedianDb, ' dB')}</small>`,
+            ].join('');
+        }
+
         function renderReplayTargetList(clusters, pointCount) {
             const list = document.getElementById('replayTargetList');
             const summary = document.getElementById('replayClusterSummary');
             const stableClusters = clusters.filter(cluster => cluster.isStable);
             const clusteredPoints = clusters.reduce((total, cluster) => total + cluster.points.length, 0);
             summary.innerText = `${stableClusters.length} stable / ${clusters.length} total / ${Math.max(0, pointCount - clusteredPoints)} scattered`;
+            const nearestStable = stableClusters.slice().sort((a, b) => a.nearestRangeM - b.nearestRangeM)[0];
+            renderNearestObstacleCard(nearestStable || null);
             if (!clusters.length) {
                 list.innerText = 'No cluster reached the 3-point / 0.24 m neighborhood rule.';
                 return;
@@ -2294,6 +2377,24 @@
             const rawNearest = nearestPointByRange(liveSpatialAnalysis.rawPoints);
             const shownNearest = nearestPointByRange(liveSpatialAnalysis.displayPoints);
             const blindZone = getBlindZoneM();
+            if (shownNearest) {
+                const nearestPolar = polarPointInfo(shownNearest.point);
+                renderNearestObstacleCard({
+                    id: 'L',
+                    nearestRangeM: shownNearest.range,
+                    nearestDirection: nearestPolar.direction,
+                    rangeM: shownNearest.range,
+                    shapeLabel: 'clicked/nearest point',
+                    shapeLengthM: 0,
+                    shapeWidthM: 0,
+                    points: [shownNearest.point],
+                    isStable: false,
+                    stableHits: 1,
+                    snrMedianDb: getPointSnr(shownNearest.point),
+                }, 'live');
+            } else {
+                renderNearestObstacleCard(null, 'live');
+            }
             const lines = [
                 `LIVE POINT INSPECTOR · blind zone ${blindZone.toFixed(2)} m`,
                 `points raw/shown ${liveSpatialAnalysis.rawPoints.length}/${liveSpatialAnalysis.displayPoints.length}`,
