@@ -223,6 +223,39 @@
             margin-bottom: 6px;
         }
 
+        .filter-tabs {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 4px;
+            margin: 6px 0 8px;
+        }
+
+        .filter-tab-btn {
+            min-height: 28px;
+            padding: 3px 4px;
+            border: 1px solid rgba(127, 220, 255, 0.45);
+            border-radius: 5px;
+            background: rgba(8, 22, 34, 0.72);
+            color: #9deaff;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .filter-tab-btn.active {
+            border-color: #35e6ff;
+            background: rgba(53, 230, 255, 0.18);
+            color: #d6fbff;
+        }
+
+        .filter-tab-panel {
+            display: none;
+        }
+
+        .filter-tab-panel.active {
+            display: block;
+        }
+
         .filter-tune-panel label {
             display: grid;
             grid-template-columns: minmax(0, 1fr) 88px;
@@ -754,6 +787,8 @@
                     title="保存当前点云到服务器本地 CSV，便于后续分析 SNR/noise/TLV">记录点云: 关</button>
                 <button id="noiseFilterToggleBtn" style="border-color: #7fdcff; color: #7fdcff;"
                     title="启用/关闭 Noise基线 对 confidence 的扣分">Noise过滤: 开</button>
+                <button id="liveObjectToggleBtn" style="border-color: #35e6ff; color: #35e6ff;"
+                    title="显示/隐藏实时前方聚合物体 L1/L2 列表和 PPI 边界">实时物体: 开</button>
                 <button id="lineFilterToggleBtn" style="border-color: #ff5533; color: #ff7a55;"
                     title="启用/关闭 线最小长度 与 线长宽比 过滤">线结构: 开</button>
                 <button id="gimbalScanToggleBtn" style="border-color: #35e6ff; color: #35e6ff;"
@@ -812,20 +847,31 @@
                 </div>
                 <div class="hud-box filter-tune-panel">
                     <div class="filter-title">点云过滤调参</div>
-                    <label>Noise基线(dB)
-                        <input type="number" id="noiseBaselineInput" value="80" step="1"
-                            title="noise_baseline，默认 80 dB；用于 SNR/noise 可信度计算">
-                    </label>
-                    <label>近场盲区(m)
-                        <input type="number" id="blindZoneInput" value="0.35" step="0.01" min="0" max="2"
-                            title="前端显示过滤半径；泊船近距离标定可临时调到 0.10 或 0.15">
-                    </label>
-                    <label>线最小长度(m)
-                        <input type="number" id="lineMinLengthInput" value="1.35" step="0.05" title="墙/码头线结构主方向最小长度">
-                    </label>
-                    <label>线长宽比
-                        <input type="number" id="lineMinRatioInput" value="3.0" step="0.1" title="线结构主方向长度 / 横向宽度的最小比例">
-                    </label>
+                    <div class="filter-tabs" role="tablist" aria-label="点云过滤调参页签">
+                        <button id="filterTabSignal" type="button" class="filter-tab-btn active" data-filter-tab="signal">信号</button>
+                        <button id="filterTabNear" type="button" class="filter-tab-btn" data-filter-tab="near">近场</button>
+                        <button id="filterTabLine" type="button" class="filter-tab-btn" data-filter-tab="line">线结构</button>
+                    </div>
+                    <div id="filterPanelSignal" class="filter-tab-panel active" data-filter-panel="signal">
+                        <label>Noise基线(dB)
+                            <input type="number" id="noiseBaselineInput" value="80" step="1"
+                                title="前端 confidence 估算基准；主要用于显示/过滤调试，不是雷达底层 CFAR 阈值">
+                        </label>
+                    </div>
+                    <div id="filterPanelNear" class="filter-tab-panel" data-filter-panel="near">
+                        <label>近场盲区(m)
+                            <input type="number" id="blindZoneInput" value="0.35" step="0.01" min="0" max="2"
+                                title="前端显示过滤半径；泊船近距离标定可临时调到 0.10 或 0.15">
+                        </label>
+                    </div>
+                    <div id="filterPanelLine" class="filter-tab-panel" data-filter-panel="line">
+                        <label>线最小长度(m)
+                            <input type="number" id="lineMinLengthInput" value="1.35" step="0.05" title="墙/码头线结构主方向最小长度">
+                        </label>
+                        <label>线长宽比
+                            <input type="number" id="lineMinRatioInput" value="3.0" step="0.1" title="线结构主方向长度 / 横向宽度的最小比例">
+                        </label>
+                    </div>
                 </div>
                 <div class="hud-box filter-tune-panel" id="gimbalScanPanel" style="border-left-color: #35e6ff;">
                     <div class="filter-title" style="color:#35e6ff;">电机扫描调参</div>
@@ -1057,6 +1103,10 @@
         const LIVE_STABLE_CLUSTER_MATCH_GATE_M = 0.45;
         const LIVE_STABLE_CLUSTER_MIN_HITS = 2;
         const LIVE_STABLE_CLUSTER_MAX_MISSED = 6;
+        const LIVE_CLUSTER_SMOOTHING = 0.26;
+        const LIVE_PANEL_UPDATE_INTERVAL_MS = 320;
+        let lastLivePanelRenderAt = 0;
+        let lastLiveDetailRenderAt = 0;
         let liveSpatialAnalysis = {
             frame: null, rawPoints: [], visiblePoints: [], displayPoints: [],
             liveForwardClusters: [], selectedPoint: null, selectedClusterId: null
@@ -1085,6 +1135,7 @@
         const LINE_MIN_RATIO_STORAGE_KEY = 'radar_line_min_ratio';
         const NOISE_FILTER_ENABLED_STORAGE_KEY = 'radar_noise_filter_enabled';
         const LINE_FILTER_ENABLED_STORAGE_KEY = 'radar_line_filter_enabled';
+        const LIVE_OBJECT_ENABLED_STORAGE_KEY = 'radar_live_object_enabled';
         const STRUCTURE_CLUSTER_EPS = 0.55;
         const LINE_CLUSTER_MIN_POINTS = 3;
         const STRONG_ISOLATED_SNR_DB = 18;
@@ -1108,6 +1159,7 @@
         let lineClusterMinRatio = 3.0;
         let noiseFilterEnabled = true;
         let lineFilterEnabled = true;
+        let liveObjectEnabled = true;
         let pointTrails = [];
         let lastRangeProfile = [];
         let strongIsolatedTracks = [];
@@ -2309,32 +2361,58 @@
                         hits: 0,
                         missed: 0,
                         center: { ...cluster.center },
-                        previousNearRangeM: null,
+                        nearestRangeM: cluster.nearestRangeM,
+                        rangeM: cluster.rangeM,
+                        shapeLengthM: cluster.shapeLengthM,
+                        shapeWidthM: cluster.shapeWidthM,
+                        spreadM: cluster.spreadM,
+                        speedMedianMps: cluster.speedMedianMps,
+                        snrMedianDb: cluster.snrMedianDb,
                         updated: false,
                     };
                     liveClusterTracks.push(bestTrack);
                 }
                 const previousNearRangeM = bestTrack.nearestRangeM ?? cluster.nearestRangeM;
+                const smooth = (previous, next) => {
+                    if (!Number.isFinite(Number(next))) return previous;
+                    if (!Number.isFinite(Number(previous))) return next;
+                    return Number(previous) * (1 - LIVE_CLUSTER_SMOOTHING) + Number(next) * LIVE_CLUSTER_SMOOTHING;
+                };
                 bestTrack.hits += 1;
                 bestTrack.missed = 0;
                 bestTrack.updated = true;
                 bestTrack.center = {
-                    x: bestTrack.center.x * 0.65 + cluster.center.x * 0.35,
-                    y: bestTrack.center.y * 0.65 + cluster.center.y * 0.35,
-                    z: bestTrack.center.z * 0.65 + cluster.center.z * 0.35,
+                    x: smooth(bestTrack.center.x, cluster.center.x),
+                    y: smooth(bestTrack.center.y, cluster.center.y),
+                    z: smooth(bestTrack.center.z, cluster.center.z),
                 };
-                bestTrack.nearestRangeM = cluster.nearestRangeM;
+                bestTrack.nearestRangeM = smooth(bestTrack.nearestRangeM, cluster.nearestRangeM);
+                bestTrack.rangeM = smooth(bestTrack.rangeM, cluster.rangeM);
+                bestTrack.shapeLengthM = smooth(bestTrack.shapeLengthM, cluster.shapeLengthM);
+                bestTrack.shapeWidthM = smooth(bestTrack.shapeWidthM, cluster.shapeWidthM);
+                bestTrack.spreadM = smooth(bestTrack.spreadM, cluster.spreadM);
+                bestTrack.speedMedianMps = smooth(bestTrack.speedMedianMps, cluster.speedMedianMps);
+                bestTrack.snrMedianDb = smooth(bestTrack.snrMedianDb, cluster.snrMedianDb);
                 bestTrack.rangeTrendM = cluster.nearestRangeM - previousNearRangeM;
                 cluster.trackId = bestTrack.id;
+                cluster.id = bestTrack.id;
                 cluster.stableHits = bestTrack.hits;
                 cluster.isStable = bestTrack.hits >= LIVE_STABLE_CLUSTER_MIN_HITS;
                 cluster.rangeTrendM = bestTrack.rangeTrendM;
+                cluster.center = { ...bestTrack.center };
+                cluster.nearestRangeM = bestTrack.nearestRangeM;
+                cluster.rangeM = bestTrack.rangeM;
+                cluster.shapeLengthM = bestTrack.shapeLengthM;
+                cluster.shapeWidthM = bestTrack.shapeWidthM;
+                cluster.spreadM = bestTrack.spreadM;
+                cluster.speedMedianMps = bestTrack.speedMedianMps;
+                cluster.snrMedianDb = bestTrack.snrMedianDb;
             });
             liveClusterTracks = liveClusterTracks.filter(track => track.missed <= LIVE_STABLE_CLUSTER_MAX_MISSED);
             return clusters.sort((left, right) => {
                 if (left.isStable !== right.isStable) return left.isStable ? -1 : 1;
                 return left.nearestRangeM - right.nearestRangeM || right.points.length - left.points.length;
-            }).map((cluster, index) => ({ ...cluster, id: index + 1 }));
+            });
         }
 
         function collisionHint(cluster) {
@@ -2394,7 +2472,7 @@
             }).map((cluster, index) => ({ ...cluster, id: index + 1 }));
         }
 
-        function drawReplayClusterOverlay(clusters, selectedClusterId, selectedPoint) {
+        function drawReplayClusterOverlay(clusters, selectedClusterId, selectedPoint, labelPrefix = 'T') {
             ctx.save();
             clusters.filter(cluster => cluster.isStable || cluster.id === selectedClusterId).forEach(cluster => {
                 const center = mapToCanvas(cluster.center.x, cluster.center.y);
@@ -2423,7 +2501,7 @@
                 }
                 ctx.fillStyle = selected ? '#ffdfaa' : '#c7fff0';
                 ctx.font = selected ? 'bold 12px Tahoma' : '11px Tahoma';
-                ctx.fillText(`T${cluster.id} near ${cluster.nearestRangeM.toFixed(2)}m`, center.px + 7, center.py - 8);
+                ctx.fillText(`${labelPrefix}${cluster.id} near ${cluster.nearestRangeM.toFixed(2)}m`, center.px + 7, center.py - 8);
             });
             if (selectedPoint) {
                 const point = mapToCanvas(selectedPoint.x, selectedPoint.y);
@@ -2434,7 +2512,8 @@
         }
 
         function drawLiveClusterOverlay(clusters) {
-            drawReplayClusterOverlay(clusters, liveSpatialAnalysis.selectedClusterId, null);
+            if (!liveObjectEnabled) return;
+            drawReplayClusterOverlay(clusters, liveSpatialAnalysis.selectedClusterId, null, 'L');
         }
 
         function renderNearestObstacleCard(cluster = null, mode = 'replay') {
@@ -2461,11 +2540,20 @@
             ].join('');
         }
 
-        function renderLiveForwardObjectList(clusters) {
+        function renderLiveForwardObjectList(clusters, force = false) {
             if (replayState.active) return;
+            const now = performance.now();
+            if (!force && now - lastLivePanelRenderAt < LIVE_PANEL_UPDATE_INTERVAL_MS) return;
+            lastLivePanelRenderAt = now;
             const summary = document.getElementById('replayClusterSummary');
             const list = document.getElementById('replayTargetList');
             if (!summary || !list) return;
+            if (!liveObjectEnabled) {
+                summary.innerText = '实时物体显示已关闭';
+                list.innerText = '实时前方物体显示已关闭；原始点云和点位点击仍可使用。';
+                renderNearestObstacleCard(null, 'live');
+                return;
+            }
             const stableClusters = clusters.filter(cluster => cluster.isStable);
             const clusteredPoints = clusters.reduce((total, cluster) => total + cluster.points.length, 0);
             summary.innerText = `${stableClusters.length} stable / ${clusters.length} total / ${Math.max(0, liveSpatialAnalysis.displayPoints.length - clusteredPoints)} scattered`;
@@ -2486,7 +2574,8 @@
                     liveSpatialAnalysis.selectedClusterId = cluster.id;
                     liveSpatialAnalysis.selectedPoint = cluster.nearestPoint;
                     renderNearestObstacleCard(cluster, 'live');
-                    renderLivePointDetail(cluster.nearestPoint);
+                    renderLivePointDetail(cluster.nearestPoint, true);
+                    renderLiveForwardObjectList(liveSpatialAnalysis.liveForwardClusters, true);
                 });
                 return button;
             }));
@@ -2539,14 +2628,17 @@
             ].join('\n');
         }
 
-        function renderLivePointDetail(point = liveSpatialAnalysis.selectedPoint) {
+        function renderLivePointDetail(point = liveSpatialAnalysis.selectedPoint, force = false) {
             if (replayState.active) return;
+            const now = performance.now();
+            if (!force && now - lastLiveDetailRenderAt < LIVE_PANEL_UPDATE_INTERVAL_MS) return;
+            lastLiveDetailRenderAt = now;
             const panel = document.getElementById('replayPointDetail');
             if (!panel) return;
             const rawNearest = nearestPointByRange(liveSpatialAnalysis.rawPoints);
             const shownNearest = nearestPointByRange(liveSpatialAnalysis.displayPoints);
             const blindZone = getBlindZoneM();
-            if (!liveSpatialAnalysis.liveForwardClusters.length && shownNearest) {
+            if (liveObjectEnabled && !liveSpatialAnalysis.liveForwardClusters.length && shownNearest) {
                 const nearestPolar = polarPointInfo(shownNearest.point);
                 renderNearestObstacleCard({
                     id: 1,
@@ -2561,7 +2653,7 @@
                     stableHits: 1,
                     snrMedianDb: getPointSnr(shownNearest.point),
                 }, 'live');
-            } else if (!liveSpatialAnalysis.liveForwardClusters.length) {
+            } else if (liveObjectEnabled && !liveSpatialAnalysis.liveForwardClusters.length) {
                 renderNearestObstacleCard(null, 'live');
             }
             const lines = [
@@ -2638,7 +2730,7 @@
             if (!closest) return;
             liveSpatialAnalysis.selectedPoint = closest;
             setPanelMode('analysis');
-            renderLivePointDetail(closest);
+            renderLivePointDetail(closest, true);
             drawLiveSelectedPoint(closest);
             document.getElementById('replayPointDetail').scrollIntoView({ block: 'nearest' });
         }
@@ -2691,9 +2783,9 @@
             const staticPoints = selectStructureAwareStaticPoints(staticCandidates);
             const dynamicPoints = usablePoints.filter(pt => pt.y >= 0 && Math.abs(pt.v) >= DYNAMIC_SPEED_MIN);
             const displayPoints = staticPoints.concat(dynamicPoints);
-            const liveForwardClusters = updateLiveClusterTracks(
+            const liveForwardClusters = liveObjectEnabled ? updateLiveClusterTracks(
                 clusterReplayPoints(displayPoints, LIVE_CLUSTER_RADIUS_M, LIVE_CLUSTER_MIN_POINTS)
-            );
+            ) : [];
             const previousLiveClusterId = liveSpatialAnalysis.selectedClusterId;
             liveSpatialAnalysis = {
                 frame: data,
@@ -2702,7 +2794,7 @@
                 displayPoints,
                 liveForwardClusters,
                 selectedPoint: liveSpatialAnalysis.selectedPoint,
-                selectedClusterId: liveForwardClusters.some(cluster => cluster.id === previousLiveClusterId) ? previousLiveClusterId : null,
+                selectedClusterId: liveObjectEnabled && liveForwardClusters.some(cluster => cluster.id === previousLiveClusterId) ? previousLiveClusterId : null,
             };
 
             staticObstacleMapper.processPoints(staticPoints);
@@ -2949,19 +3041,37 @@
         function updateFilterToggleButtons() {
             const noiseBtn = document.getElementById('noiseFilterToggleBtn');
             const lineBtn = document.getElementById('lineFilterToggleBtn');
+            const liveBtn = document.getElementById('liveObjectToggleBtn');
             noiseBtn.innerText = noiseFilterEnabled ? "Noise过滤: 开" : "Noise过滤: 关";
             noiseBtn.style.backgroundColor = noiseFilterEnabled ? "rgba(127, 220, 255, 0.18)" : "transparent";
             lineBtn.innerText = lineFilterEnabled ? "线结构: 开" : "线结构: 关";
             lineBtn.style.backgroundColor = lineFilterEnabled ? "rgba(255, 85, 51, 0.18)" : "transparent";
+            liveBtn.innerText = liveObjectEnabled ? "实时物体: 开" : "实时物体: 关";
+            liveBtn.style.backgroundColor = liveObjectEnabled ? "rgba(53, 230, 255, 0.18)" : "transparent";
         }
 
         function loadFilterToggles() {
             const savedNoise = localStorage.getItem(NOISE_FILTER_ENABLED_STORAGE_KEY);
             const savedLine = localStorage.getItem(LINE_FILTER_ENABLED_STORAGE_KEY);
+            const savedLiveObject = localStorage.getItem(LIVE_OBJECT_ENABLED_STORAGE_KEY);
             noiseFilterEnabled = savedNoise === null ? true : savedNoise === 'true';
             lineFilterEnabled = savedLine === null ? true : savedLine === 'true';
+            liveObjectEnabled = savedLiveObject === null ? true : savedLiveObject === 'true';
             updateFilterToggleButtons();
         }
+
+        function switchFilterTab(tabName) {
+            document.querySelectorAll('[data-filter-tab]').forEach(button => {
+                button.classList.toggle('active', button.dataset.filterTab === tabName);
+            });
+            document.querySelectorAll('[data-filter-panel]').forEach(panel => {
+                panel.classList.toggle('active', panel.dataset.filterPanel === tabName);
+            });
+        }
+
+        document.querySelectorAll('[data-filter-tab]').forEach(button => {
+            button.addEventListener('click', () => switchFilterTab(button.dataset.filterTab));
+        });
 
         document.getElementById('noiseBaselineInput').addEventListener('input', (e) => {
             const next = Number(e.target.value);
@@ -2978,7 +3088,7 @@
             if (replayState.active && replaySpatialAnalysis.frame) {
                 renderReplayFrame(replaySpatialAnalysis.frame, true);
             } else {
-                renderLivePointDetail();
+                renderLivePointDetail(undefined, true);
             }
         });
 
@@ -3005,6 +3115,17 @@
             noiseFilterEnabled = !noiseFilterEnabled;
             localStorage.setItem(NOISE_FILTER_ENABLED_STORAGE_KEY, String(noiseFilterEnabled));
             updateFilterToggleButtons();
+        });
+
+        document.getElementById('liveObjectToggleBtn').addEventListener('click', () => {
+            liveObjectEnabled = !liveObjectEnabled;
+            localStorage.setItem(LIVE_OBJECT_ENABLED_STORAGE_KEY, String(liveObjectEnabled));
+            liveClusterTracks = [];
+            liveSpatialAnalysis.liveForwardClusters = [];
+            liveSpatialAnalysis.selectedClusterId = null;
+            updateFilterToggleButtons();
+            renderLiveForwardObjectList([], true);
+            drawGrid();
         });
 
         document.getElementById('lineFilterToggleBtn').addEventListener('click', (e) => {
