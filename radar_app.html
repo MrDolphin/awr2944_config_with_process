@@ -147,6 +147,31 @@
             align-items: center;
             gap: 16px;
             padding-top: 8px;
+            position: relative;
+        }
+
+        .local-map-badge {
+            position: absolute;
+            top: 18px;
+            left: 14px;
+            z-index: 6;
+            max-width: min(360px, calc(100% - 28px));
+            padding: 7px 10px;
+            border: 1px solid rgba(53, 230, 255, 0.42);
+            border-left: 3px solid #35e6ff;
+            border-radius: 8px;
+            background: rgba(4, 16, 25, 0.82);
+            color: #d6fbff;
+            font: 700 11px/1.38 "Courier New", monospace;
+            letter-spacing: 0.02em;
+            box-shadow: 0 0 18px rgba(53, 230, 255, 0.08);
+            pointer-events: none;
+        }
+
+        .local-map-badge.warning {
+            border-color: rgba(255, 189, 107, 0.55);
+            border-left-color: #ffbd6b;
+            color: #ffe0ad;
         }
 
         canvas {
@@ -828,6 +853,7 @@
 
 
             <div class="main-visual">
+                <div id="localMapBadge" class="local-map-badge">LOCAL MAP FRAMEWORK · 局部地图关闭</div>
                 <canvas id="radarCanvas" width="800" height="600"></canvas>
                 <div class="profile-panel">
                     <div>距离能量图 (Range Profile)</div>
@@ -1181,6 +1207,12 @@
         // --- 静态热力图 (Local Occupancy Grid Map) 相关 ---
         let showStaticMap = false;
         let showStableStaticPoints = false;
+        const currentLocalMapPose = {
+            x: 0, y: 0, yawDeg: 0,
+            radarOffsetX: 0, radarOffsetY: 0, radarYawDeg: 0,
+            poseCompensated: false,
+            source: 'radar-relative'
+        };
         const GRID_W = 100; // 栅格数量固定，实际米/格随当前显示量程动态变化
         const GRID_H = 100;
         let occupancyGrid = new Float32Array(GRID_W * GRID_H);
@@ -1206,6 +1238,35 @@
             strongIsolatedTracks = [];
         }
 
+        function transformRadarPointToLocalMap(point, pose = currentLocalMapPose) {
+            const radarYaw = (Number(pose.radarYawDeg) || 0) * Math.PI / 180;
+            const shipYaw = (Number(pose.yawDeg) || 0) * Math.PI / 180;
+            const rx = Number(point.x);
+            const ry = Number(point.y);
+            const radarToShipX = rx * Math.cos(radarYaw) - ry * Math.sin(radarYaw) + (Number(pose.radarOffsetX) || 0);
+            const radarToShipY = rx * Math.sin(radarYaw) + ry * Math.cos(radarYaw) + (Number(pose.radarOffsetY) || 0);
+            return {
+                x: radarToShipX * Math.cos(shipYaw) - radarToShipY * Math.sin(shipYaw) + (Number(pose.x) || 0),
+                y: radarToShipX * Math.sin(shipYaw) + radarToShipY * Math.cos(shipYaw) + (Number(pose.y) || 0),
+            };
+        }
+
+        function updateLocalMapBadge() {
+            const badge = document.getElementById('localMapBadge');
+            if (!badge) return;
+            const enabled = showStaticMap || showStableStaticPoints;
+            if (!enabled) {
+                badge.className = 'local-map-badge';
+                badge.innerText = 'LOCAL MAP FRAMEWORK · 局部地图关闭';
+                return;
+            }
+            const compensated = Boolean(currentLocalMapPose.poseCompensated);
+            badge.className = `local-map-badge${compensated ? '' : ' warning'}`;
+            badge.innerText = compensated
+                ? `LOCAL MAP FRAMEWORK · 已接入位姿补偿 · ${currentLocalMapPose.source}`
+                : 'LOCAL MAP FRAMEWORK · 雷达坐标局部地图 · 未接入位姿补偿';
+        }
+
         function updateStaticMap(points) {
             if (!showStaticMap && !showStableStaticPoints) return;
             // 1. 全局平滑指数衰减 (遗忘机制)
@@ -1223,11 +1284,12 @@
             points.forEach(p => {
                 // 筛选：前方且接近静止的物体径向回波
                 if (p.y >= 0 && Math.abs(p.v) <= STATIC_SPEED_MAX && isPointUsable(p)) {
+                    const mapPoint = transformRadarPointToLocalMap(p);
                     const confidence = pointConfidence(p);
                     const hitScale = Math.min(1.4, Math.max(0.35, confidence / 16));
                     // 坐标换算：跟随当前显示量程，保证静态地图和距离环一致。
-                    let gx = Math.floor((p.x + radarRangeX) / cellW);
-                    let gy = Math.floor(p.y / cellH);
+                    let gx = Math.floor((mapPoint.x + radarRangeX) / cellW);
+                    let gy = Math.floor(mapPoint.y / cellH);
 
                     if (gx >= 0 && gx < GRID_W && gy >= 0 && gy < GRID_H) {
                         GRID_NEIGHBOR_KERNEL.forEach(k => {
@@ -2958,6 +3020,7 @@
         window.addEventListener('load', loadFilterToggles);
         window.addEventListener('load', updateMotorFrameAngleDisplay);
         window.addEventListener('load', () => drawRangeProfile([]));
+        window.addEventListener('load', updateLocalMapBadge);
 
         // 静态地图显示开关与清除逻辑
         document.getElementById('staticMapToggleBtn').addEventListener('click', (e) => {
@@ -2965,11 +3028,11 @@
             const btn = e.target;
             const clearBtn = document.getElementById('clearMapBtn');
             if (showStaticMap) {
-                btn.innerText = "静态地图: 开";
+                btn.innerText = "局部地图: 开";
                 btn.style.backgroundColor = "rgba(0, 150, 255, 0.2)";
                 clearBtn.style.display = 'inline-block';
             } else {
-                btn.innerText = "静态地图: 关";
+                btn.innerText = "局部地图: 关";
                 btn.style.backgroundColor = "transparent";
                 clearBtn.style.display = showStableStaticPoints ? 'inline-block' : 'none';
                 if (!showStableStaticPoints) {
@@ -2979,6 +3042,7 @@
                     pointTrails = [];
                 }
             }
+            updateLocalMapBadge();
         });
 
         document.getElementById('stableMapToggleBtn').addEventListener('click', (e) => {
@@ -3000,6 +3064,7 @@
                     pointTrails = [];
                 }
             }
+            updateLocalMapBadge();
         });
 
         document.getElementById('snrLabelToggleBtn').addEventListener('click', (e) => {

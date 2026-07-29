@@ -65,6 +65,15 @@ class RadarAppMarkupTests(unittest.TestCase):
             "drawLiveClusterOverlay",
             "collisionHint",
             "实时前方物体",
+            'id="localMapBadge"',
+            "LOCAL MAP FRAMEWORK",
+            "transformRadarPointToLocalMap",
+            "currentLocalMapPose",
+            "poseCompensated",
+            "未接入位姿补偿",
+            "updateLocalMapBadge",
+            "局部地图: 开",
+            "局部地图: 关",
         ):
             self.assertIn(selector, app_html)
 
