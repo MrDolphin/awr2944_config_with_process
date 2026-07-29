@@ -1026,7 +1026,16 @@
         let replaySpatialAnalysis = { frame: null, points: [], clusters: [], selectedClusterId: null, selectedPoint: null };
         let replayClusterTracks = [];
         const LIVE_POINT_PICK_RADIUS_PX = 15;
-        let liveSpatialAnalysis = { frame: null, rawPoints: [], visiblePoints: [], displayPoints: [], selectedPoint: null };
+        const LIVE_CLUSTER_RADIUS_M = 0.28;
+        const LIVE_CLUSTER_MIN_POINTS = 3;
+        const LIVE_STABLE_CLUSTER_MATCH_GATE_M = 0.45;
+        const LIVE_STABLE_CLUSTER_MIN_HITS = 2;
+        const LIVE_STABLE_CLUSTER_MAX_MISSED = 6;
+        let liveSpatialAnalysis = {
+            frame: null, rawPoints: [], visiblePoints: [], displayPoints: [],
+            liveForwardClusters: [], selectedPoint: null, selectedClusterId: null
+        };
+        let liveClusterTracks = [];
         const TRAIL_MIN_POINTS_TO_DRAW = 8;
         const TRAIL_MIN_DISPLACEMENT_M = 0.8;
         const TRAIL_KEEP_POINTS = 14;
@@ -2222,6 +2231,63 @@
             replayClusterTracks = [];
         }
 
+        function updateLiveClusterTracks(clusters) {
+            liveClusterTracks.forEach(track => { track.missed += 1; track.updated = false; });
+            clusters.forEach(cluster => {
+                let bestTrack = null;
+                let bestDistance = LIVE_STABLE_CLUSTER_MATCH_GATE_M;
+                liveClusterTracks.forEach(track => {
+                    if (track.updated) return;
+                    const distance = Math.hypot(track.center.x - cluster.center.x, track.center.y - cluster.center.y);
+                    if (distance <= bestDistance) { bestDistance = distance; bestTrack = track; }
+                });
+                if (!bestTrack) {
+                    bestTrack = {
+                        id: liveClusterTracks.length ? Math.max(...liveClusterTracks.map(track => track.id)) + 1 : 1,
+                        hits: 0,
+                        missed: 0,
+                        center: { ...cluster.center },
+                        previousNearRangeM: null,
+                        updated: false,
+                    };
+                    liveClusterTracks.push(bestTrack);
+                }
+                const previousNearRangeM = bestTrack.nearestRangeM ?? cluster.nearestRangeM;
+                bestTrack.hits += 1;
+                bestTrack.missed = 0;
+                bestTrack.updated = true;
+                bestTrack.center = {
+                    x: bestTrack.center.x * 0.65 + cluster.center.x * 0.35,
+                    y: bestTrack.center.y * 0.65 + cluster.center.y * 0.35,
+                    z: bestTrack.center.z * 0.65 + cluster.center.z * 0.35,
+                };
+                bestTrack.nearestRangeM = cluster.nearestRangeM;
+                bestTrack.rangeTrendM = cluster.nearestRangeM - previousNearRangeM;
+                cluster.trackId = bestTrack.id;
+                cluster.stableHits = bestTrack.hits;
+                cluster.isStable = bestTrack.hits >= LIVE_STABLE_CLUSTER_MIN_HITS;
+                cluster.rangeTrendM = bestTrack.rangeTrendM;
+            });
+            liveClusterTracks = liveClusterTracks.filter(track => track.missed <= LIVE_STABLE_CLUSTER_MAX_MISSED);
+            return clusters.sort((left, right) => {
+                if (left.isStable !== right.isStable) return left.isStable ? -1 : 1;
+                return left.nearestRangeM - right.nearestRangeM || right.points.length - left.points.length;
+            }).map((cluster, index) => ({ ...cluster, id: index + 1 }));
+        }
+
+        function collisionHint(cluster) {
+            if (!cluster) return '暂无实时物体';
+            const speed = Number(cluster.speedMedianMps);
+            const near = Number(cluster.nearestRangeM);
+            const approaching = Number.isFinite(speed) && speed < -0.15;
+            const trendClosing = Number.isFinite(cluster.rangeTrendM) && cluster.rangeTrendM < -0.03;
+            if (near <= 0.45) return '很近：建议预留船体余量';
+            if (near <= 0.9 && (approaching || trendClosing)) return '偏近且疑似接近';
+            if (near <= 0.9) return '偏近：低速观察';
+            if (approaching || trendClosing) return '疑似接近：继续跟踪';
+            return '距离暂可控';
+        }
+
         function updateReplayClusterTracks(clusters) {
             replayClusterTracks.forEach(track => { track.missed += 1; });
             clusters.forEach(cluster => {
@@ -2305,24 +2371,65 @@
             ctx.restore();
         }
 
+        function drawLiveClusterOverlay(clusters) {
+            drawReplayClusterOverlay(clusters, liveSpatialAnalysis.selectedClusterId, null);
+        }
+
         function renderNearestObstacleCard(cluster = null, mode = 'replay') {
             const card = document.getElementById('nearestObstacleCard');
             if (!card) return;
             if (!cluster) {
+                const emptyLabel = mode === 'live' ? 'LIVE FRONT OBJECT' : 'NEAREST STABLE OBSTACLE';
                 card.innerHTML = [
-                    '<span class="label">NEAREST STABLE OBSTACLE</span>',
+                    `<span class="label">${emptyLabel}</span>`,
                     '<strong>暂无稳定目标</strong>',
                     '<small>优先显示连续出现的空间目标簇；偶发散点请到下方点位详情排查。</small>',
                 ].join('');
                 return;
             }
-            const modeLabel = mode === 'live' ? 'LIVE NEAREST POINT' : 'NEAREST STABLE OBSTACLE';
+            const modeLabel = mode === 'live' ? 'LIVE FRONT OBJECT' : 'NEAREST STABLE OBSTACLE';
             const stableText = cluster.isStable ? `stable H${cluster.stableHits}` : `candidate H${cluster.stableHits || 1}`;
+            const speedText = Number.isFinite(Number(cluster.speedMedianMps)) ? ` · v ${Number(cluster.speedMedianMps).toFixed(2)} m/s` : '';
+            const riskText = mode === 'live' ? ` · ${collisionHint(cluster)}` : '';
+            const idPrefix = mode === 'live' ? 'L' : 'T';
             card.innerHTML = [
                 `<span class="label">${modeLabel}</span>`,
                 `<strong>${cluster.nearestRangeM.toFixed(2)} m / ${cluster.nearestDirection}</strong>`,
-                `<small>T${cluster.id} · center ${cluster.rangeM.toFixed(2)} m · ${cluster.shapeLabel} ${cluster.shapeLengthM.toFixed(2)}x${cluster.shapeWidthM.toFixed(2)} m · ${cluster.points.length} pts · ${stableText} · SNR ${formatMetric(cluster.snrMedianDb, ' dB')}</small>`,
+                `<small>${idPrefix}${cluster.id} · center ${cluster.rangeM.toFixed(2)} m · ${cluster.shapeLabel} ${cluster.shapeLengthM.toFixed(2)}x${cluster.shapeWidthM.toFixed(2)} m · ${cluster.points.length} pts · ${stableText}${speedText}${riskText} · SNR ${formatMetric(cluster.snrMedianDb, ' dB')}</small>`,
             ].join('');
+        }
+
+        function renderLiveForwardObjectList(clusters) {
+            if (replayState.active) return;
+            const summary = document.getElementById('replayClusterSummary');
+            const list = document.getElementById('replayTargetList');
+            if (!summary || !list) return;
+            const stableClusters = clusters.filter(cluster => cluster.isStable);
+            const clusteredPoints = clusters.reduce((total, cluster) => total + cluster.points.length, 0);
+            summary.innerText = `${stableClusters.length} stable / ${clusters.length} total / ${Math.max(0, liveSpatialAnalysis.displayPoints.length - clusteredPoints)} scattered`;
+            if (!clusters.length) {
+                list.innerText = '实时前方物体：暂无达到 3 点聚合规则的目标。';
+                renderNearestObstacleCard(null, 'live');
+                return;
+            }
+            list.replaceChildren(...clusters.map(cluster => {
+                const button = document.createElement('button');
+                const activeClass = cluster.id === liveSpatialAnalysis.selectedClusterId ? ' active' : '';
+                const stateClass = cluster.isStable ? '' : ' candidate';
+                const stateLabel = cluster.isStable ? `stable H${cluster.stableHits}` : `candidate H${cluster.stableHits || 1}`;
+                button.type = 'button';
+                button.className = `analysis-target-row${activeClass}${stateClass}`;
+                button.innerHTML = `<span class="analysis-target-id">L${cluster.id}</span><span><strong>near ${cluster.nearestRangeM.toFixed(2)} m / ${cluster.nearestDirection}</strong><br><small>center ${cluster.rangeM.toFixed(2)} m / ${cluster.shapeLabel} ${cluster.shapeLengthM.toFixed(2)}x${cluster.shapeWidthM.toFixed(2)} m / v ${formatMetric(cluster.speedMedianMps, ' m/s', 2)} / ${collisionHint(cluster)}</small></span><span><span class="analysis-target-count">${cluster.points.length} pts</span><br><span class="analysis-target-badge">${stateLabel}</span></span>`;
+                button.addEventListener('click', () => {
+                    liveSpatialAnalysis.selectedClusterId = cluster.id;
+                    liveSpatialAnalysis.selectedPoint = cluster.nearestPoint;
+                    renderNearestObstacleCard(cluster, 'live');
+                    renderLivePointDetail(cluster.nearestPoint);
+                });
+                return button;
+            }));
+            const nearest = stableClusters[0] || clusters[0];
+            renderNearestObstacleCard(nearest, 'live');
         }
 
         function renderReplayTargetList(clusters, pointCount) {
@@ -2377,10 +2484,10 @@
             const rawNearest = nearestPointByRange(liveSpatialAnalysis.rawPoints);
             const shownNearest = nearestPointByRange(liveSpatialAnalysis.displayPoints);
             const blindZone = getBlindZoneM();
-            if (shownNearest) {
+            if (!liveSpatialAnalysis.liveForwardClusters.length && shownNearest) {
                 const nearestPolar = polarPointInfo(shownNearest.point);
                 renderNearestObstacleCard({
-                    id: 'L',
+                    id: 1,
                     nearestRangeM: shownNearest.range,
                     nearestDirection: nearestPolar.direction,
                     rangeM: shownNearest.range,
@@ -2392,7 +2499,7 @@
                     stableHits: 1,
                     snrMedianDb: getPointSnr(shownNearest.point),
                 }, 'live');
-            } else {
+            } else if (!liveSpatialAnalysis.liveForwardClusters.length) {
                 renderNearestObstacleCard(null, 'live');
             }
             const lines = [
@@ -2522,12 +2629,18 @@
             const staticPoints = selectStructureAwareStaticPoints(staticCandidates);
             const dynamicPoints = usablePoints.filter(pt => pt.y >= 0 && Math.abs(pt.v) >= DYNAMIC_SPEED_MIN);
             const displayPoints = staticPoints.concat(dynamicPoints);
+            const liveForwardClusters = updateLiveClusterTracks(
+                clusterReplayPoints(displayPoints, LIVE_CLUSTER_RADIUS_M, LIVE_CLUSTER_MIN_POINTS)
+            );
+            const previousLiveClusterId = liveSpatialAnalysis.selectedClusterId;
             liveSpatialAnalysis = {
                 frame: data,
                 rawPoints,
                 visiblePoints,
                 displayPoints,
+                liveForwardClusters,
                 selectedPoint: liveSpatialAnalysis.selectedPoint,
+                selectedClusterId: liveForwardClusters.some(cluster => cluster.id === previousLiveClusterId) ? previousLiveClusterId : null,
             };
 
             staticObstacleMapper.processPoints(staticPoints);
@@ -2545,6 +2658,7 @@
 
             // 1. 原始点云保留真实跳动；稳定地图开启时会自动淡化原始点
             drawPoints(ctx, displayPoints);
+            drawLiveClusterOverlay(liveForwardClusters);
             drawLiveSelectedPoint();
             drawStableStaticPoints();
             drawStaticObstacles();
@@ -2651,6 +2765,7 @@
                 updateRecordingHealth(data.pointcloud_recording);
             }
             if (data.runtime_health) updateSystemHealth(data.runtime_health);
+            renderLiveForwardObjectList(liveForwardClusters);
             renderLivePointDetail();
         }
 

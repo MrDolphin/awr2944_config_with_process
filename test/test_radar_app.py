@@ -57,7 +57,14 @@ class RadarAppMarkupTests(unittest.TestCase):
             "采集质量 / 调试信息",
             "renderNearestObstacleCard",
             "nearestStable",
-            "LIVE NEAREST POINT",
+            "LIVE FRONT OBJECT",
+            "LIVE_CLUSTER_RADIUS_M",
+            "liveForwardClusters",
+            "updateLiveClusterTracks",
+            "renderLiveForwardObjectList",
+            "drawLiveClusterOverlay",
+            "collisionHint",
+            "实时前方物体",
         ):
             self.assertIn(selector, app_html)
 
