@@ -738,6 +738,10 @@
                         <input type="number" id="noiseBaselineInput" value="80" step="1"
                             title="noise_baseline，默认 80 dB；用于 SNR/noise 可信度计算">
                     </label>
+                    <label>近场盲区(m)
+                        <input type="number" id="blindZoneInput" value="0.35" step="0.01" min="0" max="2"
+                            title="前端显示过滤半径；泊船近距离标定可临时调到 0.10 或 0.15">
+                    </label>
                     <label>线最小长度(m)
                         <input type="number" id="lineMinLengthInput" value="1.35" step="0.05" title="墙/码头线结构主方向最小长度">
                     </label>
@@ -931,7 +935,9 @@
         // 雷达显示量程配置 (米)：由配置面板里的“最大探测距离”动态驱动。
         let radarRangeY = 15;
         let radarRangeX = 10;
-        const BLIND_ZONE_M = 0.35; // 近场盲区：过滤天线串扰、雷达罩/支架反射等贴脸鬼点
+        const DEFAULT_BLIND_ZONE_M = 0.35; // 近场盲区默认值：过滤天线串扰、雷达罩/支架反射等贴脸鬼点
+        const RADAR_BLIND_ZONE_STORAGE_KEY = 'radar_blind_zone_m';
+        let blindZoneM = DEFAULT_BLIND_ZONE_M;
         const STATIC_SPEED_MAX = 0.35; // 静止雷达调试阶段：放宽低速阈值，让柱子/岸边更容易进入静态层
         const DYNAMIC_SPEED_MIN = 0.25; // 降低动态门槛，让斜向/横向运动目标更容易进入 Tracker
         const STATIC_CLUSTER_EPS = 0.45; // 静态障碍聚类半径收紧，避免相邻障碍被桥接点粘成大框
@@ -958,6 +964,8 @@
         const REPLAY_POINT_PICK_RADIUS_PX = 15;
         let replaySpatialAnalysis = { frame: null, points: [], clusters: [], selectedClusterId: null, selectedPoint: null };
         let replayClusterTracks = [];
+        const LIVE_POINT_PICK_RADIUS_PX = 15;
+        let liveSpatialAnalysis = { frame: null, rawPoints: [], visiblePoints: [], displayPoints: [], selectedPoint: null };
         const TRAIL_MIN_POINTS_TO_DRAW = 8;
         const TRAIL_MIN_DISPLACEMENT_M = 0.8;
         const TRAIL_KEEP_POINTS = 14;
@@ -1587,6 +1595,31 @@
             return Number.isFinite(noise) ? noise : null;
         }
 
+        function pointRange2d(point) {
+            return Math.hypot(Number(point.x), Number(point.y));
+        }
+
+        function nearestPointByRange(points) {
+            return points.reduce((best, point) => {
+                const range = pointRange2d(point);
+                if (!Number.isFinite(range)) return best;
+                return !best || range < best.range ? { point, range } : best;
+            }, null);
+        }
+
+        function formatNearestPoint(label, nearest) {
+            if (!nearest) return `${label}: --`;
+            const polar = polarPointInfo(nearest.point);
+            return `${label}: ${nearest.range.toFixed(3)} m / ${polar.direction}`;
+        }
+
+        function getBlindZoneM() {
+            const input = document.getElementById('blindZoneInput');
+            const raw = input ? Number(input.value) : blindZoneM;
+            blindZoneM = Number.isFinite(raw) && raw >= 0 ? Math.min(raw, 2) : DEFAULT_BLIND_ZONE_M;
+            return blindZoneM;
+        }
+
         function getNoiseBaseline() {
             const input = document.getElementById('noiseBaselineInput');
             const raw = input ? Number(input.value) : noiseBaselineDb;
@@ -1963,7 +1996,8 @@
             drawRangeProfile(lastRangeProfile);
 
             const scan = data.gimbal_scan || {};
-            const points = (scan.points || []).filter(pt => Math.hypot(pt.x, pt.y) >= BLIND_ZONE_M && isPointUsable(pt));
+            const blindZone = getBlindZoneM();
+            const points = (scan.points || []).filter(pt => Math.hypot(pt.x, pt.y) >= blindZone && isPointUsable(pt));
             drawGrid360();
             drawGimbalScanPoints(points);
 
@@ -2253,6 +2287,52 @@
             ].join('\n');
         }
 
+        function renderLivePointDetail(point = liveSpatialAnalysis.selectedPoint) {
+            if (replayState.active) return;
+            const panel = document.getElementById('replayPointDetail');
+            if (!panel) return;
+            const rawNearest = nearestPointByRange(liveSpatialAnalysis.rawPoints);
+            const shownNearest = nearestPointByRange(liveSpatialAnalysis.displayPoints);
+            const blindZone = getBlindZoneM();
+            const lines = [
+                `LIVE POINT INSPECTOR · blind zone ${blindZone.toFixed(2)} m`,
+                `points raw/shown ${liveSpatialAnalysis.rawPoints.length}/${liveSpatialAnalysis.displayPoints.length}`,
+                formatNearestPoint('nearest raw', rawNearest),
+                formatNearestPoint('nearest shown', shownNearest),
+            ];
+            if (point) {
+                const polar = polarPointInfo(point);
+                lines.push(
+                    '',
+                    `Clicked range ${polar.rangeM.toFixed(3)} m / ${polar.direction}`,
+                    `XYZ ${Number(point.x).toFixed(3)}, ${Number(point.y).toFixed(3)}, ${(Number(point.z) || 0).toFixed(3)} m`,
+                    `Radial speed ${formatMetric(point.v, ' m/s')} / SNR ${formatMetric(getPointSnr(point), ' dB')} / Noise ${formatMetric(getPointNoise(point), ' dB')}`
+                );
+            } else {
+                lines.push('', 'Click a live PPI point to inspect its exact range, bearing, speed, SNR and Noise.');
+            }
+            panel.innerText = lines.join('\n');
+        }
+
+        function drawLiveSelectedPoint(point = liveSpatialAnalysis.selectedPoint) {
+            if (!point || replayState.active) return;
+            const mapped = mapToCanvas(point.x, point.y);
+            if (mapped.px <= 0 || mapped.px >= canvas.width || mapped.py <= 0 || mapped.py >= canvas.height) return;
+            const polar = polarPointInfo(point);
+            ctx.save();
+            ctx.strokeStyle = '#ffcc66';
+            ctx.fillStyle = '#ffcc66';
+            ctx.lineWidth = 2;
+            ctx.shadowColor = '#ffaa00';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(mapped.px, mapped.py, 9, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.font = 'bold 12px Tahoma';
+            ctx.fillText(`${polar.rangeM.toFixed(2)}m`, mapped.px + 12, mapped.py - 8);
+            ctx.restore();
+        }
+
         function handleReplayCanvasClick(event) {
             if (!replayState.active || !replaySpatialAnalysis.points.length) return;
             const bounds = canvas.getBoundingClientRect();
@@ -2273,9 +2353,30 @@
             document.getElementById('replayPointDetail').scrollIntoView({ block: 'nearest' });
         }
 
+        function handleLiveCanvasClick(event) {
+            if (replayState.active || !liveSpatialAnalysis.displayPoints.length) return;
+            const bounds = canvas.getBoundingClientRect();
+            const px = (event.clientX - bounds.left) * canvas.width / bounds.width;
+            const py = (event.clientY - bounds.top) * canvas.height / bounds.height;
+            let closest = null;
+            let closestDistance = LIVE_POINT_PICK_RADIUS_PX;
+            liveSpatialAnalysis.displayPoints.forEach(point => {
+                const mapped = mapToCanvas(point.x, point.y);
+                const distance = Math.hypot(mapped.px - px, mapped.py - py);
+                if (distance < closestDistance) { closest = point; closestDistance = distance; }
+            });
+            if (!closest) return;
+            liveSpatialAnalysis.selectedPoint = closest;
+            setPanelMode('analysis');
+            renderLivePointDetail(closest);
+            drawLiveSelectedPoint(closest);
+            document.getElementById('replayPointDetail').scrollIntoView({ block: 'nearest' });
+        }
+
         function renderReplayFrame(frame, preserveSelection = false) {
             updateRadarDisplayRange();
-            const points = (frame.points || []).filter(pt => Math.hypot(pt.x, pt.y) >= BLIND_ZONE_M && isPointUsable(pt));
+            const blindZone = getBlindZoneM();
+            const points = (frame.points || []).filter(pt => Math.hypot(pt.x, pt.y) >= blindZone && isPointUsable(pt));
             const previousClusterId = preserveSelection ? replaySpatialAnalysis.selectedClusterId : null;
             const previousPoint = preserveSelection ? replaySpatialAnalysis.selectedPoint : null;
             const clusters = updateReplayClusterTracks(clusterReplayPoints(points));
@@ -2311,13 +2412,22 @@
             updateRadarDisplayRange();
             lastRangeProfile = Array.isArray(data.range_profile) ? data.range_profile : [];
             drawRangeProfile(lastRangeProfile);
-            // 【近场补偿】过滤雷达中心 BLIND_ZONE_M 内部的天线串扰/安装结构鬼点。
-            const visiblePoints = (data.points || []).filter(pt => Math.hypot(pt.x, pt.y) >= BLIND_ZONE_M);
+            // 【近场补偿】过滤雷达中心 blindZone 内部的天线串扰/安装结构鬼点。
+            const rawPoints = Array.isArray(data.points) ? data.points : [];
+            const blindZone = getBlindZoneM();
+            const visiblePoints = rawPoints.filter(pt => Math.hypot(pt.x, pt.y) >= blindZone);
             const usablePoints = visiblePoints.filter(pt => isPointUsable(pt));
             const staticCandidates = usablePoints.filter(pt => pt.y >= 0 && Math.abs(pt.v) <= STATIC_SPEED_MAX);
             const staticPoints = selectStructureAwareStaticPoints(staticCandidates);
             const dynamicPoints = usablePoints.filter(pt => pt.y >= 0 && Math.abs(pt.v) >= DYNAMIC_SPEED_MIN);
             const displayPoints = staticPoints.concat(dynamicPoints);
+            liveSpatialAnalysis = {
+                frame: data,
+                rawPoints,
+                visiblePoints,
+                displayPoints,
+                selectedPoint: liveSpatialAnalysis.selectedPoint,
+            };
 
             staticObstacleMapper.processPoints(staticPoints);
             const promotedDynamicPoints = staticObstacleMapper.getMovingCandidates();
@@ -2334,6 +2444,7 @@
 
             // 1. 原始点云保留真实跳动；稳定地图开启时会自动淡化原始点
             drawPoints(ctx, displayPoints);
+            drawLiveSelectedPoint();
             drawStableStaticPoints();
             drawStaticObstacles();
 
@@ -2439,6 +2550,7 @@
                 updateRecordingHealth(data.pointcloud_recording);
             }
             if (data.runtime_health) updateSystemHealth(data.runtime_health);
+            renderLivePointDetail();
         }
 
         // 点云绘制：精细小点 + 轻微光晕，适合密集环境扫描
@@ -2537,6 +2649,13 @@
             input.value = noiseBaselineDb;
         }
 
+        function loadBlindZoneParam() {
+            const input = document.getElementById('blindZoneInput');
+            const saved = Number(localStorage.getItem(RADAR_BLIND_ZONE_STORAGE_KEY));
+            blindZoneM = Number.isFinite(saved) && saved >= 0 ? Math.min(saved, 2) : DEFAULT_BLIND_ZONE_M;
+            input.value = blindZoneM;
+        }
+
         function loadLineFilterParams() {
             const lengthInput = document.getElementById('lineMinLengthInput');
             const ratioInput = document.getElementById('lineMinRatioInput');
@@ -2573,6 +2692,18 @@
             localStorage.setItem(NOISE_BASELINE_STORAGE_KEY, String(next));
         });
 
+        document.getElementById('blindZoneInput').addEventListener('input', (e) => {
+            const next = Number(e.target.value);
+            if (!Number.isFinite(next) || next < 0) return;
+            blindZoneM = Math.min(next, 2);
+            localStorage.setItem(RADAR_BLIND_ZONE_STORAGE_KEY, String(blindZoneM));
+            if (replayState.active && replaySpatialAnalysis.frame) {
+                renderReplayFrame(replaySpatialAnalysis.frame, true);
+            } else {
+                renderLivePointDetail();
+            }
+        });
+
         document.getElementById('lineMinLengthInput').addEventListener('input', (e) => {
             const next = Number(e.target.value);
             if (!Number.isFinite(next) || next <= 0) return;
@@ -2606,6 +2737,7 @@
 
         window.addEventListener('load', loadIpHistory);
         window.addEventListener('load', loadNoiseBaseline);
+        window.addEventListener('load', loadBlindZoneParam);
         window.addEventListener('load', loadLineFilterParams);
         window.addEventListener('load', loadFilterToggles);
         window.addEventListener('load', updateMotorFrameAngleDisplay);
@@ -2693,7 +2825,7 @@
             document.getElementById('analysisContent').style.display = analysisMode ? 'block' : 'none';
             document.getElementById('configModeBtn').classList.toggle('active', !analysisMode);
             document.getElementById('analysisModeBtn').classList.toggle('active', analysisMode);
-            document.getElementById('panelHeading').innerText = analysisMode ? '离线分析工作台' : '📡 雷达参数配置';
+            document.getElementById('panelHeading').innerText = analysisMode ? '点云分析工作台' : '📡 雷达参数配置';
         }
 
         function formatMetric(value, suffix = '', digits = 1) {
@@ -2773,6 +2905,10 @@
 
         function renderReplayFrameDetail(frame) {
             const points = Array.isArray(frame.points) ? frame.points : [];
+            const blindZone = getBlindZoneM();
+            const shownPoints = points.filter(point => pointRange2d(point) >= blindZone && isPointUsable(point));
+            const rawNearest = nearestPointByRange(points);
+            const shownNearest = nearestPointByRange(shownPoints);
             const finite = (values) => values.filter(Number.isFinite);
             const snr = finite(points.map(point => Number(point.snr)));
             const noise = finite(points.map(point => Number(point.noise)));
@@ -2782,7 +2918,9 @@
             const tlv = Array.isArray(frame.tlv_types) ? frame.tlv_types.join(', ') : '--';
             document.getElementById('replayFrameDetail').innerText = [
                 `雷达帧 ${frame.frame_num ?? '--'} · 记录帧 ${frame.record_index ?? '--'}`,
-                `点数 ${points.length} · Side Info ${frame.side_info_count ?? 0} · TLV ${tlv}`,
+                `点数 raw/shown ${points.length}/${shownPoints.length} · blind zone ${blindZone.toFixed(2)} m · Side Info ${frame.side_info_count ?? 0} · TLV ${tlv}`,
+                formatNearestPoint('nearest raw', rawNearest),
+                formatNearestPoint('nearest shown', shownNearest),
                 `距离均值 ${formatMetric(average(ranges), ' m')} · |速度|均值 ${formatMetric(average(speed), ' m/s')}`,
                 `SNR 均值 ${formatMetric(average(snr), ' dB')} · Noise 均值 ${formatMetric(average(noise), ' dB')}`,
             ].join('\n');
@@ -2920,6 +3058,7 @@
             updateReplayControls();
         });
         canvas.addEventListener('click', handleReplayCanvasClick);
+        canvas.addEventListener('click', handleLiveCanvasClick);
 
         document.getElementById('clearMapBtn').addEventListener('click', () => {
             resetStaticMap();

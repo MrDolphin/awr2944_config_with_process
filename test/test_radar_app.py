@@ -43,6 +43,14 @@ class RadarAppMarkupTests(unittest.TestCase):
             "scrollIntoView({ block: 'nearest' })",
             "if (position <= previousPosition) resetReplayClusterTracks()",
             "handleReplayCanvasClick",
+            'id="blindZoneInput"',
+            "RADAR_BLIND_ZONE_STORAGE_KEY",
+            "getBlindZoneM",
+            "loadBlindZoneParam",
+            "handleLiveCanvasClick",
+            "renderLivePointDetail",
+            "nearest raw",
+            "nearest shown",
         ):
             self.assertIn(selector, app_html)
 
