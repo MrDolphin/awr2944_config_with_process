@@ -533,9 +533,14 @@
 
         .analysis-target-list {
             display: grid;
-            gap: 5px;
-            max-height: clamp(132px, 22vh, 190px);
+            align-content: start;
+            gap: 6px;
+            height: clamp(168px, 22vh, 210px);
+            min-height: clamp(168px, 22vh, 210px);
+            max-height: clamp(168px, 22vh, 210px);
             overflow-y: auto;
+            overscroll-behavior: contain;
+            padding-right: 4px;
         }
 
         .analysis-target-row {
@@ -574,7 +579,11 @@
         .analysis-target-count { color: #7dffdc; font: 700 12px "Courier New", monospace; }
 
         .analysis-point-detail {
-            min-height: 52px;
+            height: clamp(112px, 16vh, 180px);
+            min-height: clamp(112px, 16vh, 180px);
+            max-height: clamp(112px, 16vh, 180px);
+            overflow-y: auto;
+            overscroll-behavior: contain;
             padding: 8px;
             border-left: 2px solid #35e6ff;
             background: rgba(8, 25, 33, 0.72);
