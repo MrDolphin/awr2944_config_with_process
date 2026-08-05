@@ -184,11 +184,12 @@ def motor_scan_loop(config, stop_event):
         direction = DigitalOutputDevice(dir_gpio)
 
         if clockwise:
+            direction.on()
+            pwm.value = 1 - duty
+
+        else:
             direction.off()
             pwm.value = duty
-        else:
-            direction.on()
-            pwm.value = 1.0 - duty
 
         gimbal_scan["status"] = "running"
         gimbal_scan["last_update_s"] = time.time()

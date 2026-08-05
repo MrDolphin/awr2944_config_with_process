@@ -310,6 +310,14 @@
             margin-top: 2px;
             line-height: 1.18;
         }
+        #pointsDisplay {
+            line-height: 1.35;
+        }
+        #pointsDisplay .num {
+            display: inline-block;
+            min-width: 2em;
+            text-align: right;
+        }
 
         .config-panel {
             position: absolute;
@@ -1069,6 +1077,9 @@
 
     <script>
         const json = { parse: JSON.parse, stringify: JSON.stringify };
+        function numSpan(n) {
+             return `<span class="num">${Math.max(0, Number(n) | 0)}</span>`;
+        }
         const canvas = document.getElementById('radarCanvas');
         const ctx = canvas.getContext('2d');
         const rangeProfileCanvas = document.getElementById('rangeProfileCanvas');
@@ -2918,7 +2929,10 @@
             lastFrameTime = now;
 
             document.getElementById('frameDisplay').innerText = `#${data.frame_num} (${fps.toFixed(0)}Hz)`;
-            document.getElementById('pointsDisplay').innerText = `${displayPoints.length}/${visiblePoints.length} (静:${staticPoints.length}/${staticCandidates.length}/动:${dynamicPoints.length}+候:${promotedDynamicPoints.length})`;
+            document.getElementById('pointsDisplay').innerHTML =
+             `${numSpan(displayPoints.length)}/${numSpan(visiblePoints.length)}<br>` +
+            `静:${numSpan(staticPoints.length)}/${numSpan(staticCandidates.length)}<br>` +
+            `动:${numSpan(dynamicPoints.length)}+候:${numSpan(promotedDynamicPoints.length)}`;
             document.getElementById('targetsDisplay').innerText = tracker.boats.filter(b => tracker.isBoatDrawable(b)).length;
             const tlvTypes = Array.isArray(data.tlv_types) ? data.tlv_types.join(',') : '--';
             const sideCount = Number.isFinite(Number(data.side_info_count)) ? Number(data.side_info_count) : 0;
