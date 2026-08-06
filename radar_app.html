@@ -1019,9 +1019,24 @@
                             <input type="number" id="f_fovRange" value="20" step="1">
                         </div>
                         <div class="param-item">
-                            <label>水平探测夹角 <i class="help-icon"
-                                    title="限制雷达的视野扇区。例如设为 60°，则雷达只会报告前方正负 60 度范围内的物体。">?</i></label>
-                            <input type="number" id="f_fovAngle" value="75" step="5">
+                            <label>水平角最小值 <i class="help-icon"
+                                    title="aoaFovCfg 水平方位角下限，例如 -90 表示左前 90 度。">?</i></label>
+                            <input type="number" id="f_azimMin" value="-75" step="5">
+                        </div>
+                        <div class="param-item">
+                            <label>水平角最大值 <i class="help-icon"
+                                    title="aoaFovCfg 水平方位角上限，例如 90 表示右前 90 度。可与最小值不对称。">?</i></label>
+                            <input type="number" id="f_azimMax" value="75" step="5">
+                        </div>
+                        <div class="param-item">
+                            <label>垂直角最小值 <i class="help-icon"
+                                    title="aoaFovCfg 垂直俯仰角下限，例如 -10。用于抑制水面/船体反射时可收窄。">?</i></label>
+                            <input type="number" id="f_elevMin" value="-30" step="5">
+                        </div>
+                        <div class="param-item">
+                            <label>垂直角最大值 <i class="help-icon"
+                                    title="aoaFovCfg 垂直俯仰角上限，例如 15。可与最小值不对称。">?</i></label>
+                            <input type="number" id="f_elevMax" value="30" step="5">
                         </div>
 
                         <!-- 隐藏的高级参数，维持原有表单结构 -->
@@ -3805,7 +3820,10 @@
                 } else if (p[0] === 'cfarFovCfg' && p[2] == '0') {
                     document.getElementById('f_fovRange').value = p[4];
                 } else if (p[0] === 'aoaFovCfg') {
-                    document.getElementById('f_fovAngle').value = Math.abs(parseFloat(p[2]));
+                    document.getElementById('f_azimMin').value = p[2] ?? '-75';
+                    document.getElementById('f_azimMax').value = p[3] ?? '75';
+                    document.getElementById('f_elevMin').value = p[4] ?? '-30';
+                    document.getElementById('f_elevMax').value = p[5] ?? '30';
                 }
             });
             updateRadarDisplayRange();
@@ -3861,8 +3879,11 @@
                     p[4] = document.getElementById('f_fovRange').value;
                     return p.join(' ');
                 } else if (p[0] === 'aoaFovCfg') {
-                    const ang = document.getElementById('f_fovAngle').value;
-                    return `aoaFovCfg -1 -${ang} ${ang} -${ang} ${ang}`;
+                    const azimMin = document.getElementById('f_azimMin').value;
+                    const azimMax = document.getElementById('f_azimMax').value;
+                    const elevMin = document.getElementById('f_elevMin').value;
+                    const elevMax = document.getElementById('f_elevMax').value;
+                    return `aoaFovCfg -1 ${azimMin} ${azimMax} ${elevMin} ${elevMax}`;
                 }
                 return line;
             });

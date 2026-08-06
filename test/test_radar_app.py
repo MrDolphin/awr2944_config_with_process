@@ -86,6 +86,11 @@ class RadarAppMarkupTests(unittest.TestCase):
             'data-filter-tab="line"',
             'id="filterPanelNear"',
             "switchFilterTab",
+            'id="f_azimMin"',
+            'id="f_azimMax"',
+            'id="f_elevMin"',
+            'id="f_elevMax"',
+            "aoaFovCfg -1 ${azimMin} ${azimMax} ${elevMin} ${elevMax}",
             'id="localMapBadge"',
             "LOCAL MAP FRAMEWORK",
             "transformRadarPointToLocalMap",
@@ -97,6 +102,8 @@ class RadarAppMarkupTests(unittest.TestCase):
             "局部地图: 关",
         ):
             self.assertIn(selector, app_html)
+        self.assertNotIn('id="f_fovAngle"', app_html)
+        self.assertNotIn("return `aoaFovCfg -1 -${ang} ${ang} -${ang} ${ang}`", app_html)
 
 
 @unittest.skipUnless(sync_playwright is not None, "Playwright is not installed")
