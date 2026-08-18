@@ -194,12 +194,47 @@ class FlatSeaSimulationTests(unittest.TestCase):
                         del group[dataset_name]
                         group.create_dataset(dataset_name, data=transposed)
             loaded = read_hdf5(output_path)
+            rendered_path = plot_hdf5(output_path)
+            rendered_exists = rendered_path.is_file()
 
         self.assertEqual(loaded.x_m.shape, result.x_m.shape)
         self.assertTrue(np.array_equal(loaded.x_m, result.x_m))
         self.assertEqual(loaded.schema_version, "awr2944p-flat-sea-v0.1")
         self.assertAlmostEqual(loaded.height_m, 1.0)
         self.assertAlmostEqual(loaded.mounting_pitch_deg, 3.0)
+        self.assertTrue(np.all(np.diff(loaded.azimuth_deg, axis=1) > 0.0))
+        self.assertTrue(
+            np.all(np.diff(loaded.horizontal_range_m, axis=0) > 0.0)
+        )
+        self.assertTrue(rendered_exists)
+
+    def test_hdf5_reader_rejects_multivalue_installation_scalar(self):
+        result = simulate_flat_sea(
+            SimulationSettings(
+                range_min_m=5.0,
+                range_max_m=6.0,
+                range_step_m=1.0,
+                azimuth_min_deg=0.0,
+                azimuth_max_deg=0.0,
+                azimuth_step_deg=1.0,
+            ),
+            mounting_pitch_deg=5.0,
+        )
+
+        with tempfile.TemporaryDirectory() as directory:
+            output_path = Path(directory) / "invalid_scalar.h5"
+            write_hdf5(result, output_path)
+            with h5py.File(output_path, "r+") as handle:
+                del handle["/installation/height_m"]
+                handle.create_dataset(
+                    "/installation/height_m", data=np.asarray([1.0, 2.0])
+                )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                r"/installation/height_m must contain exactly one value.*\(2,\)",
+            ):
+                read_hdf5(output_path)
 
     def test_hdf5_plot_is_saved_in_the_run_figures_directory(self):
         settings = SimulationSettings(
