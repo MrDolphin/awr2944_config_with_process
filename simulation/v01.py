@@ -323,6 +323,8 @@ def _attribute_text(value: object) -> str:
     if isinstance(value, (bytes, np.bytes_)):
         return bytes(value).decode("utf-8")
     if isinstance(value, np.ndarray):
+        if value.size == 1:
+            return _attribute_text(value.reshape(-1)[0])
         if value.dtype.kind in {"S", "U"}:
             return "".join(_attribute_text(item) for item in value.ravel())
         if value.dtype.kind in {"i", "u"}:

@@ -159,7 +159,24 @@ class FlatSeaSimulationTests(unittest.TestCase):
             output_path = Path(directory) / "matlab_case.h5"
             write_hdf5(result, output_path)
             with h5py.File(output_path, "r+") as handle:
-                handle.attrs["producer"] = np.bytes_("matlab")
+                del handle.attrs["producer"]
+                handle.attrs.create(
+                    "producer",
+                    np.asarray(["matlab"], dtype=h5py.string_dtype("utf-8")),
+                )
+                for attribute_name in ("schema_version", "power_model"):
+                    attribute_value = handle.attrs[attribute_name]
+                    if isinstance(attribute_value, (bytes, np.bytes_)):
+                        attribute_text = bytes(attribute_value).decode("utf-8")
+                    else:
+                        attribute_text = str(attribute_value)
+                    del handle.attrs[attribute_name]
+                    handle.attrs.create(
+                        attribute_name,
+                        np.asarray(
+                            [attribute_text], dtype=h5py.string_dtype("utf-8")
+                        ),
+                    )
                 for dataset_path in (
                     "/installation/height_m",
                     "/installation/mounting_pitch_deg",
@@ -180,6 +197,7 @@ class FlatSeaSimulationTests(unittest.TestCase):
 
         self.assertEqual(loaded.x_m.shape, result.x_m.shape)
         self.assertTrue(np.array_equal(loaded.x_m, result.x_m))
+        self.assertEqual(loaded.schema_version, "awr2944p-flat-sea-v0.1")
         self.assertAlmostEqual(loaded.height_m, 1.0)
         self.assertAlmostEqual(loaded.mounting_pitch_deg, 3.0)
 
