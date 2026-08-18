@@ -35,6 +35,8 @@ casePath = fullfile(outputDir, "pitch_05p0_deg.h5");
 verifyTrue(testCase, isfile(casePath));
 verifyEqual(testCase, h5readatt(casePath, "/", "schema_version"), "awr2944p-flat-sea-v0.1");
 verifyEqual(testCase, h5read(casePath, "/radar/num_adc_samples"), 656);
+verifyEqual(testCase, h5read(casePath, "/radar/frame_num_adc_samples"), 656);
+verifyEqual(testCase, h5read(casePath, "/radar/frame_period_ms"), 100);
 txMasks = h5read(casePath, "/radar/chirp_tx_masks");
 verifyEqual(testCase, txMasks(:), int64([1; 4; 8; 2]));
 elevation = h5read(casePath, "/truth/elevation_deg");

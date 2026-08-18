@@ -196,11 +196,15 @@ def parse_radar_cfg(path: Optional[str]) -> Dict[str, object]:
                 chirp_start = int(parts[1])
                 chirp_end = int(parts[2])
                 loops = int(parts[3])
-                # This project uses AWR2944 cfg lines such as:
+                # AWR2944 MCU+ SDK profiles add numAdcSamples before the frame
+                # periodicity, for example:
                 #   frameCfg 0 3 24 0 256 50 1 0
-                # The frontend treats parts[6] as the frame period, while some
-                # TI profiles omit the extra field and use parts[5]. Support both.
-                frame_period_idx = 6 if len(parts) >= 8 else 5
+                # Older profiles omit numAdcSamples. Preserve both layouts.
+                if len(parts) >= 9:
+                    info["frame_num_adc_samples"] = int(float(parts[5]))
+                    frame_period_idx = 6
+                else:
+                    frame_period_idx = 5
                 frame_period_ms = float(parts[frame_period_idx])
                 info["frame_chirp_start"] = chirp_start
                 info["frame_chirp_end"] = chirp_end

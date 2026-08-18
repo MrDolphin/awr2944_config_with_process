@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass
 import json
 import math
 from pathlib import Path
 import shutil
-from typing import Union
+from typing import Mapping, Union
 
 import h5py
 import numpy as np
@@ -165,7 +165,10 @@ def load_config(config_path: PathLike) -> V01Config:
 
 
 def simulate_flat_sea(
-    settings: SimulationSettings, mounting_pitch_deg: float
+    settings: SimulationSettings,
+    mounting_pitch_deg: float,
+    *,
+    radar_metadata: Mapping[str, object] | None = None,
 ) -> SimulationResult:
     """Return flat-sea geometry relative to a downward-pitched radar boresight.
 
@@ -239,7 +242,7 @@ def simulate_flat_sea(
         power_model=POWER_MODEL,
         height_m=settings.height_m,
         mounting_pitch_deg=mounting_pitch_deg,
-        radar_metadata={},
+        radar_metadata=dict(radar_metadata or {}),
         x_m=x_m,
         y_m=y_m,
         z_m=np.zeros_like(x_m),
@@ -577,8 +580,9 @@ def run_sweep(
     elevation_half_width = config.settings.elevation_3db_half_width_deg
     elevation_6db_half_width = config.settings.elevation_6db_half_width_deg
     for pitch_deg in config.mounting_pitch_sweep_deg:
-        result = replace(
-            simulate_flat_sea(config.settings, pitch_deg),
+        result = simulate_flat_sea(
+            config.settings,
+            pitch_deg,
             radar_metadata=config.radar_metadata,
         )
         stem = _pitch_filename(pitch_deg)

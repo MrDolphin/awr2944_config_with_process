@@ -237,7 +237,9 @@ for lineIndex = 1:numel(lines)
         chirpStart = str2double(tokens(2));
         chirpEnd = str2double(tokens(3));
         loops = str2double(tokens(4));
-        if numel(tokens) >= 8
+        % AWR2944 MCU+ SDK adds numAdcSamples before frame periodicity.
+        if numel(tokens) >= 9
+            metadata.frame_num_adc_samples = str2double(tokens(6));
             framePeriodIndex = 7;
         else
             framePeriodIndex = 6;

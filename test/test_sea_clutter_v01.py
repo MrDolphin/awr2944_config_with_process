@@ -32,6 +32,8 @@ class FlatSeaSimulationTests(unittest.TestCase):
         self.assertEqual(config.mounting_pitch_sweep_deg, (0.0, 3.0, 5.0, 8.0, 10.0))
         self.assertAlmostEqual(config.settings.height_m, 1.0)
         self.assertEqual(config.radar_metadata["num_adc_samples"], 656)
+        self.assertEqual(config.radar_metadata["frame_num_adc_samples"], 656)
+        self.assertAlmostEqual(config.radar_metadata["frame_period_ms"], 100.0)
         self.assertAlmostEqual(config.radar_metadata["start_freq_ghz"], 77.0)
         self.assertEqual(config.radar_metadata["chirp_tx_masks"], {0: 1, 1: 4, 2: 8, 3: 2})
 
@@ -54,6 +56,20 @@ class FlatSeaSimulationTests(unittest.TestCase):
             result.horizontal_range_m[center_index, 0], expected_range_m, delta=0.011
         )
         self.assertAlmostEqual(result.elevation_deg[center_index, 0], 0.0, delta=0.03)
+
+    def test_direct_simulation_preserves_cfg_metadata_for_hdf5(self):
+        baseline = load_config(
+            Path("simulation/configs/baseline_1m.json").resolve()
+        )
+
+        result = simulate_flat_sea(
+            baseline.settings,
+            mounting_pitch_deg=5.0,
+            radar_metadata=baseline.radar_metadata,
+        )
+
+        self.assertEqual(result.radar_metadata["frame_num_adc_samples"], 656)
+        self.assertAlmostEqual(result.radar_metadata["frame_period_ms"], 100.0)
 
     def test_three_db_elevation_edges_define_expected_sea_footprint(self):
         settings = SimulationSettings(
