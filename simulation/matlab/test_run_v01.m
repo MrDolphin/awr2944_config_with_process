@@ -47,4 +47,6 @@ elevation = h5read(casePath, "/truth/elevation_deg");
 range = h5read(casePath, "/truth/horizontal_range_m");
 [~, centerIndex] = min(abs(elevation), [], "all", "linear");
 verifyEqual(testCase, range(centerIndex), 1 / tand(5), AbsTol=0.011);
+verifyError(testCase, @() run_v01(configPath, "test_baseline"), ...
+    "run_v01:RunExists");
 end

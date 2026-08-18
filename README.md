@@ -65,7 +65,9 @@ python -m simulation.run_v01 `
 MATLAB R2025a 图形界面中运行：
 
 ```matlab
-cd('D:\hp-laptop\USV\awr2944_config_and_process_with_trace_codex\simulation\matlab')
+% 先把 MATLAB 当前目录切换到你要运行的 worktree 根目录
+repoRoot = pwd;
+cd(fullfile(repoRoot, 'simulation', 'matlab'))
 results = runtests('test_run_v01.m');
 assertSuccess(results)
 run_v01("", "manual_matlab_baseline_1m")

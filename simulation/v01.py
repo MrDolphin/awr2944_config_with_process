@@ -386,11 +386,15 @@ def plot_hdf5(
     """Render the standard V0.1 overview from a MATLAB or Python HDF5 file."""
 
     input_file = Path(input_path)
-    output_file = (
-        Path(output_path)
-        if output_path is not None
-        else input_file.with_suffix(".png")
-    )
+    if output_path is not None:
+        output_file = Path(output_path)
+    elif input_file.parent.name == "data":
+        output_file = (
+            input_file.parent.parent / "figures" / input_file.with_suffix(".png").name
+        )
+    else:
+        output_file = input_file.with_suffix(".png")
+    output_file.parent.mkdir(parents=True, exist_ok=True)
     _plot_case(read_hdf5(input_file), output_file, plot_floor_db)
     return output_file
 
