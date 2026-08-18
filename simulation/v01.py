@@ -330,6 +330,17 @@ def _attribute_text(value: object) -> str:
     return str(value)
 
 
+def _scalar_float(value: object, dataset_path: str) -> float:
+    """Read one numeric value regardless of scalar or MATLAB 1x1 storage."""
+
+    array = np.asarray(value)
+    if array.size != 1:
+        raise ValueError(
+            f"{dataset_path} must contain exactly one value, got shape {array.shape}"
+        )
+    return float(array.reshape(-1)[0])
+
+
 def read_hdf5(input_path: PathLike) -> SimulationResult:
     """Read a V0.1 result produced by either the MATLAB or Python adapter."""
 
@@ -338,9 +349,13 @@ def read_hdf5(input_path: PathLike) -> SimulationResult:
         values: dict[str, object] = {
             "schema_version": _attribute_text(handle.attrs["schema_version"]),
             "power_model": _attribute_text(handle.attrs["power_model"]),
-            "height_m": float(handle["/installation/height_m"][()]),
-            "mounting_pitch_deg": float(
-                handle["/installation/mounting_pitch_deg"][()]
+            "height_m": _scalar_float(
+                handle["/installation/height_m"][()],
+                "/installation/height_m",
+            ),
+            "mounting_pitch_deg": _scalar_float(
+                handle["/installation/mounting_pitch_deg"][()],
+                "/installation/mounting_pitch_deg",
             ),
             "radar_metadata": {},
         }
