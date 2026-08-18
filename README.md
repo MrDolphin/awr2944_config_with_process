@@ -42,6 +42,41 @@ tools/deployment_preflight.py  # 只读部署预检脚本
 test/                          # 自动化测试
 ```
 
+## 船载平面海面仿真 V0.1
+
+V0.1 用于验证 1 m 安装高度、固定向下俯角和 AWR2944PEVM 近似方向图对平面海面覆盖及相对功率的影响。它使用单位 `sigma0`、双程方向图和 `R^-4` 权重，不是经过造浪池或海试校准的绝对海杂波模型，也不包含动态波浪、ADC、Range-Doppler、AoA 或 CFAR。
+
+安装独立的仿真依赖：
+
+```powershell
+python -m pip install --user -r requirements-simulation.txt
+```
+
+运行 Python 基准扫描：
+
+```powershell
+python -m simulation.run_v01 --config simulation/configs/baseline_1m.json
+```
+
+默认扫描安装俯角 `0°、3°、5°、8°、10°`，输出 HDF5、输入快照、摘要和 PNG 到 `simulation/output/v01/`。HDF5 明确区分 `/truth` 几何真值与 `/processed` 相对功率。
+
+MATLAB R2025a 图形界面中运行：
+
+```matlab
+cd('D:\hp-laptop\USV\awr2944_config_and_process_with_trace_codex\simulation\matlab')
+results = runtests('test_run_v01.m');
+assertSuccess(results)
+run_v01
+```
+
+使用 Python 渲染 MATLAB 生成的单个 HDF5：
+
+```powershell
+python -m simulation.run_v01 --plot-hdf5 simulation/output/v01/pitch_05p0_deg.h5
+```
+
+设计、坐标定义、假设和验收阈值见 `docs/plans/2026-08-18-awr2944p-v01.md`。
+
 ## 网页端部署
 
 网页端是单文件 `radar_app.html`。如果只修改了网页界面，不需要重启树莓派服务，只需覆盖 HTML 并强制刷新浏览器。

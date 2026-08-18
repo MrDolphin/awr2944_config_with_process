@@ -7,6 +7,7 @@ record/*.dat
 record/*.jsonl
 captures/
 radar_debug.log
+simulation/output/
 
 # MATLAB 自动备份
 *.asv
