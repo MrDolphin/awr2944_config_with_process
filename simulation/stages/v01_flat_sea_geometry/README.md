@@ -12,5 +12,10 @@ results/python/<run_id>/
 results/matlab/<run_id>/
 ```
 
+Python CLI 和 MATLAB adapter 都会拒绝已存在的 `run_id`。运行根目录包含
+设计快照、环境、配置、摘要和验收记录；HDF5 位于 `data/`，图位于
+`figures/`。需要进入版本控制的小型回归摘要先人工复核，再复制到
+`baselines/<baseline_id>/`。
+
 旧的 `simulation/output/v01` 含有 Python 图片和 MATLAB HDF5 的混合结果，
 只作为历史证据保留，不再作为新的对比基准。

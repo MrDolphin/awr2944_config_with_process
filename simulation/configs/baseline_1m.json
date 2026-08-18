@@ -31,7 +31,7 @@
     "absolute_calibration": false
   },
   "output": {
-    "directory": "../output/v01",
+    "directory": "../stages/v01_flat_sea_geometry/results",
     "plot_floor_db": -60.0
   }
 }

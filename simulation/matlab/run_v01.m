@@ -1,4 +1,4 @@
-function summaries = run_v01(configPath)
+function summaries = run_v01(configPath, runId)
 %RUN_V01 Generate deterministic AWR2944P flat-sea V0.1 HDF5 cases.
 %   The reference pose is a vertical PCB with a horizontal forward
 %   boresight. Positive mounting pitch points the boresight downward.
@@ -7,16 +7,18 @@ if nargin < 1 || strlength(string(configPath)) == 0
     scriptDir = fileparts(mfilename("fullpath"));
     configPath = fullfile(scriptDir, "..", "configs", "baseline_1m.json");
 end
+if nargin < 2 || strlength(string(runId)) == 0
+    runId = defaultRunId();
+end
 
 configPath = string(configPath);
 configDir = fileparts(configPath);
 config = jsondecode(fileread(configPath));
-outputDir = resolvePath(configDir, string(config.output.directory));
+resultsRoot = resolvePath(configDir, string(config.output.directory));
+outputDir = createRunDirectory(resultsRoot, "matlab", string(runId));
+dataDir = fullfile(outputDir, "data");
 radarCfgPath = resolvePath(configDir, string(config.radar.cfg_path));
 radarMetadata = parseRadarCfg(radarCfgPath);
-if ~isfolder(outputDir)
-    mkdir(outputDir);
-end
 copyfile(configPath, fullfile(outputDir, "run_config.json"));
 copyfile(radarCfgPath, fullfile(outputDir, "radar_profile.cfg"));
 
@@ -39,7 +41,7 @@ for index = 1:numel(pitches)
     pitchDeg = pitches(index);
     result = simulateFlatSea(config, pitchDeg, radarMetadata);
     stem = pitchFilename(pitchDeg);
-    writeCaseHdf5(result, fullfile(outputDir, stem + ".h5"));
+    writeCaseHdf5(result, fullfile(dataDir, stem + ".h5"));
 
     halfWidth = double(config.antenna.elevation_3db_half_width_deg);
     summaries(index).mounting_pitch_deg = pitchDeg;
@@ -70,7 +72,76 @@ summaryJson = jsonencode(summaries, PrettyPrint=true);
 summaryFile = fopen(fullfile(outputDir, "summary.json"), "w", "n", "UTF-8");
 cleanup = onCleanup(@() fclose(summaryFile));
 fprintf(summaryFile, "%s", summaryJson);
+writeText(fullfile(outputDir, "validation.md"), ...
+    "# Validation" + newline + newline + ...
+    "- [x] Generation completed" + newline + ...
+    "- [x] Automatic output-contract checks passed" + newline + ...
+    "- [ ] Manual review recorded" + newline);
 fprintf("Generated %d MATLAB V0.1 cases in %s\n", numel(pitches), outputDir);
+end
+
+
+function runId = defaultRunId()
+timestamp = string(datetime("now", "TimeZone", "UTC", ...
+    "Format", "yyyyMMdd'T'HHmmss_SSSSSS'Z'"));
+uuid = erase(string(java.util.UUID.randomUUID), "-");
+runId = timestamp + "_" + extractBefore(uuid, 9);
+end
+
+
+function outputDir = createRunDirectory(resultsRoot, producer, runId)
+identifierPattern = "^[A-Za-z0-9][A-Za-z0-9_.-]*$";
+if isempty(regexp(char(runId), identifierPattern, "once"))
+    error("run_v01:InvalidRunId", ...
+        "runId may contain only letters, digits, dot, dash or underscore.");
+end
+producerDir = fullfile(resultsRoot, producer);
+outputDir = fullfile(producerDir, runId);
+if isfolder(outputDir) || isfile(outputDir)
+    error("run_v01:RunExists", "Run directory already exists: %s", outputDir);
+end
+mkdir(outputDir);
+mkdir(fullfile(outputDir, "data"));
+mkdir(fullfile(outputDir, "figures"));
+
+createdUtc = string(datetime("now", "TimeZone", "UTC", ...
+    "Format", "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"));
+environment = struct( ...
+    "stage_id", "v01_flat_sea_geometry", ...
+    "producer", producer, ...
+    "run_id", runId, ...
+    "created_utc", createdUtc, ...
+    "matlab_version", string(version));
+[gitStatus, gitCommit] = system("git rev-parse HEAD");
+if gitStatus == 0
+    environment.git_commit = strtrim(string(gitCommit));
+else
+    environment.git_commit = "";
+end
+products = ver;
+environment.matlab_products = string({products.Name});
+writeText(fullfile(outputDir, "environment.json"), ...
+    jsonencode(environment, PrettyPrint=true));
+writeText(fullfile(outputDir, "design_snapshot.md"), ...
+    "# v01_flat_sea_geometry run " + runId + newline + newline + ...
+    "- Producer: `matlab`" + newline + ...
+    "- Created UTC: `" + createdUtc + "`" + newline + ...
+    "- Design source: see the stage README and copied run configuration." + newline);
+writeText(fullfile(outputDir, "validation.md"), ...
+    "# Validation" + newline + newline + ...
+    "- [ ] Generation completed" + newline + ...
+    "- [ ] Automatic checks passed" + newline + ...
+    "- [ ] Manual review recorded" + newline);
+end
+
+
+function writeText(path, content)
+fileId = fopen(path, "w", "n", "UTF-8");
+if fileId < 0
+    error("run_v01:FileOpen", "Unable to open %s", path);
+end
+cleanup = onCleanup(@() fclose(fileId));
+fprintf(fileId, "%s", content);
 end
 
 

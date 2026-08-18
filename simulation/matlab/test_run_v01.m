@@ -27,12 +27,16 @@ fileCleanup = onCleanup(@() fclose(fileId));
 fprintf(fileId, "%s", jsonencode(config, PrettyPrint=true));
 clear fileCleanup;
 
-summaries = run_v01(configPath);
+summaries = run_v01(configPath, "test_baseline");
 verifyEqual(testCase, summaries.boresight_intersection_m, 1 / tand(5), AbsTol=1e-10);
 verifyEqual(testCase, summaries.six_db_near_m, 1 / tand(10), AbsTol=1e-10);
 verifyTrue(testCase, isnan(summaries.six_db_far_m));
-casePath = fullfile(outputDir, "pitch_05p0_deg.h5");
+runDir = fullfile(outputDir, "matlab", "test_baseline");
+casePath = fullfile(runDir, "data", "pitch_05p0_deg.h5");
 verifyTrue(testCase, isfile(casePath));
+verifyTrue(testCase, isfile(fullfile(runDir, "design_snapshot.md")));
+verifyTrue(testCase, isfile(fullfile(runDir, "environment.json")));
+verifyTrue(testCase, isfile(fullfile(runDir, "validation.md")));
 verifyEqual(testCase, h5readatt(casePath, "/", "schema_version"), "awr2944p-flat-sea-v0.1");
 verifyEqual(testCase, h5read(casePath, "/radar/num_adc_samples"), 656);
 verifyEqual(testCase, h5read(casePath, "/radar/frame_num_adc_samples"), 656);

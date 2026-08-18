@@ -195,11 +195,16 @@ class FlatSeaSimulationTests(unittest.TestCase):
             )
             summaries = run_sweep(config, render_plots=False)
             output_names = {path.name for path in Path(directory).iterdir()}
-            loaded_case = read_hdf5(Path(directory) / "pitch_05p0_deg.h5")
+            data_names = {
+                path.name for path in (Path(directory) / "data").iterdir()
+            }
+            loaded_case = read_hdf5(
+                Path(directory) / "data" / "pitch_05p0_deg.h5"
+            )
 
         self.assertEqual(len(summaries), 2)
-        self.assertIn("pitch_00p0_deg.h5", output_names)
-        self.assertIn("pitch_05p0_deg.h5", output_names)
+        self.assertIn("pitch_00p0_deg.h5", data_names)
+        self.assertIn("pitch_05p0_deg.h5", data_names)
         self.assertIn("summary.json", output_names)
         self.assertIn("radar_profile.cfg", output_names)
         self.assertAlmostEqual(summaries[1]["boresight_intersection_m"], 11.4301, places=3)
@@ -232,10 +237,12 @@ class FlatSeaSimulationTests(unittest.TestCase):
                 radar_metadata=baseline.radar_metadata,
             )
             run_sweep(config, render_plots=True)
-            output_names = {path.name for path in Path(directory).iterdir()}
+            figure_names = {
+                path.name for path in (Path(directory) / "figures").iterdir()
+            }
 
-        self.assertIn("pitch_05p0_deg.png", output_names)
-        self.assertIn("pitch_coverage_summary.png", output_names)
+        self.assertIn("pitch_05p0_deg.png", figure_names)
+        self.assertIn("pitch_coverage_summary.png", figure_names)
 
 
 if __name__ == "__main__":

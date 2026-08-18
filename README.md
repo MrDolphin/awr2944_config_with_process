@@ -55,10 +55,12 @@ python -m pip install --user -r requirements-simulation.txt
 运行 Python 基准扫描：
 
 ```powershell
-python -m simulation.run_v01 --config simulation/configs/baseline_1m.json
+python -m simulation.run_v01 `
+  --config simulation/configs/baseline_1m.json `
+  --run-id manual_baseline_1m
 ```
 
-默认扫描安装俯角 `0°、3°、5°、8°、10°`，输出 HDF5、输入快照、3/6 dB 覆盖摘要和 PNG 到 `simulation/output/v01/`。HDF5 明确区分 `/truth` 几何真值、`/processed` 相对功率与 `/radar` CFG 元数据。V0.1 会解析并记录实际 CFG，但尚不使用这些波形参数生成 ADC 回波。
+默认扫描安装俯角 `0°、3°、5°、8°、10°`，并把结果写到 `simulation/stages/v01_flat_sea_geometry/results/python/<run_id>/`。已存在的 `run_id` 会被拒绝，防止覆盖历史结果。HDF5 放在 `data/`，PNG 放在 `figures/`，运行根目录保留配置、环境、摘要和验收记录。HDF5 明确区分 `/truth` 几何真值、`/processed` 相对功率与 `/radar` CFG 元数据。V0.1 会解析并记录实际 CFG，但尚不使用这些波形参数生成 ADC 回波。
 
 MATLAB R2025a 图形界面中运行：
 
@@ -66,16 +68,16 @@ MATLAB R2025a 图形界面中运行：
 cd('D:\hp-laptop\USV\awr2944_config_and_process_with_trace_codex\simulation\matlab')
 results = runtests('test_run_v01.m');
 assertSuccess(results)
-run_v01
+run_v01("", "manual_matlab_baseline_1m")
 ```
 
 使用 Python 渲染 MATLAB 生成的单个 HDF5：
 
 ```powershell
-python -m simulation.run_v01 --plot-hdf5 simulation/output/v01/pitch_05p0_deg.h5
+python -m simulation.run_v01 --plot-hdf5 simulation/stages/v01_flat_sea_geometry/results/matlab/manual_matlab_baseline_1m/data/pitch_05p0_deg.h5
 ```
 
-设计、坐标定义、假设和验收阈值见 `docs/plans/2026-08-18-awr2944p-v01.md`。
+设计、坐标定义、假设和验收阈值见 `docs/plans/2026-08-18-awr2944p-v01.md`；跨阶段产物规范见 `docs/plans/2026-08-18-simulation-stage-artifacts.md`。
 
 ## 网页端部署
 
