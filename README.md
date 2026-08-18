@@ -58,7 +58,7 @@ python -m pip install --user -r requirements-simulation.txt
 python -m simulation.run_v01 --config simulation/configs/baseline_1m.json
 ```
 
-默认扫描安装俯角 `0°、3°、5°、8°、10°`，输出 HDF5、输入快照、摘要和 PNG 到 `simulation/output/v01/`。HDF5 明确区分 `/truth` 几何真值与 `/processed` 相对功率。
+默认扫描安装俯角 `0°、3°、5°、8°、10°`，输出 HDF5、输入快照、3/6 dB 覆盖摘要和 PNG 到 `simulation/output/v01/`。HDF5 明确区分 `/truth` 几何真值、`/processed` 相对功率与 `/radar` CFG 元数据。V0.1 会解析并记录实际 CFG，但尚不使用这些波形参数生成 ADC 回波。
 
 MATLAB R2025a 图形界面中运行：
 
@@ -270,7 +270,13 @@ df -h
 
 ## 开发和验证
 
-本地运行测试：
+完整测试会导入 V0.1 的 NumPy、h5py 和 Matplotlib；首次运行前先安装仿真依赖：
+
+```powershell
+python -m pip install --user -r requirements-simulation.txt
+```
+
+本地运行完整测试：
 
 ```bash
 python -m unittest discover -s test -v

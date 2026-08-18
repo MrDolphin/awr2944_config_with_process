@@ -13,6 +13,7 @@ configDir = fileparts(configPath);
 config = jsondecode(fileread(configPath));
 outputDir = resolvePath(configDir, string(config.output.directory));
 radarCfgPath = resolvePath(configDir, string(config.radar.cfg_path));
+radarMetadata = parseRadarCfg(radarCfgPath);
 if ~isfolder(outputDir)
     mkdir(outputDir);
 end
@@ -25,6 +26,8 @@ summaries = repmat(struct( ...
     "boresight_intersection_m", NaN, ...
     "three_db_near_m", NaN, ...
     "three_db_far_m", NaN, ...
+    "six_db_near_m", NaN, ...
+    "six_db_far_m", NaN, ...
     "peak_grid_range_m", NaN, ...
     "total_relative_power_linear", NaN, ...
     "total_relative_power_db", NaN, ...
@@ -34,7 +37,7 @@ summaries = repmat(struct( ...
 
 for index = 1:numel(pitches)
     pitchDeg = pitches(index);
-    result = simulateFlatSea(config, pitchDeg);
+    result = simulateFlatSea(config, pitchDeg, radarMetadata);
     stem = pitchFilename(pitchDeg);
     writeCaseHdf5(result, fullfile(outputDir, stem + ".h5"));
 
@@ -46,6 +49,11 @@ for index = 1:numel(pitches)
         double(config.installation.height_m), pitchDeg + halfWidth);
     summaries(index).three_db_far_m = surfaceIntersection( ...
         double(config.installation.height_m), pitchDeg - halfWidth);
+    sixDbHalfWidth = double(config.antenna.elevation_6db_half_width_deg);
+    summaries(index).six_db_near_m = surfaceIntersection( ...
+        double(config.installation.height_m), pitchDeg + sixDbHalfWidth);
+    summaries(index).six_db_far_m = surfaceIntersection( ...
+        double(config.installation.height_m), pitchDeg - sixDbHalfWidth);
     [~, peakIndex] = max(result.relative_power_linear, [], "all", "linear");
     summaries(index).peak_grid_range_m = result.horizontal_range_m(peakIndex);
     totalPower = sum(result.relative_power_linear, "all");
@@ -66,7 +74,7 @@ fprintf("Generated %d MATLAB V0.1 cases in %s\n", numel(pitches), outputDir);
 end
 
 
-function result = simulateFlatSea(config, pitchDeg)
+function result = simulateFlatSea(config, pitchDeg, radarMetadata)
 heightM = double(config.installation.height_m);
 grid = config.grid;
 antenna = config.antenna;
@@ -106,6 +114,7 @@ result = struct( ...
     "power_model", "unit_sigma0_pattern_r4", ...
     "height_m", heightM, ...
     "mounting_pitch_deg", pitchDeg, ...
+    "radar_metadata", radarMetadata, ...
     "x_m", xM, ...
     "y_m", yM, ...
     "z_m", zeros(size(xM)), ...
@@ -139,6 +148,7 @@ writeScalar(outputPath, "/installation/mounting_pitch_deg", result.mounting_pitc
 h5writeatt(outputPath, "/", "schema_version", result.schema_version);
 h5writeatt(outputPath, "/", "power_model", result.power_model);
 h5writeatt(outputPath, "/", "producer", "matlab");
+writeRadarMetadata(outputPath, result.radar_metadata);
 
 truthNames = ["x_m", "y_m", "z_m", "horizontal_range_m", "slant_range_m", ...
     "azimuth_deg", "elevation_deg", "grazing_angle_deg", "cell_area_m2"];
@@ -165,6 +175,83 @@ for index = 1:numel(names)
         ChunkSize=min(size(value), [128, 128]), Deflate=5, Shuffle=true);
     h5write(outputPath, datasetPath, value);
 end
+end
+
+
+function writeRadarMetadata(outputPath, metadata)
+names = string(fieldnames(metadata));
+for index = 1:numel(names)
+    name = names(index);
+    value = metadata.(name);
+    if name == "chirp_indices" || name == "chirp_tx_masks"
+        h5create(outputPath, "/radar/" + name, numel(value), Datatype="int64");
+        h5write(outputPath, "/radar/" + name, int64(value));
+    elseif isnumeric(value) && isscalar(value)
+        writeScalar(outputPath, "/radar/" + name, value);
+    end
+end
+for index = 1:numel(names)
+    name = names(index);
+    value = metadata.(name);
+    if ischar(value) || (isstring(value) && isscalar(value))
+        h5writeatt(outputPath, "/radar", name, string(value));
+    end
+end
+end
+
+
+function metadata = parseRadarCfg(cfgPath)
+metadata = struct("cfg_path", string(cfgPath));
+chirpIndices = [];
+chirpMasks = [];
+lines = splitlines(string(fileread(cfgPath)));
+for lineIndex = 1:numel(lines)
+    line = strtrim(lines(lineIndex));
+    if strlength(line) == 0 || startsWith(line, "%")
+        continue;
+    end
+    tokens = split(line);
+    command = tokens(1);
+    if command == "channelCfg" && numel(tokens) >= 3
+        rxMask = str2double(tokens(2));
+        txMask = str2double(tokens(3));
+        metadata.rx_mask = rxMask;
+        metadata.tx_mask = txMask;
+        metadata.num_rx = sum(bitget(uint32(rxMask), 1:32));
+        metadata.num_tx = sum(bitget(uint32(txMask), 1:32));
+    elseif command == "profileCfg" && numel(tokens) >= 12
+        metadata.start_freq_ghz = str2double(tokens(3));
+        metadata.idle_time_us = str2double(tokens(4));
+        metadata.adc_start_time_us = str2double(tokens(5));
+        metadata.ramp_end_time_us = str2double(tokens(6));
+        metadata.freq_slope_mhz_per_us = str2double(tokens(9));
+        metadata.num_adc_samples = str2double(tokens(11));
+        metadata.sample_rate_ksps = str2double(tokens(12));
+    elseif command == "chirpCfg" && numel(tokens) >= 9
+        chirpStart = str2double(tokens(2));
+        chirpEnd = str2double(tokens(3));
+        txMask = str2double(tokens(9));
+        chirpIndices = [chirpIndices, chirpStart:chirpEnd]; %#ok<AGROW>
+        chirpMasks = [chirpMasks, repmat(txMask, 1, chirpEnd - chirpStart + 1)]; %#ok<AGROW>
+    elseif command == "frameCfg" && numel(tokens) >= 7
+        chirpStart = str2double(tokens(2));
+        chirpEnd = str2double(tokens(3));
+        loops = str2double(tokens(4));
+        if numel(tokens) >= 8
+            framePeriodIndex = 7;
+        else
+            framePeriodIndex = 6;
+        end
+        metadata.frame_chirp_start = chirpStart;
+        metadata.frame_chirp_end = chirpEnd;
+        metadata.num_loops = loops;
+        metadata.frame_period_ms = str2double(tokens(framePeriodIndex));
+        metadata.num_chirps_per_loop = chirpEnd - chirpStart + 1;
+        metadata.num_chirps_per_frame = (chirpEnd - chirpStart + 1) * loops;
+    end
+end
+metadata.chirp_indices = chirpIndices;
+metadata.chirp_tx_masks = chirpMasks;
 end
 
 

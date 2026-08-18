@@ -29,9 +29,14 @@ clear fileCleanup;
 
 summaries = run_v01(configPath);
 verifyEqual(testCase, summaries.boresight_intersection_m, 1 / tand(5), AbsTol=1e-10);
+verifyEqual(testCase, summaries.six_db_near_m, 1 / tand(10), AbsTol=1e-10);
+verifyTrue(testCase, isnan(summaries.six_db_far_m));
 casePath = fullfile(outputDir, "pitch_05p0_deg.h5");
 verifyTrue(testCase, isfile(casePath));
 verifyEqual(testCase, h5readatt(casePath, "/", "schema_version"), "awr2944p-flat-sea-v0.1");
+verifyEqual(testCase, h5read(casePath, "/radar/num_adc_samples"), 656);
+txMasks = h5read(casePath, "/radar/chirp_tx_masks");
+verifyEqual(testCase, txMasks(:), int64([1; 4; 8; 2]));
 elevation = h5read(casePath, "/truth/elevation_deg");
 range = h5read(casePath, "/truth/horizontal_range_m");
 [~, centerIndex] = min(abs(elevation), [], "all", "linear");

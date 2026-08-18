@@ -31,6 +31,9 @@ class FlatSeaSimulationTests(unittest.TestCase):
         self.assertTrue(config.radar_cfg_path.is_file())
         self.assertEqual(config.mounting_pitch_sweep_deg, (0.0, 3.0, 5.0, 8.0, 10.0))
         self.assertAlmostEqual(config.settings.height_m, 1.0)
+        self.assertEqual(config.radar_metadata["num_adc_samples"], 656)
+        self.assertAlmostEqual(config.radar_metadata["start_freq_ghz"], 77.0)
+        self.assertEqual(config.radar_metadata["chirp_tx_masks"], {0: 1, 1: 4, 2: 8, 3: 2})
 
     def test_boresight_intersects_flat_sea_at_analytic_distance(self):
         settings = SimulationSettings(
@@ -172,9 +175,11 @@ class FlatSeaSimulationTests(unittest.TestCase):
                 mounting_pitch_sweep_deg=(0.0, 5.0),
                 output_directory=Path(directory),
                 plot_floor_db=-60.0,
+                radar_metadata=baseline.radar_metadata,
             )
             summaries = run_sweep(config, render_plots=False)
             output_names = {path.name for path in Path(directory).iterdir()}
+            loaded_case = read_hdf5(Path(directory) / "pitch_05p0_deg.h5")
 
         self.assertEqual(len(summaries), 2)
         self.assertIn("pitch_00p0_deg.h5", output_names)
@@ -185,6 +190,9 @@ class FlatSeaSimulationTests(unittest.TestCase):
         self.assertGreater(summaries[1]["total_relative_power_linear"], 0.0)
         self.assertGreaterEqual(summaries[1]["mainlobe_power_fraction"], 0.0)
         self.assertLessEqual(summaries[1]["mainlobe_power_fraction"], 1.0)
+        self.assertAlmostEqual(summaries[1]["six_db_near_m"], 5.67128, places=4)
+        self.assertIsNone(summaries[1]["six_db_far_m"])
+        self.assertEqual(loaded_case.radar_metadata["num_adc_samples"], 656)
 
     def test_run_sweep_renders_case_and_coverage_figures(self):
         baseline = load_config(
@@ -205,6 +213,7 @@ class FlatSeaSimulationTests(unittest.TestCase):
                 mounting_pitch_sweep_deg=(5.0,),
                 output_directory=Path(directory),
                 plot_floor_db=-60.0,
+                radar_metadata=baseline.radar_metadata,
             )
             run_sweep(config, render_plots=True)
             output_names = {path.name for path in Path(directory).iterdir()}

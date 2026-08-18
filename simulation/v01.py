@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 import json
 import math
 from pathlib import Path
@@ -12,6 +12,8 @@ from typing import Union
 import h5py
 import numpy as np
 from numpy.typing import NDArray
+
+from tools.dca1000_capture import parse_radar_cfg
 
 
 FloatArray = NDArray[np.float64]
@@ -75,6 +77,7 @@ class V01Config:
     mounting_pitch_sweep_deg: tuple[float, ...]
     output_directory: Path
     plot_floor_db: float
+    radar_metadata: dict[str, object]
 
 
 @dataclass(frozen=True)
@@ -85,6 +88,7 @@ class SimulationResult:
     power_model: str
     height_m: float
     mounting_pitch_deg: float
+    radar_metadata: dict[str, object]
     x_m: FloatArray
     y_m: FloatArray
     z_m: FloatArray
@@ -156,6 +160,7 @@ def load_config(config_path: PathLike) -> V01Config:
         ),
         output_directory=output_directory,
         plot_floor_db=float(output["plot_floor_db"]),
+        radar_metadata=parse_radar_cfg(str(radar_cfg_path)),
     )
 
 
@@ -234,6 +239,7 @@ def simulate_flat_sea(
         power_model=POWER_MODEL,
         height_m=settings.height_m,
         mounting_pitch_deg=mounting_pitch_deg,
+        radar_metadata={},
         x_m=x_m,
         y_m=y_m,
         z_m=np.zeros_like(x_m),
@@ -281,6 +287,19 @@ def write_hdf5(result: SimulationResult, output_path: PathLike) -> Path:
         installation.create_dataset(
             "mounting_pitch_deg", data=result.mounting_pitch_deg
         )
+        radar = handle.create_group("radar")
+        for key, value in result.radar_metadata.items():
+            if key == "chirp_tx_masks" and isinstance(value, dict):
+                chirp_indices = np.asarray(sorted(value), dtype=np.int64)
+                radar.create_dataset("chirp_indices", data=chirp_indices)
+                radar.create_dataset(
+                    "chirp_tx_masks",
+                    data=np.asarray([value[int(index)] for index in chirp_indices]),
+                )
+            elif isinstance(value, (int, float, np.integer, np.floating)):
+                radar.create_dataset(key, data=value)
+            elif isinstance(value, str):
+                radar.attrs[key] = value
         for group_name, dataset_names in (
             ("truth", _TRUTH_DATASETS),
             ("antenna", _ANTENNA_DATASETS),
@@ -320,7 +339,28 @@ def read_hdf5(input_path: PathLike) -> SimulationResult:
             "mounting_pitch_deg": float(
                 handle["/installation/mounting_pitch_deg"][()]
             ),
+            "radar_metadata": {},
         }
+        if "radar" in handle:
+            radar_metadata: dict[str, object] = {
+                key: _attribute_text(value)
+                for key, value in handle["radar"].attrs.items()
+            }
+            radar_group = handle["radar"]
+            for key in radar_group.keys():
+                if key in {"chirp_indices", "chirp_tx_masks"}:
+                    continue
+                value = radar_group[key][()]
+                radar_metadata[key] = value.item() if hasattr(value, "item") else value
+            if "chirp_indices" in radar_group and "chirp_tx_masks" in radar_group:
+                radar_metadata["chirp_tx_masks"] = {
+                    int(index): int(mask)
+                    for index, mask in zip(
+                        radar_group["chirp_indices"][...],
+                        radar_group["chirp_tx_masks"][...],
+                    )
+                }
+            values["radar_metadata"] = radar_metadata
         for group_name, dataset_names in (
             ("truth", _TRUTH_DATASETS),
             ("antenna", _ANTENNA_DATASETS),
@@ -453,19 +493,36 @@ def _plot_coverage_summary(
         else min(float(item["three_db_far_m"]), range_max_m)
         for item in summaries
     ]
+    six_near = [float(item["six_db_near_m"]) for item in summaries]
+    six_far = [
+        range_max_m
+        if item["six_db_far_m"] is None
+        else min(float(item["six_db_far_m"]), range_max_m)
+        for item in summaries
+    ]
 
     figure, (axis, power_axis) = plt.subplots(
         1, 2, figsize=(14, 5), constrained_layout=True
     )
+    for pitch, near6_m, far6_m in zip(pitches, six_near, six_far):
+        axis.plot(
+            [near6_m, far6_m], [pitch, pitch], linewidth=14, alpha=0.18, color="gray"
+        )
     for pitch, near_m, far_m in zip(pitches, near, far):
         axis.plot([near_m, far_m], [pitch, pitch], linewidth=8, alpha=0.45)
     axis.scatter(boresight, pitches, c="black", marker="x", label="boresight")
     axis.scatter(near, pitches, c="tab:blue", marker="|", s=100, label="3 dB near")
     axis.scatter(far, pitches, c="tab:orange", marker="|", s=100, label="3 dB far/clipped")
+    axis.scatter(
+        six_near, pitches, c="gray", marker="1", s=80, label="6 dB near"
+    )
+    axis.scatter(
+        six_far, pitches, c="gray", marker="2", s=80, label="6 dB far/clipped"
+    )
     axis.set_xlim(0.0, range_max_m)
     axis.set_xlabel("horizontal range (m)")
     axis.set_ylabel("downward mounting pitch (deg)")
-    axis.set_title("Flat-sea 3 dB illumination footprint")
+    axis.set_title("Flat-sea 3/6 dB illumination footprint")
     axis.grid(True, alpha=0.25)
     axis.legend()
 
@@ -510,6 +567,7 @@ def run_sweep(
         "radar_cfg_path": str(config.radar_cfg_path),
         "mounting_pitch_sweep_deg": config.mounting_pitch_sweep_deg,
         "plot_floor_db": config.plot_floor_db,
+        "radar_metadata": config.radar_metadata,
     }
     (output_directory / "run_config.json").write_text(
         json.dumps(run_config, indent=2, ensure_ascii=False), encoding="utf-8"
@@ -517,8 +575,12 @@ def run_sweep(
 
     summaries: list[dict[str, float | None]] = []
     elevation_half_width = config.settings.elevation_3db_half_width_deg
+    elevation_6db_half_width = config.settings.elevation_6db_half_width_deg
     for pitch_deg in config.mounting_pitch_sweep_deg:
-        result = simulate_flat_sea(config.settings, pitch_deg)
+        result = replace(
+            simulate_flat_sea(config.settings, pitch_deg),
+            radar_metadata=config.radar_metadata,
+        )
         stem = _pitch_filename(pitch_deg)
         write_hdf5(result, output_directory / f"{stem}.h5")
         if render_plots:
@@ -543,6 +605,12 @@ def run_sweep(
                 ),
                 "three_db_far_m": _surface_intersection_m(
                     config.settings.height_m, pitch_deg - elevation_half_width
+                ),
+                "six_db_near_m": _surface_intersection_m(
+                    config.settings.height_m, pitch_deg + elevation_6db_half_width
+                ),
+                "six_db_far_m": _surface_intersection_m(
+                    config.settings.height_m, pitch_deg - elevation_6db_half_width
                 ),
                 "peak_grid_range_m": float(
                     result.horizontal_range_m.flat[
