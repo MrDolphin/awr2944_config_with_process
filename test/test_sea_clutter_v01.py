@@ -11,6 +11,7 @@ from simulation.v01 import (
     SimulationSettings,
     V01Config,
     load_config,
+    plot_hdf5,
     read_hdf5,
     run_sweep,
     simulate_flat_sea,
@@ -169,6 +170,32 @@ class FlatSeaSimulationTests(unittest.TestCase):
 
         self.assertEqual(loaded.x_m.shape, result.x_m.shape)
         self.assertTrue(np.array_equal(loaded.x_m, result.x_m))
+
+    def test_hdf5_plot_is_saved_in_the_run_figures_directory(self):
+        settings = SimulationSettings(
+            range_min_m=5.0,
+            range_max_m=6.0,
+            range_step_m=1.0,
+            azimuth_min_deg=0.0,
+            azimuth_max_deg=0.0,
+            azimuth_step_deg=1.0,
+        )
+        result = simulate_flat_sea(settings, mounting_pitch_deg=5.0)
+
+        with tempfile.TemporaryDirectory() as directory:
+            run_directory = Path(directory)
+            data_directory = run_directory / "data"
+            data_directory.mkdir()
+            input_path = data_directory / "pitch_05p0_deg.h5"
+            write_hdf5(result, input_path)
+
+            output_path = plot_hdf5(input_path)
+
+            self.assertEqual(
+                output_path,
+                run_directory / "figures" / "pitch_05p0_deg.png",
+            )
+            self.assertTrue(output_path.is_file())
 
     def test_run_sweep_writes_cases_summary_and_input_snapshots(self):
         baseline = load_config(
