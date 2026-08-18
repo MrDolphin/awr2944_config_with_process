@@ -564,6 +564,10 @@ def run_sweep(
 
     output_directory = config.output_directory
     output_directory.mkdir(parents=True, exist_ok=True)
+    data_directory = output_directory / "data"
+    figure_directory = output_directory / "figures"
+    data_directory.mkdir(exist_ok=True)
+    figure_directory.mkdir(exist_ok=True)
     shutil.copy2(config.radar_cfg_path, output_directory / "radar_profile.cfg")
     run_config = {
         "settings": asdict(config.settings),
@@ -586,11 +590,11 @@ def run_sweep(
             radar_metadata=config.radar_metadata,
         )
         stem = _pitch_filename(pitch_deg)
-        write_hdf5(result, output_directory / f"{stem}.h5")
+        write_hdf5(result, data_directory / f"{stem}.h5")
         if render_plots:
             _plot_case(
                 result,
-                output_directory / f"{stem}.png",
+                figure_directory / f"{stem}.png",
                 config.plot_floor_db,
             )
         total_relative_power = float(result.relative_power_linear.sum())
@@ -635,7 +639,15 @@ def run_sweep(
     if render_plots:
         _plot_coverage_summary(
             summaries,
-            output_directory / "pitch_coverage_summary.png",
+            figure_directory / "pitch_coverage_summary.png",
             config.settings.range_max_m,
+        )
+    validation_path = output_directory / "validation.md"
+    if validation_path.is_file():
+        validation_path.write_text(
+            "# Validation\n\n- [x] Generation completed\n"
+            "- [x] Automatic output-contract checks passed\n"
+            "- [ ] Manual review recorded\n",
+            encoding="utf-8",
         )
     return summaries

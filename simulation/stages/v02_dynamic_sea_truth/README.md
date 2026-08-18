@@ -29,3 +29,6 @@ AoA 或 CFAR 点云。
 results/python/<run_id>/
 results/matlab/<run_id>/
 ```
+
+V0.2 runner 必须复用 `simulation.artifacts.create_run_directory`，拒绝已存在的
+`run_id`，并延续 V0.1 的 `data/`、`figures/`、环境、摘要和验收文件契约。
