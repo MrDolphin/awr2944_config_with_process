@@ -1,13 +1,19 @@
 # AWR2944 Project Operating Rules
 
-## Canonical development source
+## Canonical development sources
 
-- This worktree (`awr2944_config_and_process_with_trace_codex`) is the only
-  location for code edits, tests, commits, pushes, and Pull Request updates.
+- `awr2944_config_and_process_with_trace_codex` remains the canonical worktree
+  for application, UI, deployment, hardware-adapter, and `feat/codex` work.
+- `awr2944_sea_clutter_v02` is the canonical worktree for staged sea-clutter
+  simulation work on `codex/sea-clutter-v02`. Keep its edits within simulation,
+  simulation tests, and directly related research documentation unless a shared
+  change is deliberately reviewed and transferred between branches.
+- Do not edit the same feature concurrently in both worktrees. Verify the
+  current branch and `git status --short` before every commit, and transfer
+  shared commits explicitly rather than copying an entire dirty directory.
 - `D:\hp-laptop\USV\awr2944_config_and_process_with_trace` is a legacy
   hardware-reference tree. Read it only to recover proven wiring or test logic;
   copy a selected change deliberately and test it in this worktree.
-- Before any commit, verify the current branch and `git status --short`.
 
 ## Hardware-aware development
 

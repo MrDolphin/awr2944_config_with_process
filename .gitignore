@@ -8,6 +8,8 @@ record/*.jsonl
 captures/
 radar_debug.log
 simulation/output/
+simulation/stages/*/results/**
+!simulation/stages/*/results/README.md
 
 # MATLAB 自动备份
 *.asv
