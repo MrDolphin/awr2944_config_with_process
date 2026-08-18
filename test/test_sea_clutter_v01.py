@@ -160,6 +160,16 @@ class FlatSeaSimulationTests(unittest.TestCase):
             write_hdf5(result, output_path)
             with h5py.File(output_path, "r+") as handle:
                 handle.attrs["producer"] = np.bytes_("matlab")
+                for dataset_path in (
+                    "/installation/height_m",
+                    "/installation/mounting_pitch_deg",
+                ):
+                    scalar_value = handle[dataset_path][()]
+                    del handle[dataset_path]
+                    handle.create_dataset(
+                        dataset_path,
+                        data=np.atleast_1d(scalar_value),
+                    )
                 for group_name in ("truth", "antenna", "processed"):
                     group = handle[group_name]
                     for dataset_name in tuple(group.keys()):
@@ -170,6 +180,8 @@ class FlatSeaSimulationTests(unittest.TestCase):
 
         self.assertEqual(loaded.x_m.shape, result.x_m.shape)
         self.assertTrue(np.array_equal(loaded.x_m, result.x_m))
+        self.assertAlmostEqual(loaded.height_m, 1.0)
+        self.assertAlmostEqual(loaded.mounting_pitch_deg, 3.0)
 
     def test_hdf5_plot_is_saved_in_the_run_figures_directory(self):
         settings = SimulationSettings(
