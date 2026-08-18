@@ -1,27 +1,156 @@
-# V0.2 动态海面真值
+# V0.2-A 0～3级动态海面真值
 
 ## 本阶段问题
 
-研究浪高、波向、周期/相速以及雷达安装姿态如何改变海面高度、表面法向、
-掠射角和散射单元径向速度。输出是物理场真值，不是 ADC、Range-Doppler、
-AoA 或 CFAR 点云。
+研究海况由0级增加到3级时，海面高度、表面法向、垂向速度、雷达相对
+方位/俯仰、局部掠射角和雷达净空如何变化。输出是物理场真值，不是
+ADC/IQ、海杂波功率、Range-Doppler、AoA、CFAR或点云。
 
-## 第一组受控工况
+本阶段最高只允许3级海况；任何 `sea_state > 3` 或 `target_hs_m > 1.25`
+的配置在生成前被拒绝。
 
-- 平静海面回归：波高为零时退化为 V0.1；
-- 单一规则波：固定周期和方向，验证相速、波峰移动和径向速度解析关系；
-- 多方向随机海面：冻结随机种子，扫描风速、主波向和有效波高；
-- 安装姿态扫描：高度 1 m，并分别扫描 mounting roll/pitch/yaw；
-- 每组工况都保存时间轴、海面高度、法向、速度、掠射角和输入参数。
+当前数值范围与默认值统一保存在
+`simulation/configs/sea_states_0_to_3.json`，参数来源在下文逐项说明。
+
+## 第一版海况矩阵
+
+| case_id | 海况 | 目标有效波高 Hs | 用途 |
+|---|---:|---:|---|
+| `ss0_flat` | 0 | 0 m | V0.1平面回归 |
+| `ss1_rippled` | 1 | 0.05 m | 轻微波纹 |
+| `ss2_normal` | 2 | 0.30 m | 暂定日常小浪基准 |
+| `ss3_nominal` | 3 | 0.85 m | 三级典型状态 |
+| `ss3_upper` | 3 | 1.20 m | 接近三级上边界的压力工况 |
+
+默认雷达相位中心在平均海平面上方1 m，PCB参考姿态竖直、波束水平向前，
+正安装俯仰角表示波束向下。船体坐标为 `x` 向右、`y` 向前、`z` 向上。
+
+## 固定输入、扫描范围与来源
+
+| 输入 | 默认值/范围 | 来源与用途 |
+|---|---|---|
+| 海况 | 0、1、2、3；最高3 | WMO海面状态范围；项目上限 |
+| 目标Hs | 0、0.05、0.30、0.85、1.20 m | WMO各级范围内的工程代表点 |
+| 雷达高度 | 1 m | 当前船载安装假设，待实测相位中心高度校准 |
+| 安装姿态 | roll=0°、pitch=5°、yaw=0° | V0.1几何基准；V0.2-A不扫描姿态 |
+| 横向网格x | -50～50 m，间隔1 m | 覆盖当前方位观察区域的首版有限网格 |
+| 前向网格y | 2～100 m，间隔1 m | 与V0.1距离范围近似对齐，避开雷达原点 |
+| 时间 | 0～20 s，间隔0.5 s | 覆盖多帧海面变化的首版低速真值采样 |
+| 随机种子 | 101、202、303、404、505 | 冻结复现性；默认共5个种子 |
+| 风向 | 0° | 首版纵向受控条件；波向扫描推迟到V0.2-B |
+| Fetch | 10000 m | 已有环境验证参数，属于待水池/海试校准假设 |
+| 频谱空间分辨率 | 1 m | 与首版空间采样间隔一致 |
+| 初始风速 | `searoughness(sea_state)` 输出 | MATLAB/Barton海况粗糙度模型，仅用于驱动频谱 |
+| Hs容差 | 非零海况±10%；0级绝对误差≤1e-12 m | 自动验收阈值 |
+
+上述Hs分级来自WMO海面状态范围；代表点、10 km Fetch、1 m网格和20 s时长
+是本项目首版可计算性选择，不是AWR2944P厂家参数或目标海域实测结论。正式论文
+应使用造浪池或海试数据重新校准，并保留本配置作为可复现基线。
+
+## 生成与分析方法
+
+1. MATLAB使用 `searoughness(sea_state)` 获取该等级对应的初始风速；
+2. MATLAB用 `seaSpectrum` 和有限 `Boundary` 创建 `seaSurface`；
+3. 使用 `height(surface, points, t)` 采样三维动态高度场；
+4. 每帧去除空间均值，并按 `Hs = 4*std(height)` 缩放到目标有效波高；
+5. HDF5记录原始Hs和振幅缩放因子；
+6. Python读取高度立方体并计算法向、垂向速度、雷达相对角度、局部掠射角
+   和最小雷达净空；
+7. MATLAB原始运行与Python分析运行分别保存，互不覆盖。
+
+掠射角和俯仰角同时保存两类离散程度：全空间—时间标准差描述整个观察区域
+的综合分布；逐网格时间标准差的空间均值用于隔离海浪引起的时间抖动。
+跨海况比较图使用后者，因此0级固定平面海面的时间抖动应严格为0。
+
+振幅缩放保留了所采样频谱的空间形状与相位演化，但缩放后的结果不再表示
+未经修改的风速/Fetch平衡海。论文和报告中必须称为“目标Hs控制的频谱动态
+海面”，并同时报告风速、Fetch、原始Hs和缩放因子。
+
+本阶段只计算海面垂向速度；完整散射单元三维速度和径向速度解析验收留给
+后续V0.2-B规则波工况，尚不能据此声称已得到海杂波多普勒谱。
+
+## HDF5契约
+
+MATLAB原始文件至少包括：
+
+```text
+/axes/x_m
+/axes/y_m
+/axes/time_s
+/truth/height_m
+/case/sea_state
+/case/target_hs_m
+/case/raw_hs_m
+/case/amplitude_scale_factor
+/case/random_seed
+/case/wind_speed_mps
+/case/wind_direction_deg
+/case/fetch_m
+/installation/height_m
+/installation/mounting_pitch_deg
+```
+
+Python分析文件在 `/truth` 中增加：
+
+```text
+normal_x, normal_y, normal_z
+vertical_velocity_mps
+slant_range_m
+azimuth_deg
+elevation_deg
+grazing_angle_deg
+```
+
+`/validation` 保存实际Hs、Hs验收结果和最小雷达净空。V0.2文件中不得出现
+`relative_power_db`、复数IQ或CFAR点云字段。
+
+## 手工验收
+
+在MATLAB R2025a GUI命令窗口执行：
+
+```matlab
+cd('D:\hp-laptop\USV\awr2944_sea_clutter_v02\simulation\matlab')
+
+results = runtests('test_run_v02.m');
+table(results)
+assertSuccess(results)
+
+caseIds = ["ss0_flat", "ss1_rippled", "ss2_normal", ...
+    "ss3_nominal", "ss3_upper"];
+summaries = run_v02("", "v02_quick_seed101", caseIds, 101);
+disp(struct2table(summaries))
+```
+
+这一快速运行只使用一个随机种子，生成5个海况文件。通过后再删除第四参数，
+运行配置中的5个冻结种子；完整25工况预计明显更慢。
+
+随后在PowerShell、仓库根目录执行：
+
+```powershell
+python -m simulation.run_v02 `
+  --input-run simulation\stages\v02_dynamic_sea_truth\results\matlab\v02_quick_seed101 `
+  --run-id v02_quick_seed101_analysis
+```
+
+重点查看Python分析运行中的：
+
+```text
+summary.json
+validation.md
+figures/sea_state_comparison.png
+figures/<case_id>_seed101_overview.png
+data/<case_id>_seed101_truth.h5
+```
 
 ## 进入V0.3的门槛
 
-1. 零波高结果与 V0.1 数值回归一致；
-2. 规则波的幅度、周期、传播方向和相速通过解析解检查；
-3. 固定随机种子可逐点复现；
-4. 坐标系和 IMU 姿态变换通过独立符号测试；
-5. Python 与 MATLAB 的 HDF5 字段和维度一致；
-6. 保存完整运行目录后，才允许在其上生成复数 FMCW 回波。
+1. 零波高结果退化为平面海面，法向为 `[0,0,1]`、垂向速度为零；
+2. 五个目标工况均不超过3级，实际Hs误差不超过10%；
+3. 固定随机种子可复现；
+4. Python与MATLAB的HDF5字段和维度一致；
+5. 3级上边界必须报告最小雷达净空，净空非正时标记几何无效；
+6. 规则波的周期、传播方向、相速和完整径向速度留给V0.2-B；
+7. 保存完整运行目录并完成人工看图后，才允许进入复数FMCW回波阶段。
 
 结果保存到：
 
@@ -30,5 +159,6 @@ results/python/<run_id>/
 results/matlab/<run_id>/
 ```
 
-V0.2 runner 必须复用 `simulation.artifacts.create_run_directory`，拒绝已存在的
-`run_id`，并延续 V0.1 的 `data/`、`figures/`、环境、摘要和验收文件契约。
+Python runner复用 `simulation.artifacts.create_run_directory`；MATLAB runner
+镜像相同的非覆盖目录契约。两者都必须拒绝已存在的 `run_id`，并延续V0.1的
+`data/`、`figures/`、环境、配置快照、雷达CFG、摘要和验收文件结构。
