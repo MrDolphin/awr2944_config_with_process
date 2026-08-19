@@ -217,8 +217,8 @@ function validateSeaState(caseId, seaState, targetHsM)
 if seaState < 0 || seaState > 3 || seaState ~= floor(seaState)
     error("run_v02:SeaStateLimit", "%s sea_state must be an integer from 0 to 3.", caseId);
 end
-if targetHsM < 0 || targetHsM > 1.25
-    error("run_v02:SeaStateLimit", "%s target Hs must be between 0 and 1.25 m.", caseId);
+if targetHsM < 0 || targetHsM > 1.0
+    error("run_v02:SeaStateLimit", "%s target Hs must be between 0 and 1.0 m.", caseId);
 end
 upperBounds = [0, 0.1, 0.5, 1.25];
 classified = find(targetHsM <= upperBounds, 1, "first") - 1;

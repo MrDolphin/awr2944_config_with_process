@@ -9,7 +9,7 @@
     {"case_id": "ss1_rippled", "sea_state": 1, "target_hs_m": 0.05, "label": "calm_rippled"},
     {"case_id": "ss2_normal", "sea_state": 2, "target_hs_m": 0.30, "label": "normal_smooth_wavelets"},
     {"case_id": "ss3_nominal", "sea_state": 3, "target_hs_m": 0.85, "label": "slight_nominal"},
-    {"case_id": "ss3_upper", "sea_state": 3, "target_hs_m": 1.20, "label": "slight_upper_stress"}
+    {"case_id": "ss3_upper", "sea_state": 3, "target_hs_m": 1.00, "label": "project_state3_upper_limit"}
   ],
   "installation": {
     "height_m": 1.0,
@@ -30,7 +30,7 @@
     "step_s": 0.5
   },
   "sea_surface": {
-    "wind_direction_deg": 0.0,
+    "wind_direction_deg": 90.0,
     "fetch_m": 10000.0,
     "spectrum_resolution_m": 1.0,
     "random_seeds": [101, 202, 303, 404, 505],

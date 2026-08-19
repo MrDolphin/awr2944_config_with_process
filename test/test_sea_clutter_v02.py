@@ -38,13 +38,14 @@ class DynamicSeaTruthTests(unittest.TestCase):
         )
         self.assertEqual(
             tuple(case.target_hs_m for case in config.cases),
-            (0.0, 0.05, 0.30, 0.85, 1.20),
+            (0.0, 0.05, 0.30, 0.85, 1.00),
         )
         self.assertEqual(
             tuple(classify_sea_state(case.target_hs_m) for case in config.cases),
             (0, 1, 2, 3, 3),
         )
         self.assertTrue(all(case.sea_state <= 3 for case in config.cases))
+        self.assertEqual(config.raw["sea_surface"]["wind_direction_deg"], 90.0)
 
     def test_sea_state_above_three_or_hs_above_limit_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "between 0 and 3"):
@@ -54,8 +55,15 @@ class DynamicSeaTruthTests(unittest.TestCase):
                 target_hs_m=1.30,
                 label="forbidden",
             )
-        with self.assertRaisesRegex(ValueError, "Hs <= 1.25 m"):
-            classify_sea_state(1.26)
+        self.assertEqual(classify_sea_state(1.00), 3)
+        self.assertEqual(classify_sea_state(1.01), 3)
+        with self.assertRaisesRegex(ValueError, "project limit.*1.00 m"):
+            SeaStateCase(
+                case_id="ss3_above_project_limit",
+                sea_state=3,
+                target_hs_m=1.01,
+                label="forbidden",
+            )
 
     def test_flat_height_cube_returns_zero_hs_and_flat_surface_geometry(self):
         x_m = np.asarray([-1.0, 0.0, 1.0])
@@ -99,7 +107,7 @@ class DynamicSeaTruthTests(unittest.TestCase):
         )
 
         normalized, raw_hs_m, scale_factor = normalize_height_cube(
-            raw, target_hs_m=1.20
+            raw, target_hs_m=1.00
         )
 
         self.assertGreater(raw_hs_m, 0.0)
@@ -112,12 +120,99 @@ class DynamicSeaTruthTests(unittest.TestCase):
                     - normalized.mean(axis=(1, 2), keepdims=True)
                 )
             ),
-            1.20,
+            1.00,
             places=12,
         )
         self.assertTrue(
             np.allclose(normalized.mean(axis=(1, 2)), 0.0, atol=1e-15)
         )
+
+    def test_plane_wave_reports_direction_period_phase_speed_and_range_rate(self):
+        x_m = np.arange(-8.0, 8.0, 1.0)
+        y_m = np.arange(2.0, 18.0, 1.0)
+        time_s = np.arange(0.0, 8.0, 0.25)
+        wavelength_m = 8.0
+        period_s = 4.0
+        phase = 2.0 * np.pi * (
+            y_m[None, :, None] / wavelength_m
+            - time_s[:, None, None] / period_s
+        )
+        height_m = 0.1 * np.cos(phase) * np.ones((1, 1, x_m.size))
+
+        result = analyze_height_cube(
+            x_m=x_m,
+            y_m=y_m,
+            time_s=time_s,
+            height_m=height_m,
+            radar_height_m=1.0,
+            mounting_pitch_deg=5.0,
+            target_hs_m=4.0 * float(np.std(height_m)),
+            hs_relative_tolerance=0.10,
+        )
+
+        self.assertAlmostEqual(result.dominant_wave_direction_deg, 0.0, places=6)
+        self.assertAlmostEqual(result.dominant_wave_period_s, period_s, places=6)
+        self.assertAlmostEqual(
+            result.dominant_wavelength_m, wavelength_m, places=6
+        )
+        self.assertAlmostEqual(result.dominant_phase_speed_mps, 2.0, places=6)
+        self.assertEqual(result.slant_range_rate_mps.shape, height_m.shape)
+
+    def test_rightward_plane_wave_reports_positive_ninety_degree_direction(self):
+        x_m = np.arange(-8.0, 8.0, 1.0)
+        y_m = np.arange(2.0, 18.0, 1.0)
+        time_s = np.arange(0.0, 8.0, 0.25)
+        phase = 2.0 * np.pi * (
+            x_m[None, None, :] / 8.0 - time_s[:, None, None] / 4.0
+        )
+        height_m = 0.1 * np.cos(phase) * np.ones((1, y_m.size, 1))
+
+        result = analyze_height_cube(
+            x_m=x_m,
+            y_m=y_m,
+            time_s=time_s,
+            height_m=height_m,
+            radar_height_m=1.0,
+            mounting_pitch_deg=5.0,
+            target_hs_m=4.0 * float(np.std(height_m)),
+            hs_relative_tolerance=0.10,
+        )
+
+        self.assertAlmostEqual(result.dominant_wave_direction_deg, 90.0, places=6)
+
+    def test_slant_range_rate_uses_line_of_sight_projection(self):
+        x_m = np.asarray([-1.0, 1.0])
+        y_m = np.asarray([2.0, 3.0])
+        time_s = np.asarray([0.0, 0.5, 1.0])
+        height_m = 0.10 * time_s[:, None, None] * np.ones((1, 2, 2))
+
+        result = analyze_height_cube(
+            x_m=x_m,
+            y_m=y_m,
+            time_s=time_s,
+            height_m=height_m,
+            radar_height_m=1.0,
+            mounting_pitch_deg=5.0,
+            target_hs_m=0.0,
+            hs_relative_tolerance=0.10,
+        )
+
+        expected = (height_m - 1.0) * 0.10 / result.slant_range_m
+        self.assertTrue(np.allclose(result.slant_range_rate_mps, expected))
+        self.assertTrue(np.all(result.slant_range_rate_mps < 0.0))
+
+    def test_nonuniform_axes_are_rejected_before_spectral_estimation(self):
+        with self.assertRaisesRegex(ValueError, "uniformly spaced"):
+            analyze_height_cube(
+                x_m=np.asarray([-1.0, 0.0, 2.0]),
+                y_m=np.asarray([2.0, 3.0]),
+                time_s=np.asarray([0.0, 0.5, 1.0]),
+                height_m=np.zeros((3, 2, 3)),
+                radar_height_m=1.0,
+                mounting_pitch_deg=5.0,
+                target_hs_m=0.0,
+                hs_relative_tolerance=0.10,
+            )
 
     def test_all_default_target_wave_heights_pass_after_amplitude_control(self):
         config = load_config(
@@ -279,12 +374,20 @@ class DynamicSeaTruthTests(unittest.TestCase):
                 validation_passed = bool(
                     handle["/validation/hs_validation_passed"][()]
                 )
+                kinematics_paths = set(handle["kinematics"].keys())
+                flat_period = float(
+                    handle["/kinematics/dominant_wave_period_s"][()]
+                )
 
         self.assertIn("height_m", dataset_paths)
         self.assertIn("normal_x", dataset_paths)
         self.assertIn("vertical_velocity_mps", dataset_paths)
+        self.assertIn("slant_range_rate_mps", dataset_paths)
         self.assertIn("grazing_angle_deg", dataset_paths)
         self.assertNotIn("relative_power_db", dataset_paths)
+        self.assertIn("dominant_wave_direction_deg", kinematics_paths)
+        self.assertIn("dominant_phase_speed_mps", kinematics_paths)
+        self.assertTrue(np.isnan(flat_period))
         self.assertTrue(validation_passed)
 
     def test_matlab_run_analysis_writes_isolated_truth_and_comparison_artifacts(self):
@@ -335,7 +438,7 @@ class DynamicSeaTruthTests(unittest.TestCase):
                         amplitude_scale_factor=1.0 if target_hs_m else 0.0,
                         random_seed=101,
                         wind_speed_mps=0.0 if sea_state == 0 else 3.5,
-                        wind_direction_deg=0.0,
+                        wind_direction_deg=90.0,
                         fetch_m=10000.0,
                         radar_height_m=1.0,
                         mounting_pitch_deg=5.0,
@@ -379,6 +482,11 @@ class DynamicSeaTruthTests(unittest.TestCase):
             summaries[1]["grazing_angle_temporal_std_mean_deg"], 0.0
         )
         self.assertIn("grazing_angle_spatiotemporal_std_deg", summaries[0])
+        self.assertIsNone(summaries[0]["dominant_wave_period_s"])
+        self.assertIn("dominant_wave_period_s", summaries[1])
+        self.assertIn("slant_range_rate_p95_mps", summaries[1])
+        self.assertEqual(summaries[1]["configured_vessel_wave_direction_deg"], 0.0)
+        self.assertIn("dominant_direction_error_deg", summaries[1])
 
     def test_analysis_rejects_case_id_with_mismatched_state_before_output(self):
         config_path = Path(
@@ -397,7 +505,7 @@ class DynamicSeaTruthTests(unittest.TestCase):
                     amplitude_scale_factor=1.0,
                     random_seed=101,
                     wind_speed_mps=3.5,
-                    wind_direction_deg=0.0,
+                    wind_direction_deg=90.0,
                     fetch_m=10000.0,
                     radar_height_m=1.0,
                     mounting_pitch_deg=5.0,
@@ -411,6 +519,46 @@ class DynamicSeaTruthTests(unittest.TestCase):
             )
 
             with self.assertRaisesRegex(ValueError, "identity mismatch"):
+                analyze_matlab_run(
+                    input_run=input_data.parent,
+                    config_path=config_path,
+                    results_root=root / "results",
+                    run_id="must_not_exist",
+                    render_plots=False,
+                )
+            self.assertFalse((root / "results").exists())
+
+    def test_analysis_rejects_matlab_wind_direction_mismatch_before_output(self):
+        config_path = Path(
+            "simulation/configs/sea_states_0_to_3.json"
+        ).resolve()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            input_data = root / "matlab_input" / "data"
+            input_data.mkdir(parents=True)
+            write_raw_hdf5(
+                RawSeaSurface(
+                    case_id="ss2_normal",
+                    sea_state=2,
+                    target_hs_m=0.30,
+                    raw_hs_m=0.30,
+                    amplitude_scale_factor=1.0,
+                    random_seed=101,
+                    wind_speed_mps=3.5,
+                    wind_direction_deg=0.0,
+                    fetch_m=10000.0,
+                    radar_height_m=1.0,
+                    mounting_pitch_deg=5.0,
+                    x_m=np.asarray([-1.0, 1.0]),
+                    y_m=np.asarray([2.0, 3.0]),
+                    time_s=np.asarray([0.0, 0.5]),
+                    height_m=np.zeros((2, 2, 2)),
+                    producer="matlab",
+                ),
+                input_data / "wrong_direction.h5",
+            )
+
+            with self.assertRaisesRegex(ValueError, "wind direction mismatch"):
                 analyze_matlab_run(
                     input_run=input_data.parent,
                     config_path=config_path,

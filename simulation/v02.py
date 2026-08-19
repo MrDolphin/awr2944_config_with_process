@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import math
 from pathlib import Path
 from typing import Union
 
@@ -15,6 +16,8 @@ from numpy.typing import NDArray
 PathLike = Union[str, Path]
 FloatArray = NDArray[np.float64]
 MAX_SEA_STATE = 3
+WMO_STATE_THREE_MAX_HS_M = 1.25
+PROJECT_MAX_SIGNIFICANT_WAVE_HEIGHT_M = 1.0
 SCHEMA_VERSION = "awr2944p-dynamic-sea-v0.2"
 
 
@@ -22,15 +25,26 @@ def classify_sea_state(significant_wave_height_m: float) -> int:
     """Return the WMO 0--3 sea-state code for a wave height.
 
     Exact shared bounds stay in the lower state: 0.1 m is state 1,
-    0.5 m is state 2, and 1.25 m is state 3.
+    0.5 m is state 2 and 1.25 m is state 3. Project-specific input limits
+    are enforced separately from this physical classification.
     """
 
     if significant_wave_height_m < 0.0:
         raise ValueError("significant wave height must be nonnegative")
-    for sea_state, upper_bound_m in ((0, 0.0), (1, 0.1), (2, 0.5), (3, 1.25)):
+    for sea_state, upper_bound_m in (
+        (0, 0.0),
+        (1, 0.1),
+        (2, 0.5),
+        (3, WMO_STATE_THREE_MAX_HS_M),
+    ):
         if significant_wave_height_m <= upper_bound_m:
             return sea_state
-    raise ValueError("V0.2 supports sea states 0 through 3 only (Hs <= 1.25 m)")
+    raise ValueError("WMO sea states 0 through 3 require Hs <= 1.25 m")
+
+
+def _validate_project_wave_height(significant_wave_height_m: float) -> None:
+    if significant_wave_height_m > PROJECT_MAX_SIGNIFICANT_WAVE_HEIGHT_M:
+        raise ValueError("project limit requires Hs <= 1.00 m")
 
 
 @dataclass(frozen=True)
@@ -45,6 +59,7 @@ class SeaStateCase:
     def __post_init__(self) -> None:
         if not 0 <= self.sea_state <= MAX_SEA_STATE:
             raise ValueError("sea_state must be between 0 and 3")
+        _validate_project_wave_height(self.target_hs_m)
         classified = classify_sea_state(self.target_hs_m)
         if classified != self.sea_state:
             raise ValueError(
@@ -79,10 +94,15 @@ class DynamicSeaTruth:
     normal_y: FloatArray
     normal_z: FloatArray
     vertical_velocity_mps: FloatArray
+    slant_range_rate_mps: FloatArray
     slant_range_m: FloatArray
     azimuth_deg: FloatArray
     elevation_deg: FloatArray
     grazing_angle_deg: FloatArray
+    dominant_wave_direction_deg: float
+    dominant_wave_period_s: float
+    dominant_wavelength_m: float
+    dominant_phase_speed_mps: float
 
 
 @dataclass(frozen=True)
@@ -107,6 +127,7 @@ class RawSeaSurface:
     producer: str
 
     def __post_init__(self) -> None:
+        _validate_project_wave_height(self.target_hs_m)
         if classify_sea_state(self.target_hs_m) != self.sea_state:
             raise ValueError("target_hs_m does not belong to sea_state")
         expected = (self.time_s.size, self.y_m.size, self.x_m.size)
@@ -172,11 +193,16 @@ def analyze_height_cube(
         and np.all(np.diff(times) > 0.0)
     ):
         raise ValueError("x_m, y_m and time_s must be strictly increasing")
+    for name, axis in (("x_m", x), ("y_m", y), ("time_s", times)):
+        spacing = np.diff(axis)
+        if not np.allclose(spacing, spacing[0], rtol=1e-9, atol=1e-12):
+            raise ValueError(f"{name} must be uniformly spaced for FFT analysis")
     if radar_height_m <= 0.0:
         raise ValueError("radar_height_m must be positive")
     if hs_relative_tolerance < 0.0 or flat_hs_absolute_tolerance_m < 0.0:
         raise ValueError("Hs tolerances must be nonnegative")
 
+    _validate_project_wave_height(target_hs_m)
     sea_state = classify_sea_state(target_hs_m)
     zero_mean_heights = heights - heights.mean(axis=(1, 2), keepdims=True)
     achieved_hs_m = 4.0 * float(np.std(zero_mean_heights))
@@ -200,6 +226,15 @@ def analyze_height_cube(
     y_cube = np.broadcast_to(y_grid, heights.shape)
     z_relative_m = heights - radar_height_m
     slant_range_m = np.sqrt(x_cube**2 + y_cube**2 + z_relative_m**2)
+    slant_range_rate_mps = (
+        z_relative_m * vertical_velocity_mps / slant_range_m
+    )
+    (
+        dominant_wave_direction_deg,
+        dominant_wave_period_s,
+        dominant_wavelength_m,
+        dominant_phase_speed_mps,
+    ) = _estimate_dominant_wave_kinematics(x, y, times, heights)
 
     pitch_rad = np.deg2rad(mounting_pitch_deg)
     radar_y_m = y_cube * np.cos(pitch_rad) - z_relative_m * np.sin(pitch_rad)
@@ -235,11 +270,75 @@ def analyze_height_cube(
         normal_y=normal_y,
         normal_z=normal_z,
         vertical_velocity_mps=vertical_velocity_mps,
+        slant_range_rate_mps=slant_range_rate_mps,
         slant_range_m=slant_range_m,
         azimuth_deg=azimuth_deg,
         elevation_deg=elevation_deg,
         grazing_angle_deg=grazing_angle_deg,
+        dominant_wave_direction_deg=dominant_wave_direction_deg,
+        dominant_wave_period_s=dominant_wave_period_s,
+        dominant_wavelength_m=dominant_wavelength_m,
+        dominant_phase_speed_mps=dominant_phase_speed_mps,
     )
+
+
+def _estimate_dominant_wave_kinematics(
+    x_m: FloatArray,
+    y_m: FloatArray,
+    time_s: FloatArray,
+    height_m: FloatArray,
+) -> tuple[float, float, float, float]:
+    """Estimate the strongest traveling-wave component from the height cube.
+
+    Direction is measured in vessel axes: 0 degrees travels toward +y
+    (forward), +90 degrees travels toward +x (right). The estimate is an
+    Eulerian spectral diagnostic, not a reconstruction of water-particle
+    orbital velocity.
+    """
+
+    centered = height_m - np.mean(height_m, axis=(1, 2), keepdims=True)
+    if float(np.std(centered)) <= np.finfo(float).eps:
+        return (math.nan, math.nan, math.nan, math.nan)
+
+    def taper(size: int) -> FloatArray:
+        return np.hanning(size) if size >= 3 else np.ones(size)
+
+    window = (
+        taper(time_s.size)[:, None, None]
+        * taper(y_m.size)[None, :, None]
+        * taper(x_m.size)[None, None, :]
+    )
+    power = np.abs(np.fft.fftn(centered * window)) ** 2
+    frequency_hz = np.fft.fftfreq(time_s.size, d=float(np.diff(time_s).mean()))
+    y_cycles_per_m = np.fft.fftfreq(y_m.size, d=float(np.diff(y_m).mean()))
+    x_cycles_per_m = np.fft.fftfreq(x_m.size, d=float(np.diff(x_m).mean()))
+
+    positive_frequency = frequency_hz > 0.0
+    nonzero_spatial = (
+        y_cycles_per_m[:, None] ** 2 + x_cycles_per_m[None, :] ** 2
+    ) > 0.0
+    valid = positive_frequency[:, None, None] & nonzero_spatial[None, :, :]
+    masked_power = np.where(valid, power, -np.inf)
+    time_index, y_index, x_index = np.unravel_index(
+        int(np.argmax(masked_power)), masked_power.shape
+    )
+
+    temporal_frequency_hz = float(frequency_hz[time_index])
+    # Positive temporal FFT energy carries the conjugate spatial sign for
+    # cos(k.x - omega.t), hence the minus signs recover propagation k.
+    propagation_x_cpm = -float(x_cycles_per_m[x_index])
+    propagation_y_cpm = -float(y_cycles_per_m[y_index])
+    spatial_frequency_cpm = math.hypot(
+        propagation_x_cpm, propagation_y_cpm
+    )
+    direction_deg = math.degrees(
+        math.atan2(propagation_x_cpm, propagation_y_cpm)
+    )
+    direction_deg = (direction_deg + 180.0) % 360.0 - 180.0
+    period_s = 1.0 / temporal_frequency_hz
+    wavelength_m = 1.0 / spatial_frequency_cpm
+    phase_speed_mps = temporal_frequency_hz / spatial_frequency_cpm
+    return direction_deg, period_s, wavelength_m, phase_speed_mps
 
 
 def normalize_height_cube(
@@ -252,6 +351,7 @@ def normalize_height_cube(
     target-controlled rather than an unmodified wind/fetch equilibrium sea.
     """
 
+    _validate_project_wave_height(target_hs_m)
     classify_sea_state(target_hs_m)
     heights = np.asarray(height_m, dtype=float)
     if heights.ndim != 3:
@@ -421,6 +521,7 @@ def write_truth_hdf5(
             "normal_y",
             "normal_z",
             "vertical_velocity_mps",
+            "slant_range_rate_mps",
             "slant_range_m",
             "azimuth_deg",
             "elevation_deg",
@@ -432,6 +533,14 @@ def write_truth_hdf5(
                 compression="gzip",
                 shuffle=True,
             )
+        kinematics = handle.create_group("kinematics")
+        for name in (
+            "dominant_wave_direction_deg",
+            "dominant_wave_period_s",
+            "dominant_wavelength_m",
+            "dominant_phase_speed_mps",
+        ):
+            kinematics.create_dataset(name, data=getattr(truth, name))
         validation = handle.create_group("validation")
         validation.create_dataset("achieved_hs_m", data=truth.achieved_hs_m)
         validation.create_dataset(

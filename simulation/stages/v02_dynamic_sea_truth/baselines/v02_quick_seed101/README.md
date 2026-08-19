@@ -1,5 +1,9 @@
 # V0.2-A seed-101 acceptance baseline
 
+> Historical note: this accepted V0.2-A run predates the project decision to
+> cap state-3 Hs at 1.00 m. Its 1.20 m stress case is preserved as historical
+> evidence only and is no longer valid input for the current configuration.
+
 This directory preserves the small, reviewable evidence from the manually accepted MATLAB-to-Python V0.2-A run. The full HDF5 files and figures remain under the ignored `results/` tree.
 
 ## Source runs

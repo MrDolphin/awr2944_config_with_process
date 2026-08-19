@@ -1,4 +1,4 @@
-"""Analyze MATLAB dynamic-sea samples into V0.2-A truth artifacts."""
+"""Analyze MATLAB dynamic-sea samples into V0.2 truth and kinematics."""
 
 from __future__ import annotations
 
@@ -21,7 +21,25 @@ from simulation.v02 import (
 )
 
 
+def _finite_or_none(value: float) -> float | None:
+    return float(value) if math.isfinite(value) else None
+
+
+def _wrap_direction_deg(value: float) -> float:
+    return (float(value) + 180.0) % 360.0 - 180.0
+
+
 def _summary(raw: RawSeaSurface, truth: DynamicSeaTruth) -> dict[str, object]:
+    configured_vessel_direction_deg = _wrap_direction_deg(
+        90.0 - raw.wind_direction_deg
+    )
+    direction_error_deg = (
+        _wrap_direction_deg(
+            truth.dominant_wave_direction_deg - configured_vessel_direction_deg
+        )
+        if math.isfinite(truth.dominant_wave_direction_deg)
+        else math.nan
+    )
     return {
         "case_id": raw.case_id,
         "sea_state": raw.sea_state,
@@ -38,6 +56,23 @@ def _summary(raw: RawSeaSurface, truth: DynamicSeaTruth) -> dict[str, object]:
         "vertical_velocity_p95_mps": float(
             np.percentile(np.abs(truth.vertical_velocity_mps), 95.0)
         ),
+        "slant_range_rate_p95_mps": float(
+            np.percentile(np.abs(truth.slant_range_rate_mps), 95.0)
+        ),
+        "dominant_wave_direction_deg": _finite_or_none(
+            truth.dominant_wave_direction_deg
+        ),
+        "dominant_wave_period_s": _finite_or_none(
+            truth.dominant_wave_period_s
+        ),
+        "dominant_wavelength_m": _finite_or_none(
+            truth.dominant_wavelength_m
+        ),
+        "dominant_phase_speed_mps": _finite_or_none(
+            truth.dominant_phase_speed_mps
+        ),
+        "configured_vessel_wave_direction_deg": configured_vessel_direction_deg,
+        "dominant_direction_error_deg": _finite_or_none(direction_error_deg),
         "grazing_angle_mean_deg": float(np.mean(truth.grazing_angle_deg)),
         "grazing_angle_spatiotemporal_std_deg": float(
             np.std(truth.grazing_angle_deg)
@@ -130,7 +165,9 @@ def _plot_comparison(summaries: list[dict[str, object]], output_path: Path) -> N
         float(item["grazing_angle_temporal_std_mean_deg"])
         for item in summaries
     ]
-    velocity_p95 = [float(item["vertical_velocity_p95_mps"]) for item in summaries]
+    velocity_p95 = [
+        float(item["slant_range_rate_p95_mps"]) for item in summaries
+    ]
 
     figure, axes = plt.subplots(2, 2, figsize=(13, 8), constrained_layout=True)
     width = 0.38
@@ -150,8 +187,8 @@ def _plot_comparison(summaries: list[dict[str, object]], output_path: Path) -> N
     axes[1, 0].set_title("Wave-induced grazing-angle temporal variability")
 
     axes[1, 1].bar(positions, velocity_p95)
-    axes[1, 1].set_ylabel("95th percentile |vertical velocity| (m/s)")
-    axes[1, 1].set_title("Surface vertical-motion envelope")
+    axes[1, 1].set_ylabel("95th percentile |radial range rate| (m/s)")
+    axes[1, 1].set_title("Eulerian surface radial-motion envelope")
 
     for axis in axes.ravel():
         axis.set_xticks(positions, labels, rotation=30, ha="right")
@@ -184,6 +221,12 @@ def analyze_matlab_run(
     if not input_files:
         raise ValueError(f"no HDF5 files found in {input_run / 'data'}")
     expected_cases = {case.case_id: case for case in config.cases}
+    sea_surface_value = config.raw.get("sea_surface")
+    if not isinstance(sea_surface_value, dict) or "wind_direction_deg" not in sea_surface_value:
+        raise ValueError("sea_surface.wind_direction_deg is required")
+    expected_matlab_wind_direction_deg = float(
+        sea_surface_value["wind_direction_deg"]
+    )
     for input_path in input_files:
         raw = read_raw_hdf5(input_path)
         expected = expected_cases.get(raw.case_id)
@@ -195,6 +238,17 @@ def analyze_matlab_run(
             raise ValueError(
                 f"{raw.case_id} identity mismatch: expected sea_state="
                 f"{expected.sea_state}, target_hs_m={expected.target_hs_m}"
+            )
+        if not math.isclose(
+            raw.wind_direction_deg,
+            expected_matlab_wind_direction_deg,
+            rel_tol=0.0,
+            abs_tol=1e-12,
+        ):
+            raise ValueError(
+                f"{raw.case_id} wind direction mismatch: expected MATLAB "
+                f"WindDirection={expected_matlab_wind_direction_deg}, got "
+                f"{raw.wind_direction_deg}"
             )
     output_root_value = config.raw["output"]
     if not isinstance(output_root_value, dict):
@@ -247,7 +301,8 @@ def analyze_matlab_run(
         summaries.append(_summary(raw, truth))
 
     (output_run / "summary.json").write_text(
-        json.dumps(summaries, indent=2, ensure_ascii=False), encoding="utf-8"
+        json.dumps(summaries, indent=2, ensure_ascii=False, allow_nan=False),
+        encoding="utf-8",
     )
     if render_plots:
         _plot_comparison(
@@ -273,7 +328,7 @@ def analyze_matlab_run(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Analyze MATLAB seaSurface samples into V0.2-A truth artifacts."
+        description="Analyze MATLAB seaSurface samples into V0.2 truth and kinematics."
     )
     parser.add_argument("--input-run", type=Path, required=True)
     parser.add_argument(

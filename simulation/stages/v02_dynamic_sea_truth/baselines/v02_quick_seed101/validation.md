@@ -1,5 +1,8 @@
 # Validation record
 
+This is a historical pre-cap record. The former 1.20 m stress case is not a
+current valid state-3 configuration after the project Hs limit changed to 1.00 m.
+
 - [x] MATLAB R2025a `test_run_v02.m`: 2 passed, 0 failed, 0 incomplete (operator run, 8.947 seconds).
 - [x] MATLAB generated all five configured sea-state cases with seed 101.
 - [x] Python analyzed the MATLAB HDF5 run successfully.
