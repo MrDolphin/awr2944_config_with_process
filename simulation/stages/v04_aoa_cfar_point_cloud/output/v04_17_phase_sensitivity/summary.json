@@ -1,0 +1,55 @@
+{
+  "geometry_source": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\antgeometry_mapping.csv",
+  "connectivity_source": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\stages\\v04_aoa_cfar_point_cloud\\output\\v04_15_rf_connectivity\\rf_connectivity_summary.csv",
+  "tx_route_lengths_mm": [
+    30.721667464576555,
+    31.10770263588835,
+    31.383230019991647,
+    31.426905271358613
+  ],
+  "rx_route_lengths_mm": [
+    9.344395069443607,
+    9.314721688073277,
+    9.314721688073277,
+    9.34439506944359
+  ],
+  "results": [
+    {
+      "effective_eps_r": 1.0,
+      "phase_rms_deg": 0.0,
+      "azimuth_rmse_deg": 38.3208206295213,
+      "elevation_rmse_deg": 22.612536471379276,
+      "azimuth_max_abs_error_deg": 63.405770329010046,
+      "elevation_max_abs_error_deg": 42.39894728706385,
+      "interpretation_status": "sensitivity_only_not_calibrated_phase_model"
+    },
+    {
+      "effective_eps_r": 2.5,
+      "phase_rms_deg": 15.122700848809862,
+      "azimuth_rmse_deg": 38.23040999066322,
+      "elevation_rmse_deg": 24.285472508211235,
+      "azimuth_max_abs_error_deg": 62.107792476539096,
+      "elevation_max_abs_error_deg": 49.89188068102454,
+      "interpretation_status": "sensitivity_only_not_calibrated_phase_model"
+    },
+    {
+      "effective_eps_r": 3.0,
+      "phase_rms_deg": 19.049811845114515,
+      "azimuth_rmse_deg": 38.22407685825312,
+      "elevation_rmse_deg": 24.289467294086844,
+      "azimuth_max_abs_error_deg": 62.462831446387234,
+      "elevation_max_abs_error_deg": 49.626724703750774,
+      "interpretation_status": "sensitivity_only_not_calibrated_phase_model"
+    },
+    {
+      "effective_eps_r": 4.04,
+      "phase_rms_deg": 26.282104856371653,
+      "azimuth_rmse_deg": 38.000007220937604,
+      "elevation_rmse_deg": 23.687861306929626,
+      "azimuth_max_abs_error_deg": 63.11439779905024,
+      "elevation_max_abs_error_deg": 49.140218107883555,
+      "interpretation_status": "sensitivity_only_not_calibrated_phase_model"
+    }
+  ],
+  "interpretation_status": "sensitivity_only_not_calibrated_phase_model"
+}
