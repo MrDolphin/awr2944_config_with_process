@@ -36,6 +36,22 @@ def run(input_root: Path, candidate_csv: Path, output: Path) -> dict:
             writer = csv.DictWriter(handle, fieldnames=list(capture_rows[0])); writer.writeheader(); writer.writerows(capture_rows)
     with (output / "transform_aggregate.csv").open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(aggregate_rows[0])); writer.writeheader(); writer.writerows(aggregate_rows)
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    figure, axis = plt.subplots(figsize=(8, 4), constrained_layout=True)
+    labels = [row["transform"] for row in aggregate_rows]
+    values = [row["combined_rmse_deg"] for row in aggregate_rows]
+    if any(value is not None for value in values):
+        axis.bar(labels, [value if value is not None else 0.0 for value in values], color="#4472c4")
+        axis.set_ylabel("combined RMSE (deg)")
+        axis.set_title("Known-angle coordinate-transform batch")
+    else:
+        axis.text(0.5, 0.5, "No real capture manifests", ha="center", va="center", transform=axis.transAxes)
+        axis.set_title("Known-angle coordinate-transform batch")
+        axis.set_xticks([]); axis.set_yticks([])
+    figure.savefig(output / "transform_aggregate.png", dpi=160)
+    plt.close(figure)
     best = min((row for row in aggregate_rows if row["combined_rmse_deg"] is not None), key=lambda row: row["combined_rmse_deg"], default=None)
     summary = {"status": "completed_known_angle_batch" if capture_rows else "awaiting_known_angle_manifests", "input_root": str(input_root.resolve()), "candidate_csv": str(candidate_csv.resolve()), "manifest_count": len(manifests), "processed_capture_count": len({row["capture_id"] for row in capture_rows}), "failure_count": len(failures), "failures": failures, "aggregate": aggregate_rows, "best_transform_by_batch_rmse": best["transform"] if best else None, "hardware_aoa_validated": False, "evidence_status": "real_capture_candidate_only_until_channel_order_calibration_and_phase_center_are_verified"}
     (output / "summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
