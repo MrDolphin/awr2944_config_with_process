@@ -1,0 +1,122 @@
+{
+  "status": "completed_rf_endpoint_candidate_inference",
+  "source": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_ASCII.PcbDoc",
+  "candidate_count": 16,
+  "candidates_by_net": {
+    "RX1": [
+      {
+        "x_mil": 5487.127,
+        "y_mil": 4948.7637,
+        "distance_from_chip_pad_mil": 359.2556396100283,
+        "topology_degree": 1
+      },
+      {
+        "x_mil": 5522.5601,
+        "y_mil": 4591.2597,
+        "distance_from_chip_pad_mil": 0.0,
+        "topology_degree": 1
+      }
+    ],
+    "RX2": [
+      {
+        "x_mil": 5561.9302,
+        "y_mil": 4948.7637,
+        "distance_from_chip_pad_mil": 357.6990491139173,
+        "topology_degree": 1
+      },
+      {
+        "x_mil": 5573.7412,
+        "y_mil": 4591.2597,
+        "distance_from_chip_pad_mil": 0.0,
+        "topology_degree": 1
+      }
+    ],
+    "RX3": [
+      {
+        "x_mil": 5636.7333,
+        "y_mil": 4948.7637,
+        "distance_from_chip_pad_mil": 357.6990491139172,
+        "topology_degree": 1
+      },
+      {
+        "x_mil": 5624.9223,
+        "y_mil": 4591.2597,
+        "distance_from_chip_pad_mil": 0.0,
+        "topology_degree": 1
+      }
+    ],
+    "RX4": [
+      {
+        "x_mil": 5711.5365,
+        "y_mil": 4948.7637,
+        "distance_from_chip_pad_mil": 359.25563961002837,
+        "topology_degree": 1
+      },
+      {
+        "x_mil": 5676.1034,
+        "y_mil": 4591.2597,
+        "distance_from_chip_pad_mil": 0.0,
+        "topology_degree": 1
+      }
+    ],
+    "TX1": [
+      {
+        "x_mil": 5978.4511,
+        "y_mil": 4956.6373,
+        "distance_from_chip_pad_mil": 439.1471910736307,
+        "topology_degree": 1
+      },
+      {
+        "x_mil": 5778.4656,
+        "y_mil": 4565.6692,
+        "distance_from_chip_pad_mil": 0.0,
+        "topology_degree": 1
+      }
+    ],
+    "TX2": [
+      {
+        "x_mil": 6132.7031,
+        "y_mil": 5080.0625,
+        "distance_from_chip_pad_mil": 667.351937392565,
+        "topology_degree": 1
+      },
+      {
+        "x_mil": 5778.4656,
+        "y_mil": 4514.4881,
+        "distance_from_chip_pad_mil": 0.0,
+        "topology_degree": 1
+      }
+    ],
+    "TX3": [
+      {
+        "x_mil": 6286.9944,
+        "y_mil": 4956.6373,
+        "distance_from_chip_pad_mil": 708.5028760192365,
+        "topology_degree": 1
+      },
+      {
+        "x_mil": 5778.4656,
+        "y_mil": 4463.307,
+        "distance_from_chip_pad_mil": 0.0,
+        "topology_degree": 1
+      }
+    ],
+    "TX4": [
+      {
+        "x_mil": 6595.5377,
+        "y_mil": 4956.6373,
+        "distance_from_chip_pad_mil": 981.885676302679,
+        "topology_degree": 1
+      },
+      {
+        "x_mil": 5778.4656,
+        "y_mil": 4412.1259,
+        "distance_from_chip_pad_mil": 0.0,
+        "topology_degree": 1
+      }
+    ]
+  },
+  "phase_centers_validated": false,
+  "method": "degree-one endpoints of target-net Track/Arc graph, ranked by distance from U29 package pad",
+  "warning": "Candidates are geometric open-end clues only; they are not antenna phase centers or AoA truth."
+}
