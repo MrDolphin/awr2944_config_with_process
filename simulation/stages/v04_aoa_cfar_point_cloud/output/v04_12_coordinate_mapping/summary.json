@@ -1,0 +1,8 @@
+{
+  "frequency_ghz": 77.0,
+  "wavelength_mm": 3.8934085454545455,
+  "count": 16,
+  "raw_rms_delta_x_mm": 0.06927253218850768,
+  "raw_rms_delta_y_mm": 3.119807477853861,
+  "interpretation_status": "pcb_centroid_is_not_electrical_phase_center"
+}

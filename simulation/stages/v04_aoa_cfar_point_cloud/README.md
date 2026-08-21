@@ -17,3 +17,5 @@ TI SDK 的生产 AoA/MUSIC/ESPRIT 实现；当前不声称真实 AoA 精度、FO
 V0.4.10 的故障指纹表见 `docs/reports/v04_channel_diagnostics.md`；真实 EVM 数据到来前，通道顺序仍标记为 `synthetic_only`。
 
 V0.4.11 的 PCB/CAD 文件格式、SHA-256 和可提取字段见 `simulation/stages/v04_aoa_cfar_point_cloud/output/pcb_package_inventory.md`，分析报告见 `docs/reports/v04_pcb_package_audit.md`。
+
+V0.4.12 将 PCB 虚拟通道与 `antGeometryCfg` 逐通道对齐，结果见 `simulation/stages/v04_aoa_cfar_point_cloud/output/v04_12_coordinate_mapping/` 和 `docs/reports/v04_coordinate_mapping.md`。

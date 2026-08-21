@@ -48,3 +48,11 @@ V0.4.8 另外验证了当前 4TX TDM `chirpCfg` 序列到虚拟通道张量的�
 - 装配图、层叠图、原理图用于确认朝向、层号、馈电关系和版本；BOM 只做版本追溯。
 
 因此，当前 `cad_virtual_array_coordinates.csv` 仍是 PCB 铜区几何中心近似，不能当作真实相位中心。下一步应提取馈电点、板面坐标系和 `Tx0Rx0...Tx3Rx3` 映射，再用电磁仿真或角反射器标定升级坐标可信度。
+
+## V0.4.12 PCB 坐标与 CFG 通道对齐
+
+已将 16 个 PCB 虚拟通道按 `Tx0Rx0...Tx3Rx3` 顺序与 `antGeometryCfg` 的行/列坐标逐通道比较。77 GHz 下使用 `0.5λ` 方位间距和 `0.8λ` 俯仰间距，输出逐通道 `pcb_x/y_mm`、`cfg_x/y_mm` 和差值。该比较没有进行旋转、镜像、缩放或最佳配准，目的只是暴露坐标定义不一致，不能直接解释为 AoA 误差。
+
+结果目录为 `output/v04_12_coordinate_mapping/`，详细报告见 `docs/reports/v04_coordinate_mapping.md`。当前结论仍是 `pcb_centroid_is_not_electrical_phase_center`；下一步需要确认板面法向、X/Y 方向、原点和馈电/相位中心。
+
+本次数值还发现：X 方向 RMS 差约 0.0693 mm，和 0.5λ 网格基本一致；Y 方向 RMS 差约 3.1198 mm，且 CFG row=0/row=1 与 PCB 的两个 Y 位置呈交换关系。当前优先级应是确认 `antGeometryCfg` 的 row 语义、PCB 板面朝向和坐标镜像，而不是马上调整阵元间距。
