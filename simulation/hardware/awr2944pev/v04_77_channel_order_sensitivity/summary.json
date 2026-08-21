@@ -1,0 +1,13 @@
+{
+  "status": "completed_channel_order_sensitivity",
+  "permutation_count": 8,
+  "grid_count": 2,
+  "best_candidate": "identity",
+  "best_grid": "narrow",
+  "identity_narrow_azimuth_rmse_deg": 5.90160551385376e-15,
+  "identity_narrow_elevation_rmse_deg": 7.908299114285763e-15,
+  "identity_wide_azimuth_rmse_deg": 25.221875430917517,
+  "identity_wide_elevation_rmse_deg": 27.158151415348936,
+  "mapping_validated": false,
+  "hardware_validated": false
+}
