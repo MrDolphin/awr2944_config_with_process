@@ -11,12 +11,12 @@ def virtual_array_positions(config: FmcwConfig) -> tuple[np.ndarray, np.ndarray]
     """Return 4x4 synthetic virtual positions in wavelengths (x, y).
 
     This is a software contract for AoA testing, not the AWR2944P EVM layout.
-    TX elements are separated along x by 2*d and RX elements along y by d.
+    TX and RX elements are separated by d (half wavelength).
     """
     if config.tx_count != 4 or config.rx_count != 4:
         raise ValueError("V0.4 contract requires 4 TX and 4 RX")
     d = config.wavelength_m / 2.0
-    tx_x = np.arange(4, dtype=float) * 2.0 * d
+    tx_x = np.arange(4, dtype=float) * d
     rx_y = np.arange(4, dtype=float) * d
     x = np.repeat(tx_x[None, :], 4, axis=0)
     y = np.repeat(rx_y[:, None], 4, axis=1)
@@ -56,8 +56,7 @@ def estimate_aoa_from_channels(iq: np.ndarray, config: FmcwConfig) -> tuple[floa
     phase = np.unwrap(np.unwrap(np.angle(channel), axis=1), axis=0)
     x_slope = float(np.mean(np.diff(phase, axis=1)))
     y_slope = float(np.mean(np.diff(phase, axis=0)))
-    # TX spacing is one wavelength (2*d), so the x phase increment is 2*pi.
-    sin_az_cos_el = np.clip(x_slope / (2.0 * np.pi), -1.0, 1.0)
+    sin_az_cos_el = np.clip(x_slope / np.pi, -1.0, 1.0)
     sin_el = np.clip(y_slope / np.pi, -1.0, 1.0)
     elevation = float(np.rad2deg(np.arcsin(sin_el)))
     azimuth = float(np.rad2deg(np.arcsin(sin_az_cos_el / max(np.cos(np.deg2rad(elevation)), 1e-9))))
