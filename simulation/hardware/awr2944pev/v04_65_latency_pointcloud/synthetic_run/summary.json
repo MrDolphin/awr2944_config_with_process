@@ -1,0 +1,17 @@
+{
+  "status": "completed_latency_to_pointcloud_propagation",
+  "delay_count": 5,
+  "passing_delay_count": 5,
+  "quality_pass_delays_s": [
+    -0.01,
+    -0.005,
+    0.0,
+    0.005,
+    0.01
+  ],
+  "max_position_change_m_over_passing": 0.4020178109362444,
+  "max_abs_azimuth_change_deg_over_passing": 4.472246805302603,
+  "max_abs_elevation_change_deg_over_passing": 1.5407571229151102,
+  "point_cloud_source_is_hardware": false,
+  "imu_source_is_hardware": false
+}

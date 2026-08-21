@@ -1,0 +1,23 @@
+{
+  "status": "completed_imu_pose_compensation_comparison",
+  "point_count": 4,
+  "frame_count": 2,
+  "nominal_pose_deg": [
+    90.0,
+    0.0,
+    0.0
+  ],
+  "imu_frames_used": [
+    25,
+    26,
+    27,
+    28,
+    29
+  ],
+  "max_position_change_m": 0.38250325468682267,
+  "max_abs_azimuth_change_deg": 4.254626048151081,
+  "max_abs_elevation_change_deg": 1.4706741134362176,
+  "source_is_hardware_imu": false,
+  "point_cloud_source_is_hardware": false,
+  "phase_center_confirmed": false
+}
