@@ -1,0 +1,35 @@
+{
+  "status": "completed_cfar_cell_evidence",
+  "case_count": 5,
+  "top_n_per_case": 5,
+  "scenario_count": 9,
+  "top_cells_meeting_any_cfar": 0,
+  "all_case_summaries": [
+    {
+      "case_id": "ss0_flat",
+      "top_cell_count": 5,
+      "top_power_linear": 432687.3125
+    },
+    {
+      "case_id": "ss1_rippled",
+      "top_cell_count": 5,
+      "top_power_linear": 1183632.75
+    },
+    {
+      "case_id": "ss2_normal",
+      "top_cell_count": 5,
+      "top_power_linear": 1373138.25
+    },
+    {
+      "case_id": "ss3_nominal",
+      "top_cell_count": 5,
+      "top_power_linear": 1279215.875
+    },
+    {
+      "case_id": "ss3_upper",
+      "top_cell_count": 5,
+      "top_power_linear": 2058310.0
+    }
+  ],
+  "hardware_validated": false
+}
