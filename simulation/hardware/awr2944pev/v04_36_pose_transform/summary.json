@@ -1,0 +1,13 @@
+{
+  "status": "completed_pose_transform_candidates",
+  "region_count": 8,
+  "pose_count": 6,
+  "translation_mm": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "installation_pose_confirmed": false,
+  "phase_center_confirmed": false,
+  "vertical_board_pose_is_candidate_only": true
+}

@@ -1,0 +1,16 @@
+{
+  "coordinate_chain": [
+    "pcb_board_relative_mm",
+    "board_to_radar_rotation",
+    "board_to_radar_translation_mm",
+    "radar_or_world_candidate_mm"
+  ],
+  "rotation_convention": "Rz(yaw) @ Ry(pitch) @ Rx(roll)",
+  "translation_mm": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "pose_measurement_required": true,
+  "phase_center_confirmed": false
+}

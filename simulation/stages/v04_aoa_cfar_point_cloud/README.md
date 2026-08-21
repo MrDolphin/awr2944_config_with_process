@@ -65,3 +65,5 @@ V0.4.33 增加带真值元数据的已知角度 HDF5 回归夹具，并用同一
 V0.4.34 对 `cfg_raw`、row/column 交换、规则 TX/RX 阵列及镜像模型做成对角度网格扫描；结果见 `simulation/hardware/awr2944pev/v04_34_geometry_semantics_scan/` 和 `docs/reports/v04_34_geometry_semantics_scan.md`。扫描用于筛查几何语义，不等同于硬件真实阵列验证。
 
 V0.4.35 从 ASCII PCB 提取板框原点、约 85 mm × 125 mm 板框、RF 区域板框相对坐标和机械参考候选；装配图未提供可直接提取的相位中心/安装姿态尺寸。结果见 `simulation/hardware/awr2944pev/v04_35_mechanical_datum/` 和 `docs/reports/v04_35_mechanical_datum.md`。
+
+V0.4.36 增加 PCB 板框到雷达/船体坐标的旋转和平移候选接口，并输出板面法向与竖直方向夹角；当前姿态仍为 `pose_candidate`，未确认实际安装角。结果见 `simulation/hardware/awr2944pev/v04_36_pose_transform/` 和 `docs/reports/v04_36_pose_transform.md`。

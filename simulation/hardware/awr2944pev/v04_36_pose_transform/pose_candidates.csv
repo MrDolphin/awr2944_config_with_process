@@ -1,0 +1,7 @@
+pose_name,roll_deg,pitch_deg,yaw_deg,normal_x,normal_y,normal_z,normal_to_vertical_abs_angle_deg,pose_status
+identity,0.0,0.0,0.0,0.0,0.0,1.0,0.0,pose_candidate_not_measured
+board_vertical_pitch_plus90,0.0,90.0,0.0,1.0,0.0,6.123233995736766e-17,90.0,pose_candidate_not_measured
+board_vertical_pitch_minus90,0.0,-90.0,0.0,-1.0,0.0,6.123233995736766e-17,90.0,pose_candidate_not_measured
+board_vertical_roll_plus90,90.0,0.0,0.0,0.0,-1.0,6.123233995736766e-17,90.0,pose_candidate_not_measured
+board_vertical_roll_minus90,-90.0,0.0,0.0,0.0,1.0,6.123233995736766e-17,90.0,pose_candidate_not_measured
+yaw_plus90,0.0,0.0,90.0,0.0,0.0,1.0,0.0,pose_candidate_not_measured
