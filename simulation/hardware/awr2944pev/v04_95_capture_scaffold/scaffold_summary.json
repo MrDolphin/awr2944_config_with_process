@@ -1,0 +1,8 @@
+{
+  "status": "capture_manifest_scaffold_generated",
+  "case_count": 30,
+  "root": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_95_capture_scaffold",
+  "planned_only": true,
+  "hardware_aoa_validated": false,
+  "next_action": "copy actual capture.bin and profile.cfg into each case directory, then fill hashes and metadata"
+}

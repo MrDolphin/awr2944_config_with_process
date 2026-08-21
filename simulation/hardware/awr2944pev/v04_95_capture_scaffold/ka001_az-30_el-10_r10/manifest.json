@@ -1,0 +1,46 @@
+{
+  "schema_version": "awr2944p-known-angle-capture-v0.4.90",
+  "capture_id": "ka001_az-30_el-10_r10",
+  "capture_file": "capture.bin",
+  "capture_sha256": null,
+  "target": {
+    "type": "corner_reflector",
+    "azimuth_deg": -30.0,
+    "elevation_deg": -10.0,
+    "range_m": 10.0,
+    "radial_velocity_mps": 0.0,
+    "truth_source": "survey_or_total_station"
+  },
+  "radar_pose": {
+    "installation_height_m": 1.0,
+    "boresight_azimuth_deg": 0.0,
+    "boresight_elevation_deg": 0.0,
+    "board_to_radar_transform_candidate": "identity",
+    "pose_source": "mechanical_measurement_required"
+  },
+  "capture": {
+    "cfg_file": "profile.cfg",
+    "cfg_sha256": null,
+    "raw_dtype": "int16",
+    "wire_order_assumption": "sample_rx_iq",
+    "tdm_tx_sequence": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "chirps": 64,
+    "samples_per_chirp": 128,
+    "rx_count": 4,
+    "frame_count": 0,
+    "channel_order_verified": false,
+    "capture_timestamp": "replace_with_iso8601",
+    "imu_or_platform_pose_reference": "replace_with_imu_log_or_none"
+  },
+  "calibration": {
+    "ti_calibration_status": "not_measured",
+    "calibration_file": null,
+    "calibration_sha256": null
+  },
+  "evidence_status": "planned_awaiting_capture"
+}
