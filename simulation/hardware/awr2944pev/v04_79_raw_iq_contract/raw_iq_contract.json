@@ -1,0 +1,21 @@
+{
+  "schema_version": "awr2944p-raw-iq-contract-v0.4.79",
+  "raw_shape": ["chirp", "sample", "rx"],
+  "virtual_shape": ["frame", "sample", "rx", "tx"],
+  "required_rx_count": 4,
+  "required_tx_count": 4,
+  "raw_dtype": "little_endian_int16_or_decoded_complex64",
+  "wire_order_assumption": "sample -> rx -> I,Q",
+  "tdm_tx_sequence": [0, 1, 2, 3],
+  "required_metadata": [
+    "cfg_snapshot",
+    "raw_dtype",
+    "wire_order_assumption",
+    "tdm_tx_sequence",
+    "channel_order_verified",
+    "ti_calibration_status",
+    "capture_timestamp",
+    "imu_or_platform_pose_reference"
+  ],
+  "evidence_boundary": "contract_validation_is_not_hardware_aoa_validation"
+}
