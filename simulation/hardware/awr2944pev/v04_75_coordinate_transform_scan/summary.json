@@ -1,0 +1,43 @@
+{
+  "cad_source": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_73_new_pcb_package\\cad_virtual_array_coordinates.csv",
+  "geometry_source": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\antgeometry_mapping.csv",
+  "scan_azimuth_deg": [
+    -60,
+    60
+  ],
+  "scan_elevation_deg": [
+    -20,
+    20
+  ],
+  "results": {
+    "raw": {
+      "azimuth_rmse_deg": 38.241514149965155,
+      "elevation_rmse_deg": 21.889917952626387,
+      "azimuth_max_abs_error_deg": 63.27436314738409,
+      "elevation_max_abs_error_deg": 50.58732083814216,
+      "coordinate_status": "pcb_centroid_generated_cfg_ideal_estimator"
+    },
+    "x_mirror": {
+      "azimuth_rmse_deg": 42.807662685519865,
+      "elevation_rmse_deg": 21.889917952626384,
+      "azimuth_max_abs_error_deg": 60.18469978224296,
+      "elevation_max_abs_error_deg": 50.58732083814215,
+      "coordinate_status": "pcb_centroid_generated_cfg_ideal_estimator"
+    },
+    "y_mirror": {
+      "azimuth_rmse_deg": 38.24151414996516,
+      "elevation_rmse_deg": 22.49269744197863,
+      "azimuth_max_abs_error_deg": 63.27436314738411,
+      "elevation_max_abs_error_deg": 42.09503200649664,
+      "coordinate_status": "pcb_centroid_generated_cfg_ideal_estimator"
+    },
+    "rotate_180": {
+      "azimuth_rmse_deg": 42.807662685519865,
+      "elevation_rmse_deg": 22.49269744197863,
+      "azimuth_max_abs_error_deg": 60.18469978224296,
+      "elevation_max_abs_error_deg": 42.09503200649654,
+      "coordinate_status": "pcb_centroid_generated_cfg_ideal_estimator"
+    }
+  },
+  "interpretation_status": "coordinate_transform_screening_only"
+}
