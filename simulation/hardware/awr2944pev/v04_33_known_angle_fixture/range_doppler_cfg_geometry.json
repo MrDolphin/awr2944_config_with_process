@@ -1,0 +1,31 @@
+{
+  "doppler_index": 4,
+  "range_index": 9,
+  "peak_range_m": 31.6187358046875,
+  "peak_velocity_mps": 0.0,
+  "peak_power_linear": 9288.809677273264,
+  "estimated_azimuth_deg": 2.2973205812753386,
+  "estimated_elevation_deg": -0.4138679417264923,
+  "input_h5": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_33_known_angle_fixture\\known_angle_cfg_geometry.h5",
+  "input_dataset": "/recovered/virtual_iq",
+  "input_attrs": {
+    "calibration_status": "synthetic_unity_not_measured",
+    "channel_order_verified": "True",
+    "geometry_source": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\antgeometry_mapping.csv",
+    "schema_version": "awr2944p-known-angle-fixture-v0.4.33",
+    "source_type": "synthetic_known_angle_regression_only",
+    "truth_azimuth_deg": "15.0",
+    "truth_elevation_deg": "8.0",
+    "truth_range_m": "30.0",
+    "truth_velocity_mps": "0.0",
+    "tx_sequence": "TX1,TX2,TX3,TX4"
+  },
+  "virtual_shape": [
+    8,
+    64,
+    4,
+    4
+  ],
+  "channel_order_verified": false,
+  "aoa_status": "peak_cell_aoa_not_hardware_validated"
+}

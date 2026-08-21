@@ -59,3 +59,5 @@ V0.4.30 对新增资料中的 3 个 PDF 和 25 个 SchDoc 做文档证据审计�
 V0.4.31 将 PCB RF 区域、`antGeometryCfg` 和原理图 GCPW 文字证据汇总到每个虚拟通道，并生成校准输入契约和缺口登记；结果见 `simulation/hardware/awr2944pev/v04_31_evidence_grade/` 和 `docs/reports/v04_31_evidence_grade.md`。16 个通道仍为 `candidate_only`。
 
 V0.4.32 增加 DCA1000/HDF5、4×4 校准矩阵、CFG 和通道顺序的真实 AoA 就绪性闸门；当前合成校准文件仅通过形状检查，未通过实测校准和通道顺序检查。结果见 `simulation/hardware/awr2944pev/v04_32_calibration_readiness/` 和 `docs/reports/v04_32_calibration_readiness.md`。
+
+V0.4.33 增加带真值元数据的已知角度 HDF5 回归夹具，并用同一 `antGeometryCfg` 几何运行 V0.4.22 AoA；低角度回归通过，高角度暴露空间间距/相位展开混叠风险。结果见 `simulation/hardware/awr2944pev/v04_33_known_angle_fixture/` 和 `docs/reports/v04_33_known_angle_fixture.md`。

@@ -1,0 +1,39 @@
+{
+  "status": "completed_calibration_readiness_check",
+  "checks": {
+    "capture_readable": true,
+    "capture_channel_order_verified": true,
+    "measured_calibration": false,
+    "calibration_shape_4x4": true,
+    "cfg_present": true
+  },
+  "real_aoa_ready": false,
+  "capture": {
+    "path": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_33_known_angle_fixture\\known_angle_az015_el008.h5",
+    "exists": true,
+    "status": "readable",
+    "datasets": [
+      "decoded",
+      "recovered"
+    ],
+    "has_decoded": true,
+    "has_recovered": true,
+    "has_calibrated": false,
+    "channel_order_verified": true,
+    "schema_version": "awr2944p-known-angle-fixture-v0.4.33",
+    "ready_for_aoa": true
+  },
+  "calibration": {
+    "path": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\stages\\v04_aoa_cfar_point_cloud\\output\\v04_18_calibration_scan\\synthetic_calibration.json",
+    "exists": true,
+    "status": "readable",
+    "measured": false,
+    "shape_valid": true,
+    "calibration_status": "synthetic_injected_error_not_measured"
+  },
+  "cfg": {
+    "path": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\stages\\v04_aoa_cfar_point_cloud\\config\\awr2944p_cfg_snapshot.json",
+    "exists": true,
+    "status": "present"
+  }
+}
