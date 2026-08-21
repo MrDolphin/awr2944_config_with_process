@@ -1,0 +1,128 @@
+{
+  "status": "completed_pcb_asset_audit",
+  "source": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_ASCII.PcbDoc",
+  "source_format": "Altium ASCII PcbDoc",
+  "board": {
+    "ORIGINX": "3337.6697mil",
+    "ORIGINY": "2034.0003mil",
+    "VX0": "3337.6697mil",
+    "VY0": "2034mil",
+    "VX1": "6684.12mil",
+    "VY1": "2033.9997mil",
+    "VX2": "6684.1192mil",
+    "VY2": "6955.2517mil",
+    "VX3": "6684.12mil",
+    "VY3": "6955.2517mil"
+  },
+  "chip": {
+    "SOURCEDESIGNATOR": "U29",
+    "SOURCEDESCRIPTION": "XA2944BGALT",
+    "X": "5586.5365mil",
+    "Y": "4399.3306mil",
+    "ROTATION": " 2.70000000000000E+0002",
+    "PATTERN": "0-MFG"
+  },
+  "tx_rx_package_pad_count": 8,
+  "tx_rx_package_pads": [
+    {
+      "component": "U29",
+      "pad": "B3",
+      "net_id": "110",
+      "net_name": "TX1",
+      "x_mil": 5778.4656,
+      "y_mil": 4565.6692,
+      "x_mm": 146.77302624,
+      "y_mm": 115.96799768,
+      "layer": "TOP"
+    },
+    {
+      "component": "U29",
+      "pad": "B5",
+      "net_id": "109",
+      "net_name": "TX2",
+      "x_mil": 5778.4656,
+      "y_mil": 4514.4881,
+      "x_mm": 146.77302624,
+      "y_mm": 114.66799773999999,
+      "layer": "TOP"
+    },
+    {
+      "component": "U29",
+      "pad": "B7",
+      "net_id": "108",
+      "net_name": "TX3",
+      "x_mil": 5778.4656,
+      "y_mil": 4463.307,
+      "x_mm": 146.77302624,
+      "y_mm": 113.36799779999998,
+      "layer": "TOP"
+    },
+    {
+      "component": "U29",
+      "pad": "B9",
+      "net_id": "107",
+      "net_name": "TX4",
+      "x_mil": 5778.4656,
+      "y_mil": 4412.1259,
+      "x_mm": 146.77302624,
+      "y_mm": 112.06799785999999,
+      "layer": "TOP"
+    },
+    {
+      "component": "U29",
+      "pad": "F2",
+      "net_id": "117",
+      "net_name": "RX4",
+      "x_mil": 5676.1034,
+      "y_mil": 4591.2597,
+      "x_mm": 144.17302636,
+      "y_mm": 116.61799637999998,
+      "layer": "TOP"
+    },
+    {
+      "component": "U29",
+      "pad": "H2",
+      "net_id": "118",
+      "net_name": "RX3",
+      "x_mil": 5624.9223,
+      "y_mil": 4591.2597,
+      "x_mm": 142.87302642,
+      "y_mm": 116.61799637999998,
+      "layer": "TOP"
+    },
+    {
+      "component": "U29",
+      "pad": "K2",
+      "net_id": "119",
+      "net_name": "RX2",
+      "x_mil": 5573.7412,
+      "y_mil": 4591.2597,
+      "x_mm": 141.57302648,
+      "y_mm": 116.61799637999998,
+      "layer": "TOP"
+    },
+    {
+      "component": "U29",
+      "pad": "M2",
+      "net_id": "120",
+      "net_name": "RX1",
+      "x_mil": 5522.5601,
+      "y_mil": 4591.2597,
+      "x_mm": 140.27302654,
+      "y_mm": 116.61799637999998,
+      "layer": "TOP"
+    }
+  ],
+  "extractable_for_array_model": [
+    "board coordinate origin and outline",
+    "XA2944BGALT package center and rotation",
+    "chip TX/RX package pad coordinates and net names",
+    "PCB stackup dielectric constants and heights from V9_STACK_LAYER records"
+  ],
+  "not_yet_proven": [
+    "TX/RX antenna phase-center coordinates",
+    "element-to-element coupling and feed transition geometry",
+    "measured azimuth/elevation radiation pattern",
+    "TI calibration matrix and board-to-radar coordinate transform"
+  ]
+}
