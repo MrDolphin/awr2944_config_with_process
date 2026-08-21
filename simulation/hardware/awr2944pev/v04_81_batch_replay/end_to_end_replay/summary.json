@@ -1,0 +1,22 @@
+{
+  "file": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_80_end_to_end_replay\\end_to_end_replay.h5",
+  "status": "completed_batch_replay",
+  "raw_shape": [
+    16,
+    64,
+    4
+  ],
+  "virtual_shape": [
+    4,
+    64,
+    4,
+    4
+  ],
+  "contract_status": "valid_contract",
+  "estimated_azimuth_deg": 4.998798348562582,
+  "estimated_elevation_deg": 2.0127884454683644,
+  "peak_range_m": 21.079157203125,
+  "peak_velocity_mps": 0.0,
+  "hardware_validated": false,
+  "channel_order_verified": false
+}
