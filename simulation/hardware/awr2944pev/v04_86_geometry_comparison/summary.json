@@ -1,0 +1,31 @@
+{
+  "status": "completed_pcb_candidate_geometry_comparison",
+  "candidate_csv": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_85_pcb_array_candidate\\virtual_array_candidates.csv",
+  "candidate_virtual_channels": 16,
+  "wavelength_mm": 3.8934085454545455,
+  "candidate_aperture_x_mm": 21.374000940000002,
+  "candidate_aperture_y_mm": 3.135000079999969,
+  "beam_3db_width_az_deg": {
+    "ideal_v04": 26.0,
+    "pcb_candidate": 8.0
+  },
+  "beam_3db_width_el_deg": {
+    "ideal_v04": 26.0,
+    "pcb_candidate": 40.0
+  },
+  "known_angle_metrics": [
+    {
+      "model": "ideal_v04",
+      "azimuth_rmse_deg": 0.6324555320336759,
+      "elevation_rmse_deg": 20.32404159281974,
+      "combined_rmse_deg": 14.37822427608268
+    },
+    {
+      "model": "pcb_candidate",
+      "azimuth_rmse_deg": 0.0,
+      "elevation_rmse_deg": 0.0,
+      "combined_rmse_deg": 0.0
+    }
+  ],
+  "hardware_aoa_validated": false
+}

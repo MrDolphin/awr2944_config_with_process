@@ -1,0 +1,125 @@
+{
+  "status": "completed_sea_clutter_geometry_comparison",
+  "input_root": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\stages\\v02_dynamic_sea_truth\\results\\matlab\\v02b_quick_seed101_hs1m\\data",
+  "candidate_csv": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_85_pcb_array_candidate\\virtual_array_candidates.csv",
+  "case_count": 5,
+  "models": [
+    "ideal_v04",
+    "pcb_candidate"
+  ],
+  "random_seed_base": 8700,
+  "input_status": "v02_surface_height_truth_not_measured_radar_iq",
+  "hardware_aoa_validated": false,
+  "summaries": [
+    {
+      "case_id": "ss0_flat",
+      "model": "ideal_v04",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 45.972350987957064,
+      "elevation_rmse_to_dominant_deg": 3.8063450438130033,
+      "combined_rmse_to_dominant_deg": 32.618593761476575,
+      "mean_peak_to_second_db": 0.006154078536020674,
+      "jump_rate_over_5deg": 0.875,
+      "mean_angle_jump_deg": 58.791864129620606
+    },
+    {
+      "case_id": "ss0_flat",
+      "model": "pcb_candidate",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 44.15560545942241,
+      "elevation_rmse_to_dominant_deg": 7.734806703951183,
+      "combined_rmse_to_dominant_deg": 31.698144490140606,
+      "mean_peak_to_second_db": 0.006946732536108212,
+      "jump_rate_over_5deg": 0.95,
+      "mean_angle_jump_deg": 57.96730516598598
+    },
+    {
+      "case_id": "ss1_rippled",
+      "model": "ideal_v04",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 62.26902247154626,
+      "elevation_rmse_to_dominant_deg": 3.579105632298733,
+      "combined_rmse_to_dominant_deg": 44.10352115585038,
+      "mean_peak_to_second_db": 0.0061905918937052076,
+      "jump_rate_over_5deg": 0.9,
+      "mean_angle_jump_deg": 62.755367526650176
+    },
+    {
+      "case_id": "ss1_rippled",
+      "model": "pcb_candidate",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 42.45317360318911,
+      "elevation_rmse_to_dominant_deg": 8.649694583782134,
+      "combined_rmse_to_dominant_deg": 30.635674999705998,
+      "mean_peak_to_second_db": 0.009388973259099466,
+      "jump_rate_over_5deg": 0.95,
+      "mean_angle_jump_deg": 45.11770800681249
+    },
+    {
+      "case_id": "ss2_normal",
+      "model": "ideal_v04",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 53.31389051530081,
+      "elevation_rmse_to_dominant_deg": 4.062830395692485,
+      "combined_rmse_to_dominant_deg": 37.80791922799801,
+      "mean_peak_to_second_db": 0.004949699800720287,
+      "jump_rate_over_5deg": 0.875,
+      "mean_angle_jump_deg": 53.116896324105845
+    },
+    {
+      "case_id": "ss2_normal",
+      "model": "pcb_candidate",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 50.174664191689494,
+      "elevation_rmse_to_dominant_deg": 6.82987842624304,
+      "combined_rmse_to_dominant_deg": 35.80603417069578,
+      "mean_peak_to_second_db": 0.005638219775984249,
+      "jump_rate_over_5deg": 0.925,
+      "mean_angle_jump_deg": 48.54863897676105
+    },
+    {
+      "case_id": "ss3_nominal",
+      "model": "ideal_v04",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 45.97889643614227,
+      "elevation_rmse_to_dominant_deg": 3.564606699397228,
+      "combined_rmse_to_dominant_deg": 32.60954874271403,
+      "mean_peak_to_second_db": 0.004745068765789983,
+      "jump_rate_over_5deg": 0.825,
+      "mean_angle_jump_deg": 53.57424332638074
+    },
+    {
+      "case_id": "ss3_nominal",
+      "model": "pcb_candidate",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 35.12690941941806,
+      "elevation_rmse_to_dominant_deg": 5.829674678986084,
+      "combined_rmse_to_dominant_deg": 25.17821352104645,
+      "mean_peak_to_second_db": 0.006736518137814598,
+      "jump_rate_over_5deg": 0.825,
+      "mean_angle_jump_deg": 43.24175432474464
+    },
+    {
+      "case_id": "ss3_upper",
+      "model": "ideal_v04",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 66.54229442882949,
+      "elevation_rmse_to_dominant_deg": 3.358965763848607,
+      "combined_rmse_to_dominant_deg": 47.11241661630052,
+      "mean_peak_to_second_db": 0.006162758824710102,
+      "jump_rate_over_5deg": 0.7,
+      "mean_angle_jump_deg": 62.023609326616494
+    },
+    {
+      "case_id": "ss3_upper",
+      "model": "pcb_candidate",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 49.087818858889875,
+      "elevation_rmse_to_dominant_deg": 8.546203199064838,
+      "combined_rmse_to_dominant_deg": 35.23245343034523,
+      "mean_peak_to_second_db": 0.00714330503045093,
+      "jump_rate_over_5deg": 0.875,
+      "mean_angle_jump_deg": 46.79070211967061
+    }
+  ]
+}
