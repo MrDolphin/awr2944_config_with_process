@@ -1,0 +1,17 @@
+virtual_input_index,tx_index,rx_index,tx_name,rx_name,chirp_index,tx_enable_bit,tx_net_id,rx_net_id,tx_pad_name,rx_pad_name,cfg_row,cfg_column,mapping_status,source_status
+0,0,0,TX1,RX1,0,1,110,120,B3,M2,1,0,name_based_candidate_not_channel_calibrated,PCB_net_name_plus_CFG_chirp_order
+1,0,1,TX1,RX2,0,1,110,119,B3,K2,1,1,name_based_candidate_not_channel_calibrated,PCB_net_name_plus_CFG_chirp_order
+2,0,2,TX1,RX3,0,1,110,118,B3,H2,1,2,name_based_candidate_not_channel_calibrated,PCB_net_name_plus_CFG_chirp_order
+3,0,3,TX1,RX4,0,1,110,117,B3,F2,1,3,name_based_candidate_not_channel_calibrated,PCB_net_name_plus_CFG_chirp_order
+4,1,0,TX2,RX1,1,4,109,120,B5,M2,0,2,name_based_candidate_not_channel_calibrated,PCB_net_name_plus_CFG_chirp_order
+5,1,1,TX2,RX2,1,4,109,119,B5,K2,0,3,name_based_candidate_not_channel_calibrated,PCB_net_name_plus_CFG_chirp_order
+6,1,2,TX2,RX3,1,4,109,118,B5,H2,0,4,name_based_candidate_not_channel_calibrated,PCB_net_name_plus_CFG_chirp_order
+7,1,3,TX2,RX4,1,4,109,117,B5,F2,0,5,name_based_candidate_not_channel_calibrated,PCB_net_name_plus_CFG_chirp_order
+8,2,0,TX3,RX1,2,8,108,120,B7,M2,1,4,name_based_candidate_not_channel_calibrated,PCB_net_name_plus_CFG_chirp_order
+9,2,1,TX3,RX2,2,8,108,119,B7,K2,1,5,name_based_candidate_not_channel_calibrated,PCB_net_name_plus_CFG_chirp_order
+10,2,2,TX3,RX3,2,8,108,118,B7,H2,1,6,name_based_candidate_not_channel_calibrated,PCB_net_name_plus_CFG_chirp_order
+11,2,3,TX3,RX4,2,8,108,117,B7,F2,1,7,name_based_candidate_not_channel_calibrated,PCB_net_name_plus_CFG_chirp_order
+12,3,0,TX4,RX1,3,2,107,120,B9,M2,1,8,name_based_candidate_not_channel_calibrated,PCB_net_name_plus_CFG_chirp_order
+13,3,1,TX4,RX2,3,2,107,119,B9,K2,1,9,name_based_candidate_not_channel_calibrated,PCB_net_name_plus_CFG_chirp_order
+14,3,2,TX4,RX3,3,2,107,118,B9,H2,1,10,name_based_candidate_not_channel_calibrated,PCB_net_name_plus_CFG_chirp_order
+15,3,3,TX4,RX4,3,2,107,117,B9,F2,1,11,name_based_candidate_not_channel_calibrated,PCB_net_name_plus_CFG_chirp_order
