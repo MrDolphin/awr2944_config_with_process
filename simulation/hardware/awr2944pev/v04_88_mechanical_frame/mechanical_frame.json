@@ -1,0 +1,79 @@
+{
+  "status": "completed_sprr440_mechanical_frame_extraction",
+  "sources": {
+    "step": {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr440a (1)\\SPRR440\\3D_PCB\\PROC113D_BRD.step",
+      "sha256": "4f94d0b39d451f2c6599faf4530dece865e8efc15bc088a384c2fa27ada0f271"
+    },
+    "assembly_pdf": {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr440a (1)\\SPRR440\\Assembly Drawings\\PROC113D(001)_Assy.PDF",
+      "sha256": "313499bd053476b3e6e9767f701f9030e354410d5c0ef326714d1955ba5a714b",
+      "page_count": 2,
+      "extracted_text_chars": 54625,
+      "keyword_counts": {
+        "TX1": 0,
+        "TX2": 0,
+        "TX3": 0,
+        "TX4": 0,
+        "RX1": 0,
+        "RX2": 0,
+        "RX3": 0,
+        "RX4": 0,
+        "GCPW": 0,
+        "ANTENNA": 0,
+        "PCB": 0,
+        "TOP": 0,
+        "BOTTOM": 0
+      }
+    },
+    "schematic_pdf": {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr440a (1)\\SPRR440\\Schematics\\PROC113D(001)_Sch.PDF",
+      "sha256": "1391965069217a2fa1bbdd4d53d57a4bd7715b7edfb8e8db7c047432b29239cf",
+      "page_count": 25,
+      "extracted_text_chars": 88753,
+      "keyword_counts": {
+        "TX1": 18,
+        "TX2": 19,
+        "TX3": 20,
+        "TX4": 4,
+        "RX1": 8,
+        "RX2": 8,
+        "RX3": 7,
+        "RX4": 4,
+        "GCPW": 1,
+        "ANTENNA": 1,
+        "PCB": 9,
+        "TOP": 1,
+        "BOTTOM": 0
+      }
+    }
+  },
+  "step_board": {
+    "step_brep_root": 2810,
+    "referenced_entity_count": 3438,
+    "cartesian_point_count": 548,
+    "bbox_mm": {
+      "x": {
+        "min": 0.0,
+        "max": 84.999839782715,
+        "size": 84.999839782715
+      },
+      "y": {
+        "min": -9.999999747379e-06,
+        "max": 124.99978637695,
+        "size": 124.99979637694975
+      },
+      "z": {
+        "min": -1.44272,
+        "max": 0.0,
+        "size": 1.44272
+      }
+    },
+    "top_surface_z_mm": 0.0,
+    "bottom_surface_z_mm": -1.44272
+  },
+  "coordinate_status": "pcb_local_frame_confirmed_only",
+  "radar_boresight_transform_status": "missing_mechanical_datum",
+  "phase_center_status": "missing_electromagnetic_measurement",
+  "hardware_validated": false
+}
