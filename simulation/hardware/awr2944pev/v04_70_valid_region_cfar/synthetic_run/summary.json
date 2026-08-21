@@ -1,0 +1,8 @@
+{
+  "status": "completed_valid_region_cfar_evidence",
+  "case_count": 5,
+  "scenario_count": 9,
+  "top_n_valid_per_case_scenario": 20,
+  "matrix_rows": 45,
+  "hardware_validated": false
+}
