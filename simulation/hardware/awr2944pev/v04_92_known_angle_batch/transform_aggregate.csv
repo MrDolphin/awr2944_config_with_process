@@ -1,0 +1,5 @@
+transform,capture_count,combined_rmse_deg,mean_combined_error_deg,max_combined_error_deg
+identity,0,,,
+mirror_x,0,,,
+mirror_y,0,,,
+rotate_180,0,,,

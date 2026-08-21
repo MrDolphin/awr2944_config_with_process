@@ -1,0 +1,42 @@
+{
+  "status": "awaiting_known_angle_manifests",
+  "input_root": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_91_known_angle_capture",
+  "candidate_csv": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_85_pcb_array_candidate\\virtual_array_candidates.csv",
+  "manifest_count": 0,
+  "processed_capture_count": 0,
+  "failure_count": 0,
+  "failures": [],
+  "aggregate": [
+    {
+      "transform": "identity",
+      "capture_count": 0,
+      "combined_rmse_deg": null,
+      "mean_combined_error_deg": null,
+      "max_combined_error_deg": null
+    },
+    {
+      "transform": "mirror_x",
+      "capture_count": 0,
+      "combined_rmse_deg": null,
+      "mean_combined_error_deg": null,
+      "max_combined_error_deg": null
+    },
+    {
+      "transform": "mirror_y",
+      "capture_count": 0,
+      "combined_rmse_deg": null,
+      "mean_combined_error_deg": null,
+      "max_combined_error_deg": null
+    },
+    {
+      "transform": "rotate_180",
+      "capture_count": 0,
+      "combined_rmse_deg": null,
+      "mean_combined_error_deg": null,
+      "max_combined_error_deg": null
+    }
+  ],
+  "best_transform_by_batch_rmse": null,
+  "hardware_aoa_validated": false,
+  "evidence_status": "real_capture_candidate_only_until_channel_order_calibration_and_phase_center_are_verified"
+}
