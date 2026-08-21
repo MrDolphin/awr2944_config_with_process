@@ -25,3 +25,6 @@ V0.4.6 进一步生成 `simulation/hardware/awr2944pev/antgeometry_mapping.csv`�
 V0.4.7 已加入 DCA1000 原始 IQ 接口。当前没有实测 `.bin/.raw` 文件，解码器只验证了合成
 int16 交织模式，所有真实输出必须保留 `channel_order_verified=false`，直到用已知信号和
 `antGeometryCfg` 完成通道顺序验证。
+
+V0.4.8 另外验证了当前 4TX TDM `chirpCfg` 序列到虚拟通道张量的重排：输出为
+`(frame, sample, rx, tx)`，但真实 LVDS lane 顺序、I/Q 符号和 TX 归属仍待 DCA1000 抓包确认。

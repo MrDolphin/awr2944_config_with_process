@@ -29,6 +29,24 @@ def decode_interleaved_iq(
     return values[..., 0].astype(np.float32) + 1j * values[..., 1].astype(np.float32)
 
 
+def reshape_tdm_virtual_channels(
+    iq: np.ndarray, *, tx_sequence: tuple[int, ...] = (0, 1, 2, 3),
+) -> np.ndarray:
+    """Group decoded TDM chirps into (frame, sample, rx, tx) virtual channels."""
+    if iq.ndim != 3:
+        raise ValueError("decoded IQ must have shape (chirp, sample, rx)")
+    if not tx_sequence or len(set(tx_sequence)) != len(tx_sequence):
+        raise ValueError("tx_sequence must contain unique TX indices")
+    tx_count = len(tx_sequence)
+    if iq.shape[0] % tx_count:
+        raise ValueError("chirp count must be divisible by TX sequence length")
+    frames = iq.shape[0] // tx_count
+    output = np.empty((frames, iq.shape[1], iq.shape[2], tx_count), dtype=iq.dtype)
+    for position, tx_index in enumerate(tx_sequence):
+        output[:, :, :, tx_index] = iq[position::tx_count]
+    return output
+
+
 def decode_file(input_path: Path, output_path: Path, *, chirps: int,
                 samples_per_chirp: int, rx_count: int = 4) -> None:
     iq = decode_interleaved_iq(input_path.read_bytes(), chirps=chirps,

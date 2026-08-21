@@ -22,3 +22,7 @@ python -m simulation.dca1000_iq `
 ```
 
 下一步：提供一份真实 `.bin` 后，用已知角反射器/静态目标检查通道顺序、I/Q 符号、LVDS lane 拼接、通道幅相和 `antGeometryCfg` 重排，再接入 AoA。
+
+V0.4.8 已补充 `reshape_tdm_virtual_channels`：对 4TX TDM 序列，将解码后的
+`(chirp, sample, rx)` 按 `TX1→TX2→TX3→TX4` 分组为 `(frame, sample, rx, tx)`。
+该顺序来自当前 CFG 的四条 `chirpCfg`，仍需用真实抓包验证 LVDS 数据是否按此顺序到达。
