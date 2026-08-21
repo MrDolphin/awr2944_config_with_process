@@ -56,3 +56,9 @@ V0.4.8 另外验证了当前 4TX TDM `chirpCfg` 序列到虚拟通道张量的�
 结果目录为 `output/v04_12_coordinate_mapping/`，详细报告见 `docs/reports/v04_coordinate_mapping.md`。当前结论仍是 `pcb_centroid_is_not_electrical_phase_center`；下一步需要确认板面法向、X/Y 方向、原点和馈电/相位中心。
 
 本次数值还发现：X 方向 RMS 差约 0.0693 mm，和 0.5λ 网格基本一致；Y 方向 RMS 差约 3.1198 mm，且 CFG row=0/row=1 与 PCB 的两个 Y 位置呈交换关系。当前优先级应是确认 `antGeometryCfg` 的 row 语义、PCB 板面朝向和坐标镜像，而不是马上调整阵元间距。
+
+## V0.4.13 坐标变换 AoA 筛查
+
+已用 PCB 坐标生成相位、用 CFG 理想阵列估计角度，分别筛查 raw、X 镜像、Y 镜像和 180° 旋转。该设计能暴露坐标模型差异，避免“生成和估计使用同一错误坐标”造成假性零误差。结果目录为 `output/v04_13_coordinate_transform_scan/`，详细边界见 `docs/reports/v04_coordinate_transform_scan.md`。
+
+使用 CFG 展开的阵列坐标后，raw 的方位/俯仰 RMSE 为 38.2415°/21.8899°，Y 镜像为 38.2415°/22.4927°，X 镜像和 180° 旋转的方位 RMSE 更大。四种简单变换均未达到可用于真实 AoA 的程度，因此不能把某一种变换直接冻结为 EVM 阵列坐标。
