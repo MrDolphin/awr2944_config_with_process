@@ -1,0 +1,23 @@
+{
+  "status": "completed_complex_bin_aoa",
+  "input_h5": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_81_batch_replay\\end_to_end_replay\\replay.h5",
+  "virtual_shape": [
+    4,
+    64,
+    4,
+    4
+  ],
+  "spectrum_shape": [
+    4,
+    32,
+    4,
+    4
+  ],
+  "peak_doppler_index": 2,
+  "peak_range_index": 6,
+  "estimated_azimuth_deg": 4.99997429711786,
+  "estimated_elevation_deg": 2.0001294239824055,
+  "channel_order_verified": false,
+  "hardware_validated": false,
+  "aoa_status": "complex_range_doppler_bin_exploratory"
+}
