@@ -21,3 +21,7 @@ TI 官方资料确认 AWR2944PEVM 有 4RX/4TX 板载蚀刻天线、二维虚拟�
 V0.4.6 进一步生成 `simulation/hardware/awr2944pev/antgeometry_mapping.csv`，把 SDK 的
 `Tx0Rx0...Tx3Rx3` 顺序和 CFG 的 row/column 索引展开。该表解决“通道顺序”的追踪问题，
 但不替代 PCB 电气相位中心和 DCA1000 通道验证。
+
+V0.4.7 已加入 DCA1000 原始 IQ 接口。当前没有实测 `.bin/.raw` 文件，解码器只验证了合成
+int16 交织模式，所有真实输出必须保留 `channel_order_verified=false`，直到用已知信号和
+`antGeometryCfg` 完成通道顺序验证。
