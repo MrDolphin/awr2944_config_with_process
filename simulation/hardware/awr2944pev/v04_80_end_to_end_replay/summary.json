@@ -1,0 +1,28 @@
+{
+  "status": "completed_end_to_end_synthetic_replay",
+  "raw_iq_contract_status": "valid_contract",
+  "input_mapping": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\antgeometry_mapping.csv",
+  "raw_shape": [
+    16,
+    64,
+    4
+  ],
+  "virtual_shape": [
+    4,
+    64,
+    4,
+    4
+  ],
+  "encoded_bytes": 16384,
+  "max_int16_roundtrip_error": 0.6943212463713374,
+  "truth_azimuth_deg": 5.0,
+  "truth_elevation_deg": 2.0,
+  "estimated_azimuth_deg": 4.998798599136864,
+  "estimated_elevation_deg": 2.012788359723926,
+  "azimuth_error_deg": -0.0012014008631355821,
+  "elevation_error_deg": 0.01278835972392578,
+  "peak_range_m": 21.079157203125,
+  "peak_velocity_mps": 0.0,
+  "hardware_validated": false,
+  "channel_order_verified": false
+}

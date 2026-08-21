@@ -1,0 +1,27 @@
+{
+  "status": "valid_contract",
+  "schema_version": "awr2944p-raw-iq-contract-v0.4.79",
+  "input": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_80_end_to_end_replay\\end_to_end_replay.h5",
+  "dataset": "/radar/raw_iq",
+  "dtype": "complex64",
+  "shape": [
+    16,
+    64,
+    4
+  ],
+  "kind": "raw_adc_iq",
+  "issues": [],
+  "missing_metadata": [],
+  "metadata": {
+    "capture_timestamp": "synthetic",
+    "cfg_snapshot": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\antgeometry_mapping.csv",
+    "channel_order_verified": false,
+    "imu_or_platform_pose_reference": "synthetic_level_pose",
+    "raw_dtype": "little_endian_int16",
+    "schema_version": "awr2944p-raw-iq-contract-v0.4.79",
+    "tdm_tx_sequence": "0,1,2,3",
+    "ti_calibration_status": "synthetic_unity_not_measured",
+    "wire_order_assumption": "sample -> rx -> I,Q"
+  },
+  "channel_order_verified": false
+}

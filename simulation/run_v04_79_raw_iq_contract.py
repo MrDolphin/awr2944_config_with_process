@@ -19,7 +19,7 @@ def _load(path: Path):
             raise ValueError("NPZ must contain iq or raw_iq")
         return np.asarray(archive[key]), metadata, key
     with h5py.File(path, "r") as handle:
-        key = "/radar/iq" if "/radar/iq" in handle else ("/recovered/virtual_iq" if "/recovered/virtual_iq" in handle else None)
+        key = "/radar/raw_iq" if "/radar/raw_iq" in handle else ("/radar/iq" if "/radar/iq" in handle else ("/radar/virtual_iq" if "/radar/virtual_iq" in handle else ("/recovered/virtual_iq" if "/recovered/virtual_iq" in handle else None)))
         if key is None:
             raise ValueError("HDF5 must contain /radar/iq or /recovered/virtual_iq")
         data = handle[key][...]
