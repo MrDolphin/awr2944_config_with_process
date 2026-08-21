@@ -1,0 +1,48 @@
+{
+  "status": "completed_aoa_acceptance_gate",
+  "checks": {
+    "multi_scene_present": true,
+    "candidate_count_576": true,
+    "best_candidate_within_rmse": true,
+    "best_candidate_max_error": true,
+    "identity_matches_best": true,
+    "hdf5_known_angle_present": true,
+    "measured_source": false,
+    "channel_order_hardware_verified": false
+  },
+  "synthetic_regression_pass": true,
+  "real_hardware_aoa_ready": false,
+  "limits": {
+    "combined_rmse_limit_deg": 2.0,
+    "max_error_limit_deg": 5.0
+  },
+  "best_candidate": {
+    "candidate_index": 0,
+    "rx_order": "0,1,2,3",
+    "tx_order": "0,1,2,3",
+    "azimuth_rmse_deg": 0.0,
+    "elevation_rmse_deg": 0.0,
+    "combined_rmse_deg": 0.0,
+    "max_abs_azimuth_error_deg": 0.0,
+    "max_abs_elevation_error_deg": 0.0,
+    "mean_score": 1.0,
+    "identity_order": true
+  },
+  "identity_candidate": {
+    "candidate_index": 0,
+    "rx_order": "0,1,2,3",
+    "tx_order": "0,1,2,3",
+    "azimuth_rmse_deg": 0.0,
+    "elevation_rmse_deg": 0.0,
+    "combined_rmse_deg": 0.0,
+    "max_abs_azimuth_error_deg": 0.0,
+    "max_abs_elevation_error_deg": 0.0,
+    "mean_score": 1.0,
+    "identity_order": true
+  },
+  "data_provenance": {
+    "source_type": "synthetic_known_angle_regression_only",
+    "calibration_status": "synthetic_unity_not_measured",
+    "geometry_source": "simulation.v04.virtual_array_positions"
+  }
+}
