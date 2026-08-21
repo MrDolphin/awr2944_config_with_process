@@ -31,3 +31,9 @@ V0.4.9 已完成合成 IQ 端到端闭环：编码、DCA1000 解码、4TX TDM �
 
 V0.4.8 另外验证了当前 4TX TDM `chirpCfg` 序列到虚拟通道张量的重排：输出为
 `(frame, sample, rx, tx)`，但真实 LVDS lane 顺序、I/Q 符号和 TX 归属仍待 DCA1000 抓包确认。
+
+## V0.4.10 通道排列故障指纹
+
+在真值方位 20°、俯仰 10° 的同一组合上，分别注入 RX 反序、TX 反序、TX0/TX1 交换和 I/Q 共轭。结果是：RX 反序只使俯仰变为 -10°；TX 反序只使方位变为 -20°；部分 TX 交换产生约 -4.12° 方位偏差；I/Q 共轭使方位和俯仰同时翻转。详细表格和真实数据应用步骤见 `docs/reports/v04_channel_diagnostics.md`。
+
+这些是当前坐标约定下的合成误差指纹，不是实测 EVM 结论。真实 `.bin` 到来后，应对同一数据运行五种排列并与角反射器真值比较；在此之前仍保留 `channel_order_verified=synthetic_only`。
