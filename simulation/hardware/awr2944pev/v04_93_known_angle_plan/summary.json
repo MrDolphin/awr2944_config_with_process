@@ -1,0 +1,23 @@
+{
+  "status": "capture_plan_generated",
+  "case_count": 30,
+  "azimuths_deg": [
+    -30,
+    -15,
+    0,
+    15,
+    30
+  ],
+  "elevations_deg": [
+    -10,
+    0,
+    10
+  ],
+  "ranges_m": [
+    10,
+    20
+  ],
+  "target_type": "corner_reflector",
+  "hardware_aoa_validated": false,
+  "execution_status": "not_started"
+}
