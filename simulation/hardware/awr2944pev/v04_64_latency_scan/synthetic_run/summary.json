@@ -1,0 +1,24 @@
+{
+  "status": "completed_imu_latency_scan",
+  "delay_count": 5,
+  "passing_delay_count": 5,
+  "delays_s": [
+    -0.01,
+    -0.005,
+    0.0,
+    0.005,
+    0.01
+  ],
+  "reference_delay_s": 0.005,
+  "quality_pass_delays_s": [
+    -0.01,
+    -0.005,
+    0.0,
+    0.005,
+    0.01
+  ],
+  "max_abs_roll_difference_deg": 0.2400000000000091,
+  "max_abs_pitch_difference_deg": 0.15000000000000005,
+  "max_abs_yaw_difference_deg": 0.3000000000000001,
+  "source_is_hardware_imu": false
+}
