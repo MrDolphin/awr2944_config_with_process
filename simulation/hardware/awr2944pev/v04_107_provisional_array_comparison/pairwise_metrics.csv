@@ -1,0 +1,5 @@
+actual_model,assumed_model,azimuth_rmse_deg,elevation_rmse_deg,combined_rmse_deg,max_abs_error_deg
+ideal_half_lambda,ideal_half_lambda,0.0,0.0,0.0,0.0
+ideal_half_lambda,provisional_pcb_endpoint,43.02822993603817,10.954451150103322,31.396087108337014,86.0
+provisional_pcb_endpoint,ideal_half_lambda,62.64503172638673,20.368042194996132,46.579271907454405,100.0
+provisional_pcb_endpoint,provisional_pcb_endpoint,0.0,0.0,0.0,0.0
