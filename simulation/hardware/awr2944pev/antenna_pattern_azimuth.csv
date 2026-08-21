@@ -1,0 +1,10 @@
+azimuth_deg,gain_dBi,source,status
+-60,-6.0,TI EVM User Guide Figure 2-19,coarse_digitization
+-45,-6.0,TI EVM User Guide Figure 2-19,coarse_digitization
+-30,-3.0,TI EVM User Guide Figure 2-19,coarse_digitization
+-15,-0.8,TI EVM User Guide Figure 2-19,coarse_digitization
+0,0.0,TI EVM User Guide Figure 2-19,coarse_digitization
+15,-0.8,TI EVM User Guide Figure 2-19,coarse_digitization
+30,-3.0,TI EVM User Guide Figure 2-19,coarse_digitization
+45,-6.0,TI EVM User Guide Figure 2-19,coarse_digitization
+60,-6.0,TI EVM User Guide Figure 2-19,coarse_digitization

@@ -1,0 +1,11 @@
+device: AWR2944P
+board: AWR2944PEVM
+tx_count: 4
+rx_count: 4
+coordinate_source: "TI EVM User Guide Figure 2-17/2-18 and project antGeometryCfg"
+coordinate_status: "diagram_derived_pending_cad_or_measurement"
+calibrated: false
+notes:
+  - "The public guide confirms etched 4-RX/4-TX antennas and a 3-D virtual array."
+  - "Do not treat the diagram labels as a complete numeric phase-center coordinate table."
+  - "The project parser preserves raw antGeometryCfg tokens in the V0.4 CFG snapshot."

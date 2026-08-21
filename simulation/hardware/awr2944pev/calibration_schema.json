@@ -1,0 +1,13 @@
+{
+  "device": "AWR2944P",
+  "board": "AWR2944PEVM",
+  "range_bias_m": 0.0,
+  "rx_channel_phase_compensation": [],
+  "tx_rx_mapping_source": "project antGeometryCfg; verify against SDK/EVM documentation",
+  "measurement_command": "measureRangeBiasAndRxChanPhase",
+  "compensation_command": "compRangeBiasAndRxChanPhase",
+  "measurement_target_range_m": 1.5,
+  "calibration_status": "not_measured",
+  "coordinate_status": "diagram_derived_pending_cad_or_measurement",
+  "pattern_status": "coarse_digitization_not_full_2d_pattern"
+}
