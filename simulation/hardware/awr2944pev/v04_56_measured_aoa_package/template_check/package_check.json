@@ -1,0 +1,27 @@
+{
+  "status": "completed_measured_aoa_package_check",
+  "manifest": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_56_measured_aoa_package\\measured_aoa_manifest_template.json",
+  "scene_checks": [
+    {
+      "scene_id": "corner_reflector_az000_el000_r020",
+      "missing_keys": [],
+      "capture_exists": false,
+      "cfg_exists": false,
+      "truth_exists": false,
+      "calibration_exists": false,
+      "truth_fields_present": false,
+      "calibration_measured": false
+    }
+  ],
+  "checks": {
+    "scene_count_at_least_4": false,
+    "all_scene_keys_present": true,
+    "all_capture_files_present": false,
+    "all_cfg_files_present": false,
+    "all_truth_files_present": false,
+    "all_measured_calibration_present": false,
+    "angle_distance_coverage_declared": true
+  },
+  "measured_aoa_ready": false,
+  "distinct_scene_count": 1
+}

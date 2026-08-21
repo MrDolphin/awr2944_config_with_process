@@ -1,0 +1,29 @@
+{
+  "schema_version": "awr2944p-measured-aoa-package-v0.4.56",
+  "project": "awr2944p_sea_clutter",
+  "coverage": {
+    "azimuth_deg": [-30, 0, 15, 30],
+    "elevation_deg": [-5, 0, 5, 10],
+    "range_m": [10, 20, 30, 40]
+  },
+  "scenes": [
+    {
+      "scene_id": "corner_reflector_az000_el000_r020",
+      "capture": "captures/corner_reflector_az000_el000_r020.bin",
+      "cfg": "cfg/profile_3d_3Azim_1ElevTx_awr2944P.cfg",
+      "truth": "truth/corner_reflector_az000_el000_r020.json",
+      "calibration": "calibration/measured_calibration.json",
+      "notes": "填写实际采集时间、目标 RCS、安装姿态和操作者"
+    }
+  ],
+  "provenance": {
+    "radar_board": "AWR2944P EVM",
+    "capture_device": "DCA1000",
+    "raw_iq_is_pre_cfar": true,
+    "operator": "",
+    "capture_time_utc": "",
+    "sea_state": "",
+    "installation_height_m": 1.0,
+    "mounting_pitch_deg": 90.0
+  }
+}
