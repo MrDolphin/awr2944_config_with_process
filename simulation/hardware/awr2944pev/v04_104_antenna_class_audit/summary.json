@@ -1,0 +1,35 @@
+{
+  "status": "completed_antenna_class_audit",
+  "source": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_ASCII.PcbDoc",
+  "class_name": "Antenna",
+  "class_members": [
+    "TX4",
+    "TX3",
+    "TX2",
+    "TX1",
+    "RX4",
+    "RX3",
+    "RX2",
+    "RX1"
+  ],
+  "class_members_match_expected": true,
+  "enabled_width_rule": {
+    "NAME": "Antenna",
+    "RULEKIND": "Width",
+    "ENABLED": "TRUE",
+    "MINLIMIT": "8.4mil",
+    "MAXLIMIT": "10mil",
+    "PREFEREDWIDTH": "10mil",
+    "TOPLAYER_PREFWIDTH": "8.4mil",
+    "SCOPE1EXPRESSION": "(InNetClass('RX')or InNetClass('TX'))"
+  },
+  "hardware_design_evidence": [
+    "TI PCB explicitly groups TX1-TX4 and RX1-RX4 into the Antenna net class",
+    "an enabled Antenna width rule constrains the RF network geometry"
+  ],
+  "does_not_prove": [
+    "antenna element phase centers",
+    "radiation pattern or 3 dB beamwidth",
+    "feed-to-element phase delay and mutual coupling"
+  ]
+}
