@@ -1,0 +1,47 @@
+schema: awr2944p_provisional_array_geometry_v0
+status: provisional
+confidence: geometric_candidate_not_phase_center
+source: v04_105_rf_endpoint_candidates
+reference_chip_center_board_mil: [5586.5365, 4399.3306]
+coordinate_convention: board_x_right_board_y_up; relative coordinates in mm
+elements:
+  - channel: TX1
+    kind: TX
+    x_relative_mm: 9.954631
+    y_relative_mm: 14.155590
+    phase_center_validated: false
+  - channel: TX2
+    kind: TX
+    x_relative_mm: 13.872632
+    y_relative_mm: 17.290590
+    phase_center_validated: false
+  - channel: TX3
+    kind: TX
+    x_relative_mm: 17.791631
+    y_relative_mm: 14.155590
+    phase_center_validated: false
+  - channel: TX4
+    kind: TX
+    x_relative_mm: 25.628630
+    y_relative_mm: 14.155590
+    phase_center_validated: false
+  - channel: RX1
+    kind: RX
+    x_relative_mm: -2.525001
+    y_relative_mm: 13.955601
+    phase_center_validated: false
+  - channel: RX2
+    kind: RX
+    x_relative_mm: -0.625000
+    y_relative_mm: 13.955601
+    phase_center_validated: false
+  - channel: RX3
+    kind: RX
+    x_relative_mm: 1.274999
+    y_relative_mm: 13.955601
+    phase_center_validated: false
+  - channel: RX4
+    kind: RX
+    x_relative_mm: 3.175000
+    y_relative_mm: 13.955601
+    phase_center_validated: false

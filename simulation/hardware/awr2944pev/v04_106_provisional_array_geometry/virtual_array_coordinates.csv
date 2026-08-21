@@ -1,0 +1,9 @@
+channel,kind,x_board_mil,y_board_mil,x_relative_mm,y_relative_mm,source_rank,confidence,phase_center_validated
+TX1,TX,5978.4511,4956.6373,9.954630840000002,14.155590180000003,1,provisional_geometric_candidate,False
+TX2,TX,6132.7031,5080.0625,13.87263163999999,17.290590259999995,1,provisional_geometric_candidate,False
+TX3,TX,6286.9944,4956.6373,17.791630659999985,14.155590180000003,1,provisional_geometric_candidate,False
+TX4,TX,6595.5377,4956.6373,25.62863047999999,14.155590180000003,1,provisional_geometric_candidate,False
+RX1,RX,5487.127,4948.7637,-2.525001299999994,13.955600740000005,1,provisional_geometric_candidate,False
+RX2,RX,5561.9302,4948.7637,-0.6250000200000094,13.955600740000005,1,provisional_geometric_candidate,False
+RX3,RX,5636.7333,4948.7637,1.2749987199999926,13.955600740000005,1,provisional_geometric_candidate,False
+RX4,RX,5711.5365,4948.7637,3.175,13.955600740000005,1,provisional_geometric_candidate,False

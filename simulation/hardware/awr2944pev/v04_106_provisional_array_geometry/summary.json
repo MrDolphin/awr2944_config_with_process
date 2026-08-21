@@ -1,0 +1,29 @@
+{
+  "status": "completed_provisional_array_geometry",
+  "source_endpoint_summary": "simulation\\hardware\\awr2944pev\\v04_105_rf_endpoint_candidates\\summary.json",
+  "element_count": 8,
+  "channels": [
+    "TX1",
+    "TX2",
+    "TX3",
+    "TX4",
+    "RX1",
+    "RX2",
+    "RX3",
+    "RX4"
+  ],
+  "phase_center_validated": false,
+  "usable_for": [
+    "candidate-vs-ideal geometry comparison",
+    "plotting and experiment bookkeeping"
+  ],
+  "not_usable_for": [
+    "claiming TI antenna phase centers",
+    "final AoA accuracy",
+    "calibration replacement"
+  ],
+  "reference_chip_center_board_mil": [
+    5586.5365,
+    4399.3306
+  ]
+}
