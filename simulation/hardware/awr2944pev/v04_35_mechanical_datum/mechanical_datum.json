@@ -1,0 +1,13 @@
+{
+  "status": "completed_mechanical_datum_extraction",
+  "pcbdoc": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_ASCII.PcbDoc",
+  "origin_x_mil": 3337.6697,
+  "origin_y_mil": 2034.0003,
+  "board_outline_vertex_count": 5,
+  "board_width_mm": 84.99983762,
+  "board_height_mm": 124.99980842,
+  "rf_region_count": 8,
+  "mechanical_reference_candidate_count": 23,
+  "phase_center_confirmed": false,
+  "installation_pose_confirmed": false
+}

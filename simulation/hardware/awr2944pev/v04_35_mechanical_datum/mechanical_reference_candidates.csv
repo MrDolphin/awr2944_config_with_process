@@ -1,0 +1,24 @@
+designator,pattern,x,y,description,status
+J5,FP-1909763-1_SMT_JACK _CONN-MFG,5309.5608mil,3735.0475mil,"U.FL (UMCC) Connector Jack, Male Pin 50Ohm Surface Mount Solder",mechanical_reference_candidate
+J1,FP-1909763-1_SMT_JACK _CONN-MFG,4458.4792mil,3607.5939mil,"U.FL (UMCC) Connector Jack, Male Pin 50Ohm Surface Mount Solder",mechanical_reference_candidate
+FID1,Fiducial10-20,5867.6782mil,4118.1889mil,Fiducial mark.  There is nothing to buy or mount.,mechanical_reference_candidate
+FID2,Fiducial10-20,5305.3948mil,4678.5038mil,Fiducial mark.  There is nothing to buy or mount.,mechanical_reference_candidate
+FID3,Fiducial10-20,3494.2184mil,2333.9592mil,Fiducial mark.  There is nothing to buy or mount.,mechanical_reference_candidate
+FID4,Fiducial10-20,3494.2184mil,2333.9592mil,Fiducial mark.  There is nothing to buy or mount.,mechanical_reference_candidate
+FID5,Fiducial10-20,5734.218mil,2333.9593mil,Fiducial mark.  There is nothing to buy or mount.,mechanical_reference_candidate
+FID6,Fiducial10-20,5734.218mil,2333.9593mil,Fiducial mark.  There is nothing to buy or mount.,mechanical_reference_candidate
+FID7,Fiducial10-20,3587.6698mil,7130.8499mil,Fiducial mark.  There is nothing to buy or mount.,mechanical_reference_candidate
+FID8,Fiducial10-20,3587.6698mil,7130.8499mil,Fiducial mark.  There is nothing to buy or mount.,mechanical_reference_candidate
+FID13,Fiducial10-20,3587.6697mil,1858.4103mil,Fiducial mark.  There is nothing to buy or mount.,mechanical_reference_candidate
+FID10,Fiducial10-20,3494.2185mil,6854.1768mil,Fiducial mark.  There is nothing to buy or mount.,mechanical_reference_candidate
+FID12,Fiducial10-20,3587.6697mil,1858.4103mil,Fiducial mark.  There is nothing to buy or mount.,mechanical_reference_candidate
+FID9,Fiducial10-20,3494.2185mil,6854.1768mil,Fiducial mark.  There is nothing to buy or mount.,mechanical_reference_candidate
+FID15,Fiducial10-20,6434.12mil,1858.41mil,Fiducial mark.  There is nothing to buy or mount.,mechanical_reference_candidate
+FID14,Fiducial10-20,6434.12mil,7130.8498mil,Fiducial mark.  There is nothing to buy or mount.,mechanical_reference_candidate
+FID16,Fiducial10-20,6434.12mil,1858.41mil,Fiducial mark.  There is nothing to buy or mount.,mechanical_reference_candidate
+FID11,Fiducial10-20,6434.12mil,7130.8498mil,Fiducial mark.  There is nothing to buy or mount.,mechanical_reference_candidate
+J2,FP-OSTTF030161_PTH_TERMINAL_BLOCK-MFG,3945.0111mil,2217.8999mil,"3 Position Wire to Board Terminal Block Vertical with Board 0.138"" (3.50mm) Through Hole",mechanical_reference_candidate
+J3,FP-OSTTF030161_PTH_TERMINAL_BLOCK-MFG,4463.6mil,2218.2871mil,"3 Position Wire to Board Terminal Block Vertical with Board 0.138"" (3.50mm) Through Hole",mechanical_reference_candidate
+J8,CONN_105017-0001,6573.8839mil,3524.4201mil,"Connector, Receptacle, Micro-USB Type B, R/A, Bottom Mount SMT",mechanical_reference_candidate
+J10,CONN_105017-0001,3447.9058mil,6408.4016mil,"Connector, Receptacle, Micro-USB Type B, R/A, Bottom Mount SMT",mechanical_reference_candidate
+L7,FP-ACT1210L-201-2P-TL00_SMD4-MFG,4627.6461mil,5592.4513mil,200�H @ 100kHz 2 Line Common Mode Choke Surface Mount 70mA DCR 5.5Ohm,mechanical_reference_candidate
