@@ -1,0 +1,85 @@
+{
+  "status": "completed_rf_network_trace",
+  "source": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_ASCII.PcbDoc",
+  "target_networks": [
+    "RX1",
+    "RX2",
+    "RX3",
+    "RX4",
+    "TX1",
+    "TX2",
+    "TX3",
+    "TX4"
+  ],
+  "primitive_count": 65,
+  "primitive_counts_by_net": {
+    "RX1": {
+      "Pad": 1,
+      "Track": 4,
+      "Arc": 2,
+      "Region": 0,
+      "Polygon": 0
+    },
+    "RX2": {
+      "Pad": 1,
+      "Track": 3,
+      "Arc": 4,
+      "Region": 0,
+      "Polygon": 0
+    },
+    "RX3": {
+      "Pad": 1,
+      "Track": 3,
+      "Arc": 4,
+      "Region": 0,
+      "Polygon": 0
+    },
+    "RX4": {
+      "Pad": 1,
+      "Track": 4,
+      "Arc": 2,
+      "Region": 0,
+      "Polygon": 0
+    },
+    "TX1": {
+      "Pad": 1,
+      "Track": 7,
+      "Arc": 7,
+      "Region": 0,
+      "Polygon": 0
+    },
+    "TX2": {
+      "Pad": 1,
+      "Track": 4,
+      "Arc": 3,
+      "Region": 0,
+      "Polygon": 0
+    },
+    "TX3": {
+      "Pad": 1,
+      "Track": 4,
+      "Arc": 3,
+      "Region": 0,
+      "Polygon": 0
+    },
+    "TX4": {
+      "Pad": 1,
+      "Track": 2,
+      "Arc": 1,
+      "Region": 0,
+      "Polygon": 0
+    }
+  },
+  "primitive_types_found": [
+    "Arc",
+    "Pad",
+    "Track"
+  ],
+  "phase_center_ready": false,
+  "interpretation": "TX/RX package pads and Top-layer RF track/arc geometry were found; no target-net Region/Polygon/independent antenna pad was present in this ASCII export.",
+  "remaining_evidence": [
+    "identify RF trace endpoints against the antenna drawing or EM model",
+    "confirm whether the trace endpoint is a feed point or a radiating element center",
+    "obtain measured/EM phase centers and radiation pattern"
+  ]
+}
