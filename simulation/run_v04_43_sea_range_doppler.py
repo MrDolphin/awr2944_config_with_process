@@ -42,17 +42,17 @@ def range_doppler(iq: np.ndarray, config: FmcwConfig) -> tuple[np.ndarray, np.nd
 
 
 def run_case(path: Path, output: Path, positions: tuple[np.ndarray, np.ndarray], config: FmcwConfig, rng: np.random.Generator) -> dict:
-    surface = load_surface(path); previous = None; phase0 = rng.uniform(-np.pi, np.pi, 48); frame_power = []; peak_rows = []
+    surface = load_surface(path); previous = None; phase0 = rng.uniform(-np.pi, np.pi, 48); frame_power = []; frame_spectra = []; peak_rows = []
     for frame, time_s in enumerate(surface["time_s"]):
         facets, physics = derive_frame(surface, frame, previous, rng, max_facets=24); previous = surface["height_m"][frame]
         iq = generate_radar_iq(config, facets, positions, phase0); spectrum, power, range_axis, velocity_axis, _ = range_doppler(iq, config)
         doppler_index, range_index = np.unravel_index(int(np.argmax(power)), power.shape); channel = spectrum[doppler_index, range_index]
         estimate = estimate_sparse_grid(config, channel, positions[0], positions[1], np.arange(-60.0, 60.01, 1.0), np.arange(-20.0, 20.01, 1.0))
-        frame_power.append(power.astype(np.float32)); peak_rows.append({"case_id": surface["case_id"], "frame": frame, "time_s": float(time_s), "range_m": float(range_axis[range_index]), "velocity_mps": float(velocity_axis[doppler_index]), "power_linear": float(power[doppler_index, range_index]), "estimated_azimuth_deg": estimate[0], "estimated_elevation_deg": estimate[1], "peak_score": estimate[2], "doppler_min_hz": physics["doppler_min_hz"], "doppler_max_hz": physics["doppler_max_hz"]})
+        frame_power.append(power.astype(np.float32)); frame_spectra.append(spectrum.astype(np.complex64)); peak_rows.append({"case_id": surface["case_id"], "frame": frame, "time_s": float(time_s), "range_m": float(range_axis[range_index]), "velocity_mps": float(velocity_axis[doppler_index]), "power_linear": float(power[doppler_index, range_index]), "estimated_azimuth_deg": estimate[0], "estimated_elevation_deg": estimate[1], "peak_score": estimate[2], "doppler_min_hz": physics["doppler_min_hz"], "doppler_max_hz": physics["doppler_max_hz"]})
     case_id = surface["case_id"]; case_file = output / f"{case_id}_range_doppler.h5"
     with h5py.File(case_file, "w") as handle:
         handle.attrs["schema_version"] = "awr2944p-synthetic-sea-range-doppler-v0.4.43"; handle.attrs["input_status"] = "v02_height_truth_derived_microfacets"; handle.attrs["channel_order_verified"] = False
-        handle.create_dataset("/range_doppler/power_linear", data=np.stack(frame_power), compression="gzip"); handle.create_dataset("/axes/range_m", data=range_axis); handle.create_dataset("/axes/velocity_mps", data=velocity_axis)
+        handle.create_dataset("/range_doppler/power_linear", data=np.stack(frame_power), compression="gzip"); handle.create_dataset("/range_doppler/spectrum_complex", data=np.stack(frame_spectra), compression="gzip"); handle.create_dataset("/axes/range_m", data=range_axis); handle.create_dataset("/axes/velocity_mps", data=velocity_axis)
         for key in ("range_m", "velocity_mps", "power_linear", "estimated_azimuth_deg", "estimated_elevation_deg", "peak_score"):
             handle.create_dataset(f"/peaks/{key}", data=np.asarray([row[key] for row in peak_rows]))
     return {"case_id": case_id, "frames": len(peak_rows), "mean_peak_range_m": float(np.mean([row["range_m"] for row in peak_rows])), "mean_peak_velocity_mps": float(np.mean([row["velocity_mps"] for row in peak_rows])), "peak_velocity_std_mps": float(np.std([row["velocity_mps"] for row in peak_rows])), "mean_peak_power_linear": float(np.mean([row["power_linear"] for row in peak_rows])), "mean_aoa_score": float(np.mean([row["peak_score"] for row in peak_rows])), "range_doppler_file": str(case_file.resolve())}, peak_rows

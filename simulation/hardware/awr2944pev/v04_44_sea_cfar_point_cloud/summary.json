@@ -1,0 +1,78 @@
+{
+  "status": "completed_synthetic_sea_cfar_point_cloud",
+  "input_root": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_43_sea_range_doppler",
+  "output_root": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_44_sea_cfar_point_cloud",
+  "case_count": 5,
+  "pfa": 0.001,
+  "max_detections_per_frame": 32,
+  "point_count": 4,
+  "point_cloud_status": "synthetic_sea_clutter_not_hardware_validated",
+  "channel_order_verified": false,
+  "cases": [
+    {
+      "case_id": "ss0_flat",
+      "input_h5": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_43_sea_range_doppler\\ss0_flat_range_doppler.h5",
+      "output_h5": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_44_sea_cfar_point_cloud\\ss0_flat_range_doppler_point_cloud.h5",
+      "frames": 41,
+      "point_count": 0,
+      "mean_points_per_frame": 0.0,
+      "mean_range_m": null,
+      "mean_velocity_mps": null,
+      "mean_aoa_score": null,
+      "pfa": 0.001,
+      "channel_order_verified": false
+    },
+    {
+      "case_id": "ss1_rippled",
+      "input_h5": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_43_sea_range_doppler\\ss1_rippled_range_doppler.h5",
+      "output_h5": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_44_sea_cfar_point_cloud\\ss1_rippled_range_doppler_point_cloud.h5",
+      "frames": 41,
+      "point_count": 0,
+      "mean_points_per_frame": 0.0,
+      "mean_range_m": null,
+      "mean_velocity_mps": null,
+      "mean_aoa_score": null,
+      "pfa": 0.001,
+      "channel_order_verified": false
+    },
+    {
+      "case_id": "ss2_normal",
+      "input_h5": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_43_sea_range_doppler\\ss2_normal_range_doppler.h5",
+      "output_h5": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_44_sea_cfar_point_cloud\\ss2_normal_range_doppler_point_cloud.h5",
+      "frames": 41,
+      "point_count": 0,
+      "mean_points_per_frame": 0.0,
+      "mean_range_m": null,
+      "mean_velocity_mps": null,
+      "mean_aoa_score": null,
+      "pfa": 0.001,
+      "channel_order_verified": false
+    },
+    {
+      "case_id": "ss3_nominal",
+      "input_h5": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_43_sea_range_doppler\\ss3_nominal_range_doppler.h5",
+      "output_h5": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_44_sea_cfar_point_cloud\\ss3_nominal_range_doppler_point_cloud.h5",
+      "frames": 41,
+      "point_count": 2,
+      "mean_points_per_frame": 0.04878048780487805,
+      "mean_range_m": 8.78298216796875,
+      "mean_velocity_mps": 0.0,
+      "mean_aoa_score": 0.424524208467427,
+      "pfa": 0.001,
+      "channel_order_verified": false
+    },
+    {
+      "case_id": "ss3_upper",
+      "input_h5": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_43_sea_range_doppler\\ss3_upper_range_doppler.h5",
+      "output_h5": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_44_sea_cfar_point_cloud\\ss3_upper_range_doppler_point_cloud.h5",
+      "frames": 41,
+      "point_count": 2,
+      "mean_points_per_frame": 0.04878048780487805,
+      "mean_range_m": 8.78298216796875,
+      "mean_velocity_mps": 0.0,
+      "mean_aoa_score": 0.35704920135670354,
+      "pfa": 0.001,
+      "channel_order_verified": false
+    }
+  ]
+}
