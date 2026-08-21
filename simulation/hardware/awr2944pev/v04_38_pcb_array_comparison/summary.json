@@ -1,0 +1,56 @@
+{
+  "status": "completed_pcb_candidate_array_comparison",
+  "models": [
+    "ideal_half_lambda",
+    "cfg_candidate",
+    "pcb_centroid_candidate"
+  ],
+  "azimuth_grid_deg": [
+    -60.0,
+    -40.0,
+    -20.0,
+    0.0,
+    20.0,
+    40.0,
+    60.0
+  ],
+  "elevation_grid_deg": [
+    -20.0,
+    -10.0,
+    0.0,
+    10.0,
+    20.0
+  ],
+  "best_assumed_by_actual": {
+    "ideal_half_lambda": {
+      "actual_model": "ideal_half_lambda",
+      "assumed_model": "ideal_half_lambda",
+      "azimuth_rmse_deg": 2.6565142651694297e-13,
+      "elevation_rmse_deg": 4.0900426352046917e-13,
+      "azimuth_max_abs_error_deg": 8.597567102697212e-13,
+      "elevation_max_abs_error_deg": 6.181721801112872e-13,
+      "combined_rmse_deg": 3.448587884833502e-13
+    },
+    "cfg_candidate": {
+      "actual_model": "cfg_candidate",
+      "assumed_model": "pcb_centroid_candidate",
+      "azimuth_rmse_deg": 39.99809293396914,
+      "elevation_rmse_deg": 14.141578987596723,
+      "azimuth_max_abs_error_deg": 60.00312165460192,
+      "elevation_max_abs_error_deg": 20.028816791791687,
+      "combined_rmse_deg": 29.998597422353505
+    },
+    "pcb_centroid_candidate": {
+      "actual_model": "pcb_centroid_candidate",
+      "assumed_model": "pcb_centroid_candidate",
+      "azimuth_rmse_deg": 39.99980445844631,
+      "elevation_rmse_deg": 14.139940081155023,
+      "azimuth_max_abs_error_deg": 60.00825342212049,
+      "elevation_max_abs_error_deg": 20.01291891320431,
+      "combined_rmse_deg": 29.99935217811041
+    }
+  },
+  "pcb_model_status": "cad_copper_centroid_candidate_not_phase_center",
+  "estimator_status": "phase_plane_unwrap_contract_not_sparse_array_solver",
+  "hardware_aoa_validated": false
+}
