@@ -1,0 +1,56 @@
+{
+  "status": "completed_detection_boundary_sweep",
+  "input_root": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_43_sea_range_doppler",
+  "sea_cases": [
+    "ss2_normal",
+    "ss3_upper"
+  ],
+  "pfa_values": [
+    0.01,
+    0.001
+  ],
+  "baseline": {
+    "snr_db": 10.0,
+    "range_m": 20.0,
+    "velocity_mps": 1.0,
+    "azimuth_deg": 10.0,
+    "elevation_deg": 2.0
+  },
+  "sweep_values": {
+    "snr_db": [
+      0.0,
+      5.0,
+      10.0,
+      15.0,
+      20.0
+    ],
+    "range_m": [
+      8.0,
+      20.0,
+      40.0,
+      60.0,
+      80.0
+    ],
+    "velocity_mps": [
+      -3.0,
+      0.0,
+      1.0,
+      3.0,
+      6.0
+    ],
+    "azimuth_deg": [
+      -30.0,
+      -10.0,
+      10.0,
+      30.0
+    ],
+    "elevation_deg": [
+      -4.0,
+      0.0,
+      4.0
+    ]
+  },
+  "row_count": 88,
+  "input_status": "synthetic_sea_spectrum_not_measured_iq",
+  "hardware_validated": false
+}
