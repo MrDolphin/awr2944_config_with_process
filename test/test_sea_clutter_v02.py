@@ -7,6 +7,7 @@ import h5py
 import numpy as np
 
 from simulation.run_v02 import analyze_matlab_run
+from simulation.mirror_v02_run import mirror_height_cube
 from simulation.v02 import (
     analyze_height_cube,
     classify_sea_state,
@@ -21,6 +22,15 @@ from simulation.v02 import (
 
 
 class DynamicSeaTruthTests(unittest.TestCase):
+    def test_spatial_mirror_reverses_only_selected_axis(self):
+        height = np.arange(2 * 3 * 4, dtype=float).reshape(2, 3, 4)
+        mirrored_y = mirror_height_cube(height, "y")
+        mirrored_x = mirror_height_cube(height, "x")
+        self.assertTrue(np.array_equal(mirrored_y, height[:, ::-1, :]))
+        self.assertTrue(np.array_equal(mirrored_x, height[:, :, ::-1]))
+        with self.assertRaisesRegex(ValueError, "axis must be"):
+            mirror_height_cube(height, "z")
+
     def test_default_config_covers_zero_through_three_without_exceeding_limit(self):
         config = load_config(
             Path("simulation/configs/sea_states_0_to_3.json").resolve()
