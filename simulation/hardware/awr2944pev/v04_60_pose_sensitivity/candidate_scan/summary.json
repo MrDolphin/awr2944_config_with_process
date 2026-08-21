@@ -1,0 +1,34 @@
+{
+  "status": "completed_pose_sensitivity_scan",
+  "scenario_count": 27,
+  "region_count": 8,
+  "nominal_rpy_deg": [
+    90.0,
+    0.0,
+    0.0
+  ],
+  "nominal_board_normal_radar": [
+    0.0,
+    -1.0,
+    6.123233995736766e-17
+  ],
+  "nominal_normal_to_vertical_abs_angle_deg": 90.0,
+  "roll_offsets_deg": [
+    -2.0,
+    0.0,
+    2.0
+  ],
+  "pitch_offsets_deg": [
+    -2.0,
+    0.0,
+    2.0
+  ],
+  "yaw_offsets_deg": [
+    -5.0,
+    0.0,
+    5.0
+  ],
+  "max_displacement_over_scan_mm": 11.035222759532424,
+  "pose_is_measured": false,
+  "phase_center_confirmed": false
+}
