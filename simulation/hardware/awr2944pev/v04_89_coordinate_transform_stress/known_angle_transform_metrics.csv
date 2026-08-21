@@ -1,0 +1,5 @@
+transform,azimuth_rmse_deg,elevation_rmse_deg,combined_rmse_deg,azimuth_max_abs_deg,elevation_max_abs_deg
+identity,0.0,0.0,0.0,0.0,0.0
+mirror_x,80.0,0.0,56.568542494923804,120.0,0.0
+mirror_y,0.0,28.284271247461902,20.0,0.0,40.0
+rotate_180,80.0,28.284271247461902,60.0,120.0,40.0

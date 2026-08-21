@@ -1,0 +1,248 @@
+{
+  "status": "completed_coordinate_transform_stress_screening",
+  "candidate_csv": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_85_pcb_array_candidate\\virtual_array_candidates.csv",
+  "input_root": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\stages\\v02_dynamic_sea_truth\\results\\matlab\\v02b_quick_seed101_hs1m\\data",
+  "transform_count": 4,
+  "sea_case_count": 5,
+  "best_known_angle_transform": "identity",
+  "best_known_angle_combined_rmse_deg": 0.0,
+  "known_angle_rows": [
+    {
+      "transform": "identity",
+      "azimuth_rmse_deg": 0.0,
+      "elevation_rmse_deg": 0.0,
+      "combined_rmse_deg": 0.0,
+      "azimuth_max_abs_deg": 0.0,
+      "elevation_max_abs_deg": 0.0
+    },
+    {
+      "transform": "mirror_x",
+      "azimuth_rmse_deg": 80.0,
+      "elevation_rmse_deg": 0.0,
+      "combined_rmse_deg": 56.568542494923804,
+      "azimuth_max_abs_deg": 120.0,
+      "elevation_max_abs_deg": 0.0
+    },
+    {
+      "transform": "mirror_y",
+      "azimuth_rmse_deg": 0.0,
+      "elevation_rmse_deg": 28.284271247461902,
+      "combined_rmse_deg": 20.0,
+      "azimuth_max_abs_deg": 0.0,
+      "elevation_max_abs_deg": 40.0
+    },
+    {
+      "transform": "rotate_180",
+      "azimuth_rmse_deg": 80.0,
+      "elevation_rmse_deg": 28.284271247461902,
+      "combined_rmse_deg": 60.0,
+      "azimuth_max_abs_deg": 120.0,
+      "elevation_max_abs_deg": 40.0
+    }
+  ],
+  "sea_clutter_rows": [
+    {
+      "transform": "identity",
+      "case_id": "ss0_flat",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 33.66161458610312,
+      "elevation_rmse_to_dominant_deg": 4.310066950747411,
+      "combined_rmse_to_dominant_deg": 23.99667657888562,
+      "jump_rate_over_5deg": 0.925,
+      "mean_angle_jump_deg": 54.33335810820714
+    },
+    {
+      "transform": "identity",
+      "case_id": "ss1_rippled",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 49.48662266147112,
+      "elevation_rmse_to_dominant_deg": 4.2225156478279935,
+      "combined_rmse_to_dominant_deg": 35.11947793486529,
+      "jump_rate_over_5deg": 0.85,
+      "mean_angle_jump_deg": 42.33448445922284
+    },
+    {
+      "transform": "identity",
+      "case_id": "ss2_normal",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 37.66372369468902,
+      "elevation_rmse_to_dominant_deg": 4.685434281945643,
+      "combined_rmse_to_dominant_deg": 26.837561150003094,
+      "jump_rate_over_5deg": 0.9,
+      "mean_angle_jump_deg": 54.227576684533325
+    },
+    {
+      "transform": "identity",
+      "case_id": "ss3_nominal",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 56.0676836380595,
+      "elevation_rmse_to_dominant_deg": 4.217940021317385,
+      "combined_rmse_to_dominant_deg": 39.757868193358625,
+      "jump_rate_over_5deg": 0.925,
+      "mean_angle_jump_deg": 50.97361617644872
+    },
+    {
+      "transform": "identity",
+      "case_id": "ss3_upper",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 45.72717452341837,
+      "elevation_rmse_to_dominant_deg": 4.131397709939417,
+      "combined_rmse_to_dominant_deg": 32.465696796256005,
+      "jump_rate_over_5deg": 0.825,
+      "mean_angle_jump_deg": 47.415943395336456
+    },
+    {
+      "transform": "mirror_x",
+      "case_id": "ss0_flat",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 23.014327020327418,
+      "elevation_rmse_to_dominant_deg": 4.340650789920804,
+      "combined_rmse_to_dominant_deg": 16.56050267169769,
+      "jump_rate_over_5deg": 0.925,
+      "mean_angle_jump_deg": 53.2044527952754
+    },
+    {
+      "transform": "mirror_x",
+      "case_id": "ss1_rippled",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 52.87216510353856,
+      "elevation_rmse_to_dominant_deg": 4.574901967400557,
+      "combined_rmse_to_dominant_deg": 37.5259614849984,
+      "jump_rate_over_5deg": 0.875,
+      "mean_angle_jump_deg": 45.90833684755827
+    },
+    {
+      "transform": "mirror_x",
+      "case_id": "ss2_normal",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 43.35811775256777,
+      "elevation_rmse_to_dominant_deg": 4.621473882046544,
+      "combined_rmse_to_dominant_deg": 30.832486081144765,
+      "jump_rate_over_5deg": 0.85,
+      "mean_angle_jump_deg": 53.40582037072231
+    },
+    {
+      "transform": "mirror_x",
+      "case_id": "ss3_nominal",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 58.70194126284773,
+      "elevation_rmse_to_dominant_deg": 4.403251935420399,
+      "combined_rmse_to_dominant_deg": 41.625151865390286,
+      "jump_rate_over_5deg": 0.925,
+      "mean_angle_jump_deg": 54.25892317272371
+    },
+    {
+      "transform": "mirror_x",
+      "case_id": "ss3_upper",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 46.69874156114358,
+      "elevation_rmse_to_dominant_deg": 4.442989546883719,
+      "combined_rmse_to_dominant_deg": 33.17011169342211,
+      "jump_rate_over_5deg": 0.8,
+      "mean_angle_jump_deg": 54.983734424105066
+    },
+    {
+      "transform": "mirror_y",
+      "case_id": "ss0_flat",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 33.43446258811866,
+      "elevation_rmse_to_dominant_deg": 4.239238247961334,
+      "combined_rmse_to_dominant_deg": 23.831013716156566,
+      "jump_rate_over_5deg": 0.925,
+      "mean_angle_jump_deg": 55.07056809141682
+    },
+    {
+      "transform": "mirror_y",
+      "case_id": "ss1_rippled",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 46.220536787729856,
+      "elevation_rmse_to_dominant_deg": 4.321322519922875,
+      "combined_rmse_to_dominant_deg": 32.825385369155086,
+      "jump_rate_over_5deg": 0.9,
+      "mean_angle_jump_deg": 47.84057963468983
+    },
+    {
+      "transform": "mirror_y",
+      "case_id": "ss2_normal",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 44.13477582484294,
+      "elevation_rmse_to_dominant_deg": 4.458034324110813,
+      "combined_rmse_to_dominant_deg": 31.36680177467964,
+      "jump_rate_over_5deg": 0.875,
+      "mean_angle_jump_deg": 58.10162148010927
+    },
+    {
+      "transform": "mirror_y",
+      "case_id": "ss3_nominal",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 60.724431264675694,
+      "elevation_rmse_to_dominant_deg": 4.545372777305265,
+      "combined_rmse_to_dominant_deg": 43.05877939574571,
+      "jump_rate_over_5deg": 0.9,
+      "mean_angle_jump_deg": 53.50171354395818
+    },
+    {
+      "transform": "mirror_y",
+      "case_id": "ss3_upper",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 48.32008869644766,
+      "elevation_rmse_to_dominant_deg": 4.645337950363344,
+      "combined_rmse_to_dominant_deg": 34.32499188860541,
+      "jump_rate_over_5deg": 0.85,
+      "mean_angle_jump_deg": 49.87445692020877
+    },
+    {
+      "transform": "rotate_180",
+      "case_id": "ss0_flat",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 30.461887694719916,
+      "elevation_rmse_to_dominant_deg": 4.543377927456474,
+      "combined_rmse_to_dominant_deg": 21.77807251477306,
+      "jump_rate_over_5deg": 0.925,
+      "mean_angle_jump_deg": 56.15030694688303
+    },
+    {
+      "transform": "rotate_180",
+      "case_id": "ss1_rippled",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 48.569331540797386,
+      "elevation_rmse_to_dominant_deg": 4.177498207321713,
+      "combined_rmse_to_dominant_deg": 34.470505200766006,
+      "jump_rate_over_5deg": 0.875,
+      "mean_angle_jump_deg": 46.734536686639544
+    },
+    {
+      "transform": "rotate_180",
+      "case_id": "ss2_normal",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 34.860967745969255,
+      "elevation_rmse_to_dominant_deg": 4.450206471337935,
+      "combined_rmse_to_dominant_deg": 24.850466895242096,
+      "jump_rate_over_5deg": 0.875,
+      "mean_angle_jump_deg": 51.647756856010425
+    },
+    {
+      "transform": "rotate_180",
+      "case_id": "ss3_nominal",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 61.71674474695606,
+      "elevation_rmse_to_dominant_deg": 4.361662901871934,
+      "combined_rmse_to_dominant_deg": 43.749175337544905,
+      "jump_rate_over_5deg": 0.9,
+      "mean_angle_jump_deg": 48.63687773291103
+    },
+    {
+      "transform": "rotate_180",
+      "case_id": "ss3_upper",
+      "frames": 41,
+      "azimuth_rmse_to_dominant_deg": 48.26069867090498,
+      "elevation_rmse_to_dominant_deg": 4.288143297496759,
+      "combined_rmse_to_dominant_deg": 34.25991250093727,
+      "jump_rate_over_5deg": 0.775,
+      "mean_angle_jump_deg": 52.96466790168061
+    }
+  ],
+  "coordinate_status": "software_screening_only",
+  "hardware_validated": false,
+  "measurement_required": "corner_reflector_or_other_known-angle capture"
+}
