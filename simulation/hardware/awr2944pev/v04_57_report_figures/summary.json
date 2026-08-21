@@ -1,0 +1,14 @@
+{
+  "status": "completed_v057_report_figures",
+  "inputs": {
+    "physical_csv": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_48_physical_target_model\\physical_target_sweep.csv",
+    "overlap_csv": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_49_calibration_doppler_overlap\\doppler_overlap_sweep.csv",
+    "order_csv": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_54_multiscene_aoa_validation\\results\\multi_scene_candidate_metrics.csv"
+  },
+  "figures": [
+    "doppler_overlap_detection.png",
+    "physical_range_detection.png",
+    "channel_order_rmse_rank.png"
+  ],
+  "source_status": "synthetic_and_relative_models_not_hardware_measurement"
+}
