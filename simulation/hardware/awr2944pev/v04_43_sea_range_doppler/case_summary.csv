@@ -1,0 +1,6 @@
+case_id,frames,mean_peak_range_m,mean_peak_velocity_mps,peak_velocity_std_mps,mean_peak_power_linear,mean_aoa_score,range_doppler_file
+ss0_flat,41,3.5131928671875006,0.0,0.0,432687.30302196613,0.2809594018972227,D:\hp-laptop\USV\awr2944_sea_clutter_v02\simulation\hardware\awr2944pev\v04_43_sea_range_doppler\ss0_flat_range_doppler.h5
+ss1_rippled,41,3.427505236280488,0.0,0.0,653445.6066035912,0.4704641828211473,D:\hp-laptop\USV\awr2944_sea_clutter_v02\simulation\hardware\awr2944pev\v04_43_sea_range_doppler\ss1_rippled_range_doppler.h5
+ss2_normal,41,3.3846614208269816,0.0,0.0,581698.2556734178,0.4487989203719708,D:\hp-laptop\USV\awr2944_sea_clutter_v02\simulation\hardware\awr2944pev\v04_43_sea_range_doppler\ss2_normal_range_doppler.h5
+ss3_nominal,41,3.3846614208269825,-0.06676958252494455,0.2279408421770845,491147.59341763123,0.44516862461792195,D:\hp-laptop\USV\awr2944_sea_clutter_v02\simulation\hardware\awr2944pev\v04_43_sea_range_doppler\ss3_nominal_range_doppler.h5
+ss3_upper,41,3.5131928671875006,-0.08902611003325941,0.26229569211323944,471336.4677096367,0.44126455635106104,D:\hp-laptop\USV\awr2944_sea_clutter_v02\simulation\hardware\awr2944pev\v04_43_sea_range_doppler\ss3_upper_range_doppler.h5
