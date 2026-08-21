@@ -2,7 +2,12 @@ import unittest
 
 import numpy as np
 
-from simulation.v03 import FmcwConfig, generate_single_scatterer_iq, process_range_doppler
+from simulation.v03 import (
+    FmcwConfig,
+    generate_multi_scatterer_iq,
+    generate_single_scatterer_iq,
+    process_range_doppler,
+)
 
 
 class ComplexEchoRangeDopplerTests(unittest.TestCase):
@@ -39,3 +44,16 @@ class ComplexEchoRangeDopplerTests(unittest.TestCase):
         config = FmcwConfig()
         with self.assertRaisesRegex(ValueError, "shape"):
             process_range_doppler(np.zeros((4, 8), dtype=complex), config)
+
+    def test_multi_scatterer_iq_contains_both_coherent_components(self):
+        config = FmcwConfig()
+        one = generate_single_scatterer_iq(
+            config, slant_range_m=20.0, radial_velocity_mps=0.0, amplitude=1.0
+        )
+        two = generate_single_scatterer_iq(
+            config, slant_range_m=35.0, radial_velocity_mps=0.0, amplitude=0.5
+        )
+        combined = generate_multi_scatterer_iq(
+            config, [(20.0, 0.0, 1.0), (35.0, 0.0, 0.5)]
+        )
+        self.assertTrue(np.allclose(combined, one + two))

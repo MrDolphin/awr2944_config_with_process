@@ -101,6 +101,33 @@ def generate_single_scatterer_iq(
     ).copy()
 
 
+def generate_multi_scatterer_iq(
+    config: FmcwConfig,
+    scatterers: list[tuple[float, float, float]],
+) -> np.ndarray:
+    """Sum coherent IQ for (slant_range_m, radial_velocity_mps, amplitude)."""
+
+    if not scatterers:
+        raise ValueError("at least one scatterer is required")
+    total = np.zeros(
+        (
+            config.chirps_per_frame,
+            config.samples_per_chirp,
+            config.rx_count,
+            config.tx_count,
+        ),
+        dtype=complex,
+    )
+    for slant_range_m, radial_velocity_mps, amplitude in scatterers:
+        total += generate_single_scatterer_iq(
+            config,
+            slant_range_m=slant_range_m,
+            radial_velocity_mps=radial_velocity_mps,
+            amplitude=amplitude,
+        )
+    return total
+
+
 def process_range_doppler(
     iq: np.ndarray, config: FmcwConfig
 ) -> RangeDopplerResult:
