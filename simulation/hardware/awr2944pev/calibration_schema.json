@@ -4,6 +4,7 @@
   "range_bias_m": 0.0,
   "rx_channel_phase_compensation": [],
   "complex_channel_correction_schema": "simulation/calibration.py; 4x4 amplitude and phase_deg arrays, synthetic or measured status required",
+  "cfg_ingest_tool": "simulation/parse_cfg_calibration.py; preserves Tx-major raw order and outputs [rx][tx] matrices",
   "tx_rx_mapping_source": "project antGeometryCfg; verify against SDK/EVM documentation",
   "measurement_command": "measureRangeBiasAndRxChanPhase",
   "compensation_command": "compRangeBiasAndRxChanPhase",

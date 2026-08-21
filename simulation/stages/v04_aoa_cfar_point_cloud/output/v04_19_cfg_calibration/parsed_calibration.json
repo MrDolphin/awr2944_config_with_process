@@ -1,0 +1,193 @@
+{
+  "schema_version": "awr2944p-calibration-v0.1",
+  "source_cfg": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\Config\\profile_3d_3Azim_1ElevTx_awr2944P.cfg",
+  "channel_order": "Tx0Rx0,Tx0Rx1,...,Tx3Rx3; output matrices indexed [rx][tx]",
+  "range_bias_m": 0.0,
+  "amplitude": [
+    [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ]
+  ],
+  "phase_deg": [
+    [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  ],
+  "raw_tokens": [
+    0.0,
+    1.0,
+    0.0,
+    1.0,
+    0.0,
+    1.0,
+    0.0,
+    1.0,
+    0.0,
+    1.0,
+    0.0,
+    1.0,
+    0.0,
+    1.0,
+    0.0,
+    1.0,
+    0.0,
+    1.0,
+    0.0,
+    1.0,
+    0.0,
+    1.0,
+    0.0,
+    1.0,
+    0.0,
+    1.0,
+    0.0,
+    1.0,
+    0.0,
+    1.0,
+    0.0,
+    1.0,
+    0.0
+  ],
+  "complex_values_tx_major": [
+    {
+      "tx_index": 0,
+      "rx_index": 0,
+      "real": 1.0,
+      "imag": 0.0
+    },
+    {
+      "tx_index": 0,
+      "rx_index": 1,
+      "real": 1.0,
+      "imag": 0.0
+    },
+    {
+      "tx_index": 0,
+      "rx_index": 2,
+      "real": 1.0,
+      "imag": 0.0
+    },
+    {
+      "tx_index": 0,
+      "rx_index": 3,
+      "real": 1.0,
+      "imag": 0.0
+    },
+    {
+      "tx_index": 1,
+      "rx_index": 0,
+      "real": 1.0,
+      "imag": 0.0
+    },
+    {
+      "tx_index": 1,
+      "rx_index": 1,
+      "real": 1.0,
+      "imag": 0.0
+    },
+    {
+      "tx_index": 1,
+      "rx_index": 2,
+      "real": 1.0,
+      "imag": 0.0
+    },
+    {
+      "tx_index": 1,
+      "rx_index": 3,
+      "real": 1.0,
+      "imag": 0.0
+    },
+    {
+      "tx_index": 2,
+      "rx_index": 0,
+      "real": 1.0,
+      "imag": 0.0
+    },
+    {
+      "tx_index": 2,
+      "rx_index": 1,
+      "real": 1.0,
+      "imag": 0.0
+    },
+    {
+      "tx_index": 2,
+      "rx_index": 2,
+      "real": 1.0,
+      "imag": 0.0
+    },
+    {
+      "tx_index": 2,
+      "rx_index": 3,
+      "real": 1.0,
+      "imag": 0.0
+    },
+    {
+      "tx_index": 3,
+      "rx_index": 0,
+      "real": 1.0,
+      "imag": 0.0
+    },
+    {
+      "tx_index": 3,
+      "rx_index": 1,
+      "real": 1.0,
+      "imag": 0.0
+    },
+    {
+      "tx_index": 3,
+      "rx_index": 2,
+      "real": 1.0,
+      "imag": 0.0
+    },
+    {
+      "tx_index": 3,
+      "rx_index": 3,
+      "real": 1.0,
+      "imag": 0.0
+    }
+  ],
+  "calibration_status": "cfg_identity_not_measured",
+  "interpretation_status": "assumed_direct_complex_correction_values_verify_against_ti_sdk"
+}
