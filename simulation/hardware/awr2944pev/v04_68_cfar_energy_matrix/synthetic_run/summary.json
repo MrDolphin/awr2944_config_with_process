@@ -1,0 +1,16 @@
+{
+  "status": "completed_cfar_energy_matrix",
+  "case_count": 5,
+  "scenario_count": 9,
+  "zero_detection_cases_across_all_scenarios": [
+    "ss0_flat",
+    "ss1_rippled",
+    "ss2_normal"
+  ],
+  "energy_only_cases_need_uncfar_interpretation": [
+    "ss0_flat",
+    "ss1_rippled",
+    "ss2_normal"
+  ],
+  "hardware_validated": false
+}
