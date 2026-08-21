@@ -1,0 +1,5 @@
+transform,rms_error_normalized_mm,x_rms_normalized_mm,y_rms_normalized_mm,status
+identity,1.287830,1.505346,1.025158,shape_screening_only
+mirror_x,3.379026,4.667407,1.025158,shape_screening_only
+mirror_y,1.090072,1.505346,0.332337,shape_screening_only
+rotate_180,3.308711,4.667407,0.332337,shape_screening_only

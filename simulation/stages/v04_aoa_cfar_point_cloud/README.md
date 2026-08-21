@@ -51,3 +51,5 @@ V0.4.26 对点云统计做相对基准的描述性判读，结果见 `simulation
 V0.4.27 将统计、图像和描述性判读串成一键海况报告包，结果见 `simulation/stages/v04_aoa_cfar_point_cloud/output/v04_27_sea_state_bundle/` 和 `docs/reports/v04_sea_state_bundle.md`。
 
 V0.4.28 对用户新增的 AWR2944P EVM PCB/CAD 资料进行来源清单、ASCII PCB 记录、层叠、元件、网络和焊盘审计；结果见 `simulation/hardware/awr2944pev/v04_28_pcb_audit/` 和 `docs/reports/v04_28_pcb_audit.md`。TX/RX 网络与焊盘仍是候选，不代表已确认的天线相位中心。
+
+V0.4.29 将 8 个已提取的 TX/RX 铜区与当前 `antGeometryCfg` 展开的 16 个虚拟通道做候选映射，并扫描平移归一化后的镜像/旋转解释；结果见 `simulation/hardware/awr2944pev/v04_29_candidate_mapping/` 和 `docs/reports/v04_29_candidate_mapping.md`。最小误差变换只代表相对几何筛查，不代表真实阵面方向或相位中心。

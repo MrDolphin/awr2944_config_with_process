@@ -1,0 +1,9 @@
+{
+  "status": "completed_candidate_channel_mapping",
+  "channel_count": 16,
+  "region_count": 8,
+  "all_channels_have_named_regions": true,
+  "best_shape_transform": "mirror_y",
+  "phase_center_confirmed": false,
+  "coordinate_status": "candidate_only"
+}
