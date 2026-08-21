@@ -2,7 +2,10 @@ import unittest
 
 import numpy as np
 
-from simulation.dca1000_iq import decode_interleaved_iq, reshape_tdm_virtual_channels
+from simulation.dca1000_iq import (
+    decode_interleaved_iq, encode_interleaved_iq, flatten_tdm_virtual_channels,
+    reshape_tdm_virtual_channels,
+)
 
 
 class Dca1000IqTests(unittest.TestCase):
@@ -24,3 +27,11 @@ class Dca1000IqTests(unittest.TestCase):
         self.assertEqual(virtual.shape, (2, 2, 4, 4))
         self.assertTrue(np.all(virtual[1, :, :, 0] == 4))
         self.assertTrue(np.all(virtual[0, :, :, 3] == 3))
+
+    def test_synthetic_tdm_roundtrip_preserves_virtual_channels(self):
+        virtual = np.arange(2 * 2 * 4 * 4, dtype=float).reshape(2, 2, 4, 4).astype(complex)
+        raw_chirps = flatten_tdm_virtual_channels(virtual)
+        decoded = decode_interleaved_iq(
+            encode_interleaved_iq(raw_chirps), chirps=8, samples_per_chirp=2, rx_count=4
+        )
+        self.assertTrue(np.array_equal(reshape_tdm_virtual_channels(decoded), virtual))

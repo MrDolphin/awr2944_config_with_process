@@ -47,6 +47,29 @@ def reshape_tdm_virtual_channels(
     return output
 
 
+def flatten_tdm_virtual_channels(virtual: np.ndarray, *, tx_sequence: tuple[int, ...] = (0, 1, 2, 3)) -> np.ndarray:
+    """Inverse of :func:`reshape_tdm_virtual_channels` for synthetic tests."""
+    if virtual.ndim != 4 or virtual.shape[3] != len(tx_sequence):
+        raise ValueError("virtual IQ must have shape (frame, sample, rx, tx)")
+    tx_count = len(tx_sequence)
+    output = np.empty((virtual.shape[0] * tx_count, virtual.shape[1], virtual.shape[2]), dtype=virtual.dtype)
+    for position, tx_index in enumerate(tx_sequence):
+        output[position::tx_count] = virtual[:, :, :, tx_index]
+    return output
+
+
+def encode_interleaved_iq(iq: np.ndarray) -> bytes:
+    """Encode (chirp, sample, rx) complex IQ as little-endian int16 I/Q."""
+    if iq.ndim != 3:
+        raise ValueError("IQ must have shape (chirp, sample, rx)")
+    if np.max(np.abs(iq.real)) > 32767 or np.max(np.abs(iq.imag)) > 32767:
+        raise ValueError("IQ exceeds int16 range")
+    values = np.empty(iq.shape + (2,), dtype="<i2")
+    values[..., 0] = np.rint(iq.real).astype("<i2")
+    values[..., 1] = np.rint(iq.imag).astype("<i2")
+    return values.tobytes()
+
+
 def decode_file(input_path: Path, output_path: Path, *, chirps: int,
                 samples_per_chirp: int, rx_count: int = 4) -> None:
     iq = decode_interleaved_iq(input_path.read_bytes(), chirps=chirps,
