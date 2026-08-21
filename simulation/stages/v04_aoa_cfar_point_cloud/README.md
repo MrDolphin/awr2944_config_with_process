@@ -35,3 +35,5 @@ V0.4.18 建立 4×4 复数通道校准接口并验证补偿方向，结果见 `s
 V0.4.19 解析 CFG 的 `compRangeBiasAndRxChanPhase` 为 4×4 复数矩阵，结果见 `simulation/stages/v04_aoa_cfar_point_cloud/output/v04_19_cfg_calibration/` 和 `docs/reports/v04_cfg_calibration_ingest.md`。
 
 V0.4.20 对 CFG 校准因子做直接、复数逆、共轭逆方向 A/B，结果见 `simulation/stages/v04_aoa_cfar_point_cloud/output/v04_20_calibration_direction/` 和 `docs/reports/v04_calibration_direction.md`。
+
+V0.4.21 增加 DCA1000 `.bin` 抓包接入、TDM 重排和可选校准 HDF5 输出，结果见 `simulation/stages/v04_aoa_cfar_point_cloud/output/v04_21_capture_ingest/` 和 `docs/reports/v04_capture_ingest.md`。

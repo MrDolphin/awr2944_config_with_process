@@ -21,8 +21,8 @@ def complex_matrix(amplitude: np.ndarray, phase_deg: np.ndarray) -> np.ndarray:
 def apply_channel_correction(channel: np.ndarray, correction: np.ndarray) -> np.ndarray:
     channel = np.asarray(channel)
     correction = np.asarray(correction)
-    if channel.shape != (4, 4) or correction.shape != (4, 4):
-        raise ValueError("channel and correction must both be 4x4")
+    if channel.shape[-2:] != (4, 4) or correction.shape != (4, 4):
+        raise ValueError("channel trailing dimensions and correction must be 4x4")
     return channel * correction
 
 
