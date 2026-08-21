@@ -47,3 +47,5 @@ V0.4.24 对多个海况点云运行做统一统计，结果见 `simulation/stage
 V0.4.25 自动生成各海况距离-速度、方位-俯仰、三维点云图和 Markdown 汇报，结果见 `simulation/stages/v04_aoa_cfar_point_cloud/output/v04_25_sea_state_visual_report/` 和 `docs/reports/v04_sea_state_visual_report.md`。
 
 V0.4.26 对点云统计做相对基准的描述性判读，结果见 `simulation/stages/v04_aoa_cfar_point_cloud/output/v04_26_sea_state_interpretation/` 和 `docs/reports/v04_sea_state_interpretation.md`。
+
+V0.4.27 将统计、图像和描述性判读串成一键海况报告包，结果见 `simulation/stages/v04_aoa_cfar_point_cloud/output/v04_27_sea_state_bundle/` 和 `docs/reports/v04_sea_state_bundle.md`。

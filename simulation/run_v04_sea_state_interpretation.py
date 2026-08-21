@@ -10,12 +10,20 @@ from pathlib import Path
 
 NUMERIC = ("point_count", "velocity_std_mps", "azimuth_std_deg", "elevation_std_deg")
 
+ALIASES = {
+    "velocity_std_mps": "velocity_mps_std",
+    "azimuth_std_deg": "azimuth_deg_std",
+    "elevation_std_deg": "elevation_deg_std",
+}
+
 
 def read_stats(path: Path) -> list[dict]:
     with path.open(encoding="utf-8", newline="") as handle:
         rows = list(csv.DictReader(handle))
     for row in rows:
         for key in NUMERIC:
+            if key not in row and ALIASES[key] in row:
+                row[key] = row[ALIASES[key]]
             row[key] = float(row[key])
     return rows
 
