@@ -1,0 +1,6 @@
+case_id,sea_state,frames,point_count,active_detection_frames,detection_frame_rate,mean_points_per_frame,range_mean_m,range_std_m,range_p05_m,range_p50_m,range_p95_m,velocity_mean_mps,velocity_std_mps,azimuth_mean_deg,azimuth_std_deg,azimuth_p05_deg,azimuth_p50_deg,azimuth_p95_deg,elevation_mean_deg,elevation_std_deg,elevation_p05_deg,elevation_p50_deg,elevation_p95_deg,cfar_status,latency_propagation_available
+ss0_flat,0,41,0,0,0.0,0.0,,,,,,,,,,,,,,,,,,no_cfar_detections,False
+ss1_rippled,1,41,0,0,0.0,0.0,,,,,,,,,,,,,,,,,,no_cfar_detections,False
+ss2_normal,2,41,0,0,0.0,0.0,,,,,,,,,,,,,,,,,,no_cfar_detections,False
+ss3_nominal,3,41,2,2,0.04878048780487805,0.04878048780487805,8.78298216796875,0.0,8.78298216796875,8.78298216796875,8.78298216796875,0.0,0.0,7.5,40.5,-28.95,7.5,43.949999999999996,-2.0,17.0,-17.3,-2.0,13.299999999999999,detected_synthetic_points,True
+ss3_upper,3,41,2,2,0.04878048780487805,0.04878048780487805,8.78298216796875,0.0,8.78298216796875,8.78298216796875,8.78298216796875,0.0,0.0,10.0,11.0,0.10000000000000009,10.0,19.9,1.5,13.5,-10.65,1.5,13.649999999999999,detected_synthetic_points,True

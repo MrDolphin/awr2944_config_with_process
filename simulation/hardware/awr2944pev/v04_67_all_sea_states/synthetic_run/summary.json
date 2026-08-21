@@ -1,0 +1,9 @@
+{
+  "status": "completed_all_sea_state_coverage_matrix",
+  "case_count": 5,
+  "detected_case_count": 2,
+  "zero_detection_case_count": 3,
+  "cases_with_latency_propagation": 2,
+  "point_cloud_source_is_hardware": false,
+  "interpretation": "zero_cfar_detections_is_not_zero_sea_clutter"
+}
