@@ -10,6 +10,7 @@
   ],
   "max_points_per_group": 256,
   "geometry_source": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\antgeometry_mapping.csv",
+  "nonfinite_aoa_count": 31,
   "hardware_validated": false,
   "os_cfar_status": "exploratory_order_statistic_not_ti_sdk_equivalent"
 }

@@ -32,6 +32,7 @@ def _retain(detector, plane, d, r, scenario, fixed_threshold):
 
 def run(input_root: Path, geometry_csv: Path, output: Path, max_points_per_group: int = 256) -> dict:
     rows, summaries = [], []
+    nonfinite_aoa_count = 0
     wavelength = 299792458.0 / 77e9
     x, y = geometry(geometry_csv, wavelength)
     for path in sorted(input_root.glob("*_range_doppler.h5")):
@@ -56,7 +57,10 @@ def run(input_root: Path, geometry_csv: Path, output: Path, max_points_per_group
                 candidates.sort(reverse=True)
                 stored = candidates[:max_points_per_group]
                 for peak, frame, d, r, noise, threshold in stored:
-                    az, el = estimate_aoa_from_positions(spectrum[frame, d, r], config, x, y)
+                    with np.errstate(invalid="ignore", divide="ignore"):
+                        az, el = estimate_aoa_from_positions(spectrum[frame, d, r], config, x, y)
+                    if not np.isfinite(az) or not np.isfinite(el):
+                        nonfinite_aoa_count += 1
                     rr, vv = float(ranges[r]), float(velocities[d])
                     azr, elr = np.deg2rad(az), np.deg2rad(el)
                     rows.append({"case_id": case_id, "scenario_id": scenario["scenario_id"], "detector": detector,
@@ -82,7 +86,8 @@ def run(input_root: Path, geometry_csv: Path, output: Path, max_points_per_group
     write_csv("detector_point_cloud.csv", rows); write_csv("detector_point_cloud_summary.csv", summaries)
     meta = {"status":"completed_detector_point_cloud", "case_count":len({r["case_id"] for r in summaries}),
             "scenario_count":len(SCENARIOS), "detectors":list(DETECTORS), "max_points_per_group":max_points_per_group,
-            "geometry_source":str(geometry_csv.resolve()), "hardware_validated":False,
+            "geometry_source":str(geometry_csv.resolve()), "nonfinite_aoa_count":nonfinite_aoa_count,
+            "hardware_validated":False,
             "os_cfar_status":"exploratory_order_statistic_not_ti_sdk_equivalent"}
     (output/"summary.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
     (output/"output_analysis.md").write_text("# V0.4.72 检测器 AoA 点云\n\n"
