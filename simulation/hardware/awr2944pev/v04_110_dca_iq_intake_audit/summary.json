@@ -1,0 +1,20 @@
+{
+  "status": "completed_dca_iq_intake_audit",
+  "roots": [
+    "D:\\hp-laptop\\USV\\awr2944_config_and_process_with_trace\\record"
+  ],
+  "file_count": 3,
+  "classification_counts": {
+    "uart_point_cloud_record": 3
+  },
+  "geometry": {
+    "adc_samples": 656,
+    "rx_count": 4,
+    "chirps_per_frame": 240,
+    "complex_int16_chirp_bytes": 10496,
+    "complex_int16_frame_bytes": 2519040
+  },
+  "dca1000_adc_iq_validated": false,
+  "channel_order_verified": false,
+  "ti_calibration_verified": false
+}
