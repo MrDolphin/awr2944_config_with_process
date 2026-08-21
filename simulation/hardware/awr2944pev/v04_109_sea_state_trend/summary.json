@@ -1,0 +1,17 @@
+{
+  "status": "completed_sea_state_metadata_join",
+  "source_v0108_summary": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_108_sea_clutter_geometry_comparison\\sea_clutter_geometry_summary.csv",
+  "source_v02_run_config": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\stages\\v02_dynamic_sea_truth\\results\\matlab\\v02b_quick_seed101_hs1m\\run_config.json",
+  "source_v02_environment": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\stages\\v02_dynamic_sea_truth\\results\\matlab\\v02b_quick_seed101_hs1m\\environment.json",
+  "case_count": 5,
+  "target_hs_range_m": [
+    0.0,
+    1.0
+  ],
+  "model_difference_azimuth_rmse_range_deg": [
+    41.12354971866382,
+    44.81996506349244
+  ],
+  "hs_vs_model_difference_pearson_r": -0.8140649495318735,
+  "interpretation": "descriptive synthetic trend only; not hardware AoA validation"
+}
