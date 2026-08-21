@@ -1,0 +1,18 @@
+{
+  "status": "completed_detector_complex_bin_point_cloud",
+  "case_count": 5,
+  "scenario_count": 9,
+  "detectors": [
+    "ca_cfar_local_peak",
+    "ca_threshold_only",
+    "os_cfar_local_peak",
+    "fixed_energy_local_peak"
+  ],
+  "max_points_per_group": 256,
+  "geometry_source": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\antgeometry_mapping.csv",
+  "nonfinite_aoa_count": 31,
+  "hardware_validated": false,
+  "os_cfar_status": "exploratory_order_statistic_not_ti_sdk_equivalent",
+  "aoa_source": "per_detection_complex_range_doppler_bin",
+  "point_cloud_schema": "case/scenario/detector/frame/range/velocity/azimuth/elevation/x/y/z/power/noise/threshold"
+}
