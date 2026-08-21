@@ -37,3 +37,5 @@ V0.4.19 解析 CFG 的 `compRangeBiasAndRxChanPhase` 为 4×4 复数矩阵，结
 V0.4.20 对 CFG 校准因子做直接、复数逆、共轭逆方向 A/B，结果见 `simulation/stages/v04_aoa_cfar_point_cloud/output/v04_20_calibration_direction/` 和 `docs/reports/v04_calibration_direction.md`。
 
 V0.4.21 增加 DCA1000 `.bin` 抓包接入、TDM 重排和可选校准 HDF5 输出，结果见 `simulation/stages/v04_aoa_cfar_point_cloud/output/v04_21_capture_ingest/` 和 `docs/reports/v04_capture_ingest.md`。
+
+V0.4.22 在规范 HDF5 上执行距离 FFT、Doppler FFT 和峰值单元 AoA，结果见 `simulation/stages/v04_aoa_cfar_point_cloud/output/v04_22_range_doppler_aoa/` 和 `docs/reports/v04_range_doppler_aoa.md`。
