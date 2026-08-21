@@ -1,0 +1,72 @@
+{
+  "status": "completed_physical_proxy_sea_microfacets",
+  "input_root": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\stages\\v02_dynamic_sea_truth\\results\\matlab\\v02b_forward_seed101_hs1m\\data",
+  "random_seed": 4242,
+  "wavelength_m": 0.0038934085454545454,
+  "model": "pcb_centroid_candidate",
+  "input_status": "v02_height_truth_with_derived_velocity_normal_doppler",
+  "scattering_status": "front_face_incidence_over_range_squared_proxy",
+  "hardware_aoa_validated": false,
+  "cases": [
+    {
+      "case_id": "ss0_flat",
+      "frames": 41,
+      "wind_speed_mps": 0.0,
+      "wind_direction_deg": 90.0,
+      "mean_abs_radial_velocity_mps": 0.0,
+      "rms_radial_velocity_mps": 0.0,
+      "doppler_min_hz": 0.0,
+      "doppler_max_hz": 0.0,
+      "mean_peak_to_second_db": 0.03515933833680168,
+      "jump_rate_over_5deg": 0.85
+    },
+    {
+      "case_id": "ss1_rippled",
+      "frames": 41,
+      "wind_speed_mps": 2.6,
+      "wind_direction_deg": 90.0,
+      "mean_abs_radial_velocity_mps": 0.0007808350737819149,
+      "rms_radial_velocity_mps": 0.0013672392529714204,
+      "doppler_min_hz": -19.491521208606095,
+      "doppler_max_hz": 23.872411688851088,
+      "mean_peak_to_second_db": 0.05477977828851604,
+      "jump_rate_over_5deg": 1.0
+    },
+    {
+      "case_id": "ss2_normal",
+      "frames": 41,
+      "wind_speed_mps": 4.6,
+      "wind_direction_deg": 90.0,
+      "mean_abs_radial_velocity_mps": 0.0039518318934506835,
+      "rms_radial_velocity_mps": 0.006983364958734812,
+      "doppler_min_hz": -148.41210685380938,
+      "doppler_max_hz": 102.43999193751577,
+      "mean_peak_to_second_db": 0.0463898811796469,
+      "jump_rate_over_5deg": 0.975
+    },
+    {
+      "case_id": "ss3_nominal",
+      "frames": 41,
+      "wind_speed_mps": 6.7,
+      "wind_direction_deg": 90.0,
+      "mean_abs_radial_velocity_mps": 0.009984426919844582,
+      "rms_radial_velocity_mps": 0.018724053900934234,
+      "doppler_min_hz": -446.76367965076054,
+      "doppler_max_hz": 235.38016593000955,
+      "mean_peak_to_second_db": 0.06495368103571682,
+      "jump_rate_over_5deg": 0.975
+    },
+    {
+      "case_id": "ss3_upper",
+      "frames": 41,
+      "wind_speed_mps": 6.7,
+      "wind_direction_deg": 90.0,
+      "mean_abs_radial_velocity_mps": 0.011743219078038228,
+      "rms_radial_velocity_mps": 0.022315397909642692,
+      "doppler_min_hz": -544.1249499999733,
+      "doppler_max_hz": 271.4369618266111,
+      "mean_peak_to_second_db": 0.05530974873150413,
+      "jump_rate_over_5deg": 1.0
+    }
+  ]
+}
