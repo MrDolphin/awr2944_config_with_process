@@ -1,0 +1,74 @@
+{
+  "status": "completed_synthetic_sea_clutter_geometry_comparison",
+  "input_root": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\stages\\v02_dynamic_sea_truth\\results\\matlab\\v02b_quick_seed101_hs1m\\data",
+  "provisional_geometry": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_106_provisional_array_geometry\\virtual_array_coordinates.csv",
+  "case_count": 5,
+  "random_seeds": {
+    "surface": 4141,
+    "impairment_base": 9000
+  },
+  "models": [
+    "ideal_half_lambda",
+    "provisional_pcb_endpoint"
+  ],
+  "input_status": "v02_surface_height_truth_not_measured_radar_iq",
+  "provisional_geometry_status": "geometric_endpoint_candidate_not_phase_center",
+  "hardware_aoa_validated": false,
+  "cases": [
+    {
+      "case_id": "ss0_flat",
+      "frames": 41,
+      "ideal_half_lambda_azimuth_rmse_deg": 53.937769595480205,
+      "ideal_half_lambda_elevation_rmse_deg": 3.6385890251952095,
+      "provisional_pcb_endpoint_azimuth_rmse_deg": 38.668922195633954,
+      "provisional_pcb_endpoint_elevation_rmse_deg": 3.565280923658566,
+      "model_azimuth_difference_rmse_deg": 43.22854747817894,
+      "model_elevation_difference_rmse_deg": 3.94783052494133,
+      "model_difference_over_10deg_rate": 0.5365853658536586
+    },
+    {
+      "case_id": "ss1_rippled",
+      "frames": 41,
+      "ideal_half_lambda_azimuth_rmse_deg": 53.937769595480205,
+      "ideal_half_lambda_elevation_rmse_deg": 3.64512506356742,
+      "provisional_pcb_endpoint_azimuth_rmse_deg": 41.07943572197671,
+      "provisional_pcb_endpoint_elevation_rmse_deg": 3.0567533614745432,
+      "model_azimuth_difference_rmse_deg": 44.81996506349244,
+      "model_elevation_difference_rmse_deg": 3.757918468981491,
+      "model_difference_over_10deg_rate": 0.5853658536585366
+    },
+    {
+      "case_id": "ss2_normal",
+      "frames": 41,
+      "ideal_half_lambda_azimuth_rmse_deg": 52.658080395272755,
+      "ideal_half_lambda_elevation_rmse_deg": 3.7380913063279757,
+      "provisional_pcb_endpoint_azimuth_rmse_deg": 39.895752400681815,
+      "provisional_pcb_endpoint_elevation_rmse_deg": 3.1374853072459303,
+      "model_azimuth_difference_rmse_deg": 42.227606274892224,
+      "model_elevation_difference_rmse_deg": 3.8413666267326803,
+      "model_difference_over_10deg_rate": 0.5609756097560976
+    },
+    {
+      "case_id": "ss3_nominal",
+      "frames": 41,
+      "ideal_half_lambda_azimuth_rmse_deg": 46.87417946960345,
+      "ideal_half_lambda_elevation_rmse_deg": 3.59007633982701,
+      "provisional_pcb_endpoint_azimuth_rmse_deg": 35.2920518824609,
+      "provisional_pcb_endpoint_elevation_rmse_deg": 4.551115530713402,
+      "model_azimuth_difference_rmse_deg": 42.19264760826372,
+      "model_elevation_difference_rmse_deg": 4.364490862380729,
+      "model_difference_over_10deg_rate": 0.5609756097560976
+    },
+    {
+      "case_id": "ss3_upper",
+      "frames": 41,
+      "ideal_half_lambda_azimuth_rmse_deg": 46.85700529110917,
+      "ideal_half_lambda_elevation_rmse_deg": 3.6392148131686612,
+      "provisional_pcb_endpoint_azimuth_rmse_deg": 33.786406234254,
+      "provisional_pcb_endpoint_elevation_rmse_deg": 3.863959277757821,
+      "model_azimuth_difference_rmse_deg": 41.12354971866382,
+      "model_elevation_difference_rmse_deg": 3.6891402924747894,
+      "model_difference_over_10deg_rate": 0.5365853658536586
+    }
+  ]
+}
