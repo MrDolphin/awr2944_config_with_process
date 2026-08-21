@@ -23,3 +23,5 @@ V0.4.12 将 PCB 虚拟通道与 `antGeometryCfg` 逐通道对齐，结果见 `si
 V0.4.13 对 PCB 坐标的原始、X 镜像、Y 镜像和 180° 旋转进行 AoA 筛查，结果见 `simulation/stages/v04_aoa_cfar_point_cloud/output/v04_13_coordinate_transform_scan/` 和 `docs/reports/v04_coordinate_transform_scan.md`。
 
 V0.4.14 从 ASCII PCB 的 TX/RX 网络提取 Pad 和 Track 端点候选，结果见 `simulation/stages/v04_aoa_cfar_point_cloud/output/v04_14_rf_port_extraction/` 和 `docs/reports/v04_rf_port_extraction.md`。
+
+V0.4.15 将 RF 网络的 Pad、Track、Arc、Region 建成几何连通图，结果见 `simulation/stages/v04_aoa_cfar_point_cloud/output/v04_15_rf_connectivity/` 和 `docs/reports/v04_rf_connectivity.md`。

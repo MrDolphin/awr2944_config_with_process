@@ -1,0 +1,9 @@
+antenna,net_id,pad_count,graph_nodes,graph_edges,region_edge_count,track_edge_count,arc_edge_count,pad_to_region_connected,shortest_pad_to_region_mil,shortest_pad_to_region_mm,status
+TX4,107,1,76,75,72,2,1,True,1237.2797350928588,31.426905271358613,geometric_connectivity_not_rf_phase_delay
+TX3,108,1,80,79,72,4,3,True,1235.560237007545,31.383230019991643,geometric_connectivity_not_rf_phase_delay
+TX2,109,1,80,79,72,4,3,True,1224.7127022003287,31.107702635888348,geometric_connectivity_not_rf_phase_delay
+TX1,110,1,87,86,72,7,7,True,1209.5144671093133,30.721667464576555,geometric_connectivity_not_rf_phase_delay
+RX4,117,1,78,78,72,4,2,True,367.8895696631335,9.34439506944359,geometric_connectivity_not_rf_phase_delay
+RX3,118,1,80,79,72,3,4,True,366.7213263020975,9.314721688073277,geometric_connectivity_not_rf_phase_delay
+RX2,119,1,80,79,72,3,4,True,366.7213263020975,9.314721688073277,geometric_connectivity_not_rf_phase_delay
+RX1,120,1,78,78,72,4,2,True,367.8895696631341,9.344395069443607,geometric_connectivity_not_rf_phase_delay
