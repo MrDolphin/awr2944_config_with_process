@@ -142,8 +142,11 @@ def _plot_truth_overview(
     axes[1, 1].set_ylabel("samples")
     axes[1, 1].grid(True, alpha=0.3)
 
+    vessel_direction = _wrap_direction_deg(90.0 - raw.wind_direction_deg)
     figure.suptitle(
-        f"{raw.case_id}, seed={raw.random_seed}, sea state={raw.sea_state}"
+        f"{raw.case_id}, seed={raw.random_seed}, sea state={raw.sea_state} | "
+        f"MATLAB WindDirection={raw.wind_direction_deg:.1f} deg, "
+        f"vessel wave direction={vessel_direction:.1f} deg (+y forward)"
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     figure.savefig(output_path, dpi=160)
@@ -193,6 +196,12 @@ def _plot_comparison(summaries: list[dict[str, object]], output_path: Path) -> N
     for axis in axes.ravel():
         axis.set_xticks(positions, labels, rotation=30, ha="right")
         axis.grid(True, axis="y", alpha=0.3)
+    wind_direction = float(summaries[0]["wind_direction_deg"])
+    vessel_direction = _wrap_direction_deg(90.0 - wind_direction)
+    figure.suptitle(
+        f"V0.2 sea-state comparison | MATLAB WindDirection={wind_direction:.1f} deg | "
+        f"vessel wave direction={vessel_direction:.1f} deg (+y forward)"
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     figure.savefig(output_path, dpi=160)
     plt.close(figure)
