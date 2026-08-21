@@ -1,0 +1,8 @@
+{
+  "status": "completed_mapping_sea_clutter_analysis",
+  "input_point_count": 6040,
+  "group_count": 568,
+  "mapping_count": 8,
+  "hardware_validated": false,
+  "source_status": "V0.4.72 synthetic HDF5 point spectra"
+}
