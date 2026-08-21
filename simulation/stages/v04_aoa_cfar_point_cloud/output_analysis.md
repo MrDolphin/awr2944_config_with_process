@@ -17,3 +17,7 @@ TI 官方资料确认 AWR2944PEVM 有 4RX/4TX 板载蚀刻天线、二维虚拟�
 并给出约 ±30°/±3° 的 3 dB 方位/俯仰波束范围。但资料图示不足以直接生成完整的相位中心坐标表，
 所以本阶段没有伪造精确坐标。下一步需要 EVM CAD/Gerber 或角反射器实测；在此之前，V0.4 AoA 结果
 只能标记为图纸推导/未校准结果。
+
+V0.4.6 进一步生成 `simulation/hardware/awr2944pev/antgeometry_mapping.csv`，把 SDK 的
+`Tx0Rx0...Tx3Rx3` 顺序和 CFG 的 row/column 索引展开。该表解决“通道顺序”的追踪问题，
+但不替代 PCB 电气相位中心和 DCA1000 通道验证。
