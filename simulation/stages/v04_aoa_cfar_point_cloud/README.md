@@ -33,3 +33,5 @@ V0.4.17 以 RF 几何路径和候选有效介电常数进行相位敏感性扫�
 V0.4.18 建立 4×4 复数通道校准接口并验证补偿方向，结果见 `simulation/stages/v04_aoa_cfar_point_cloud/output/v04_18_calibration_scan/` 和 `docs/reports/v04_calibration_scan.md`。
 
 V0.4.19 解析 CFG 的 `compRangeBiasAndRxChanPhase` 为 4×4 复数矩阵，结果见 `simulation/stages/v04_aoa_cfar_point_cloud/output/v04_19_cfg_calibration/` 和 `docs/reports/v04_cfg_calibration_ingest.md`。
+
+V0.4.20 对 CFG 校准因子做直接、复数逆、共轭逆方向 A/B，结果见 `simulation/stages/v04_aoa_cfar_point_cloud/output/v04_20_calibration_direction/` 和 `docs/reports/v04_calibration_direction.md`。
