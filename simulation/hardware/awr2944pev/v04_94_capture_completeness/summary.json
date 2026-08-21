@@ -1,0 +1,11 @@
+{
+  "status": "completed_capture_completeness_check",
+  "plan_csv": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_93_known_angle_plan\\known_angle_capture_plan.csv",
+  "capture_root": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_91_known_angle_capture",
+  "planned_count": 30,
+  "complete_basic_capture_count": 0,
+  "coverage_fraction": 0.0,
+  "missing_case_count": 30,
+  "hardware_aoa_validated": false,
+  "next_action": "collect missing cases before running V0.4.92 batch"
+}
