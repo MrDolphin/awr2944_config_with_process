@@ -1,0 +1,8 @@
+{
+  "roll_deg": 90.0,
+  "pitch_deg": 0.0,
+  "yaw_deg": 0.0,
+  "translation_mm": [0.0, 0.0, 0.0],
+  "pose_source": "engineering_candidate_board_plane_vertical",
+  "installation_pose_confirmed": false
+}

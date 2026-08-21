@@ -1,0 +1,11 @@
+{
+  "coordinate_frames": {
+    "board": "x=PCB local x, y=PCB local y, z=board normal candidate",
+    "radar": "x=forward, y=left, z=up"
+  },
+  "rotation_convention": "Rz(yaw) @ Ry(pitch) @ Rx(roll)",
+  "pose_source": "engineering_candidate_board_plane_vertical",
+  "installation_pose_confirmed": false,
+  "phase_center_confirmed": false,
+  "measurement_required": true
+}
