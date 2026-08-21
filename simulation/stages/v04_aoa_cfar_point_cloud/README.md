@@ -43,3 +43,5 @@ V0.4.22 在规范 HDF5 上执行距离 FFT、Doppler FFT 和峰值单元 AoA，�
 V0.4.23 在距离-多普勒功率图上执行 2D CA-CFAR、多峰筛选和三维点云输出，结果见 `simulation/stages/v04_aoa_cfar_point_cloud/output/v04_23_cfar_point_cloud/` 和 `docs/reports/v04_cfar_point_cloud.md`。
 
 V0.4.24 对多个海况点云运行做统一统计，结果见 `simulation/stages/v04_aoa_cfar_point_cloud/output/v04_24_point_cloud_stats/` 和 `docs/reports/v04_point_cloud_stats.md`。
+
+V0.4.25 自动生成各海况距离-速度、方位-俯仰、三维点云图和 Markdown 汇报，结果见 `simulation/stages/v04_aoa_cfar_point_cloud/output/v04_25_sea_state_visual_report/` 和 `docs/reports/v04_sea_state_visual_report.md`。
