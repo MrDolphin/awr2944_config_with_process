@@ -1,0 +1,44 @@
+{
+  "status": "completed_project_status_report",
+  "software_stages_completed": [
+    "V0.1 flat sea geometry",
+    "V0.2 dynamic sea states",
+    "V0.3 complex echo",
+    "V0.4 AoA/CFAR/point cloud",
+    "V0.4.85 PCB candidate",
+    "V0.4.88 mechanical frame",
+    "V0.4.89 coordinate-transform screening",
+    "V0.4.90-0.96 capture pipeline"
+  ],
+  "mechanical_board_bbox_mm": {
+    "x": {
+      "min": 0.0,
+      "max": 84.999839782715,
+      "size": 84.999839782715
+    },
+    "y": {
+      "min": -9.999999747379e-06,
+      "max": 124.99978637695,
+      "size": 124.99979637694975
+    },
+    "z": {
+      "min": -1.44272,
+      "max": 0.0,
+      "size": 1.44272
+    }
+  },
+  "known_angle_transform_screen": {
+    "best_synthetic_transform": "identity",
+    "best_combined_rmse_deg": 0.0
+  },
+  "capture_plan_count": 30,
+  "capture_coverage_fraction": 0.0,
+  "iq_source_audit": {
+    "synthetic_or_replay": 27,
+    "hardware_candidate_requires_manifest": 0,
+    "unknown_requires_manifest": 0
+  },
+  "known_angle_batch_status": "awaiting_known_angle_manifests",
+  "hardware_aoa_validated": false,
+  "current_gate": "real DCA1000 IQ + known-angle target + channel-order/TI calibration evidence"
+}
