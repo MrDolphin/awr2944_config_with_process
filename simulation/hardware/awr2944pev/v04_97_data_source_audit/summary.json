@@ -1,0 +1,14 @@
+{
+  "status": "completed_data_source_audit",
+  "roots": [
+    "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev",
+    "C:\\Users\\56461\\Downloads\\2944p资料"
+  ],
+  "file_count": 27,
+  "provenance_counts": {
+    "synthetic_or_replay": 27,
+    "hardware_candidate_requires_manifest": 0,
+    "unknown_requires_manifest": 0
+  },
+  "hardware_aoa_validated": false
+}
