@@ -1,0 +1,15 @@
+{
+  "status": "completed_imu_radar_time_alignment",
+  "radar_frame_count": 5,
+  "imu_sample_count": 3,
+  "radar_time_start_s": 0.005,
+  "radar_time_end_s": 0.105,
+  "imu_time_start_s": 0.005,
+  "imu_time_end_s": 0.10500000000000001,
+  "coverage_ok": true,
+  "max_source_imu_gap_s": 0.05000000000000001,
+  "max_alignment_gap_s": 0.05000000000000001,
+  "max_allowed_gap_s": 0.06,
+  "quality_pass": true,
+  "source_is_hardware_imu": false
+}
