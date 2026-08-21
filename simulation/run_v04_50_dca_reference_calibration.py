@@ -56,9 +56,10 @@ def range_doppler(iq: np.ndarray, config: FmcwConfig, tx_sequence: tuple[int, ..
     return spectrum, power, ranges, velocities, virtual
 
 
-def process_capture(input_path: Path, output_path: Path, *, chirps: int, samples_per_chirp: int, rx_count: int, expected_range_m: float, expected_velocity_mps: float, tx_sequence: tuple[int, ...], synthetic_reference_power_linear: float | None = None) -> dict:
+def process_capture(input_path: Path, output_path: Path, *, chirps: int, samples_per_chirp: int, rx_count: int, expected_range_m: float, expected_velocity_mps: float, tx_sequence: tuple[int, ...], synthetic_reference_power_linear: float | None = None, radar_config: dict | None = None) -> dict:
     iq, source = load_capture(input_path, chirps=chirps, samples_per_chirp=samples_per_chirp, rx_count=rx_count)
-    config = FmcwConfig(samples_per_chirp=samples_per_chirp, chirps_per_frame=max(1, iq.shape[0] // len(tx_sequence)))
+    config_values = radar_config or {}
+    config = FmcwConfig(carrier_frequency_hz=float(config_values.get("start_freq_ghz", 77.0)) * 1e9, sweep_bandwidth_hz=float(config_values.get("sweep_bandwidth_hz", 1e9)), chirp_duration_s=float(config_values.get("chirp_duration_s", 60e-6)), sample_rate_hz=float(config_values.get("sample_rate_hz", 25e6)), samples_per_chirp=samples_per_chirp, chirps_per_frame=max(1, iq.shape[0] // len(tx_sequence)), pulse_repetition_interval_s=float(config_values.get("pulse_repetition_interval_s", 100e-6)))
     spectrum, power, ranges, velocities, virtual = range_doppler(iq, config, tx_sequence)
     ri = int(np.argmin(np.abs(ranges - expected_range_m))); di = int(np.argmin(np.abs(velocities - expected_velocity_mps)))
     window = power[max(0, di - 2):di + 3, max(0, ri - 2):ri + 3]; local_d, local_r = np.unravel_index(int(np.argmax(window)), window.shape); peak_d = max(0, di - 2) + local_d; peak_r = max(0, ri - 2) + local_r
