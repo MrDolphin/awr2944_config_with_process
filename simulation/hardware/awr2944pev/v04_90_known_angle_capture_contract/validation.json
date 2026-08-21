@@ -1,0 +1,6 @@
+{
+  "status": "template_created",
+  "schema_version": "awr2944p-known-angle-capture-v0.4.90",
+  "manifest": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_90_known_angle_capture_contract\\known_angle_capture_manifest.template.json",
+  "next_action": "copy template, fill target/capture/calibration fields, then validate it"
+}
