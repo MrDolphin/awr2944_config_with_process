@@ -1,0 +1,16 @@
+{
+  "schema_version": "awr2944p-power-calibration-v0.4.49",
+  "status": "awaiting_dca1000_reference_capture",
+  "reference_range_m": 20.0,
+  "reference_rcs_m2": 1.0,
+  "reference_power_linear": null,
+  "reference_adc_rms": null,
+  "reference_target_description": "待用已知距离、已知RCS角反射器或标准目标采集DCA1000原始IQ",
+  "required_evidence": [
+    "raw_adc_iq_file",
+    "chirp_profile_cfg",
+    "target_range_truth_m",
+    "target_rcs_m2",
+    "window_and_fft_definition"
+  ]
+}
