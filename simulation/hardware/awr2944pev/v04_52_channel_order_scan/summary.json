@@ -1,0 +1,46 @@
+{
+  "status": "completed_known_angle_channel_order_scan",
+  "candidate_count": 1152,
+  "truths": [
+    [
+      10.0,
+      2.0
+    ],
+    [
+      30.0,
+      5.0
+    ]
+  ],
+  "correct_order_rows": [
+    {
+      "truth_azimuth_deg": 10.0,
+      "truth_elevation_deg": 2.0,
+      "rx_order": "0,1,2,3",
+      "tx_order": "0,1,2,3",
+      "estimated_azimuth_deg": 10.0,
+      "estimated_elevation_deg": 2.0,
+      "azimuth_error_deg": 0.0,
+      "elevation_error_deg": 0.0,
+      "score": 1.0,
+      "identity_order": true
+    },
+    {
+      "truth_azimuth_deg": 30.0,
+      "truth_elevation_deg": 5.0,
+      "rx_order": "0,1,2,3",
+      "tx_order": "0,1,2,3",
+      "estimated_azimuth_deg": 30.0,
+      "estimated_elevation_deg": 5.0,
+      "azimuth_error_deg": 0.0,
+      "elevation_error_deg": 0.0,
+      "score": 1.0,
+      "identity_order": true
+    }
+  ],
+  "wrong_order_azimuth_rmse_deg": 42.28636330708909,
+  "wrong_order_elevation_rmse_deg": 11.961532546858919,
+  "wrong_order_fraction_within_2deg": 0.0026086956521739132,
+  "hardware_validated": false,
+  "channel_order_verified": false,
+  "geometry_status": "pcb_copper_centroid_candidate"
+}
