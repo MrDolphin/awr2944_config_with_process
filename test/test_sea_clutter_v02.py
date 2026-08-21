@@ -180,6 +180,40 @@ class DynamicSeaTruthTests(unittest.TestCase):
 
         self.assertAlmostEqual(result.dominant_wave_direction_deg, 90.0, places=6)
 
+    def test_reverse_plane_waves_report_negative_axis_directions(self):
+        x_m = np.arange(-8.0, 8.0, 1.0)
+        y_m = np.arange(2.0, 18.0, 1.0)
+        time_s = np.arange(0.0, 8.0, 0.25)
+        x_grid, y_grid, time_grid = np.meshgrid(
+            x_m, y_m, time_s, indexing="xy"
+        )
+        for expected_direction_deg, phase in (
+            (
+                -180.0,
+                2.0 * np.pi * (-y_grid / 8.0 - time_grid / 4.0),
+            ),
+            (
+                -90.0,
+                2.0 * np.pi * (-x_grid / 8.0 - time_grid / 4.0),
+            ),
+        ):
+            height_m = 0.1 * np.cos(phase).transpose(2, 0, 1)
+            result = analyze_height_cube(
+                x_m=x_m,
+                y_m=y_m,
+                time_s=time_s,
+                height_m=height_m,
+                radar_height_m=1.0,
+                mounting_pitch_deg=5.0,
+                target_hs_m=4.0 * float(np.std(height_m)),
+                hs_relative_tolerance=0.10,
+            )
+            self.assertAlmostEqual(
+                result.dominant_wave_direction_deg,
+                expected_direction_deg,
+                places=6,
+            )
+
     def test_slant_range_rate_uses_line_of_sight_projection(self):
         x_m = np.asarray([-1.0, 1.0])
         y_m = np.asarray([2.0, 3.0])
