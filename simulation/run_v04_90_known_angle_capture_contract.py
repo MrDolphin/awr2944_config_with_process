@@ -50,6 +50,9 @@ def template() -> dict:
             "raw_dtype": "int16",
             "wire_order_assumption": "sample_rx_iq",
             "tdm_tx_sequence": [0, 1, 2, 3],
+            "chirps": 64,
+            "samples_per_chirp": 128,
+            "rx_count": 4,
             "frame_count": 0,
             "channel_order_verified": False,
             "capture_timestamp": "replace_with_iso8601",
@@ -75,6 +78,10 @@ def validate_manifest(manifest_path: Path, root: Path) -> dict:
     if not capture_file.is_file():
         issues.append("capture_file_missing")
         iq_result = {"status": "not_supplied"}
+    elif capture_file.suffix.lower() == ".bin":
+        # BIN validation needs the chirp/sample dimensions; V0.4.91 performs
+        # the authoritative decode using the manifest capture parameters.
+        iq_result = {"status": "raw_bin_deferred_to_v04_91_decoder", "path": str(capture_file.resolve())}
     else:
         iq_result = validate_raw_iq(capture_file)
         if iq_result["status"] == "invalid_contract":
