@@ -1,0 +1,18 @@
+{
+  "status": "completed_synthetic_known_angle_fixture",
+  "output": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_54_multiscene_aoa_validation\\scene_az015_el008_r030.h5",
+  "virtual_shape": [
+    8,
+    64,
+    4,
+    4
+  ],
+  "truth_azimuth_deg": 15.0,
+  "truth_elevation_deg": 8.0,
+  "truth_range_m": 30.0,
+  "truth_velocity_mps": 0.0,
+  "channel_order_verified": true,
+  "calibration_status": "synthetic_unity_not_measured",
+  "geometry_source": "simulation.v04.virtual_array_positions",
+  "real_measurement": false
+}
