@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 MAGIC = bytes.fromhex("02 01 04 03 06 05 08 07")
-HEADER_BYTES = 48
+HEADER_BYTES = 40
 
 
 def audit(path: Path) -> dict:
@@ -21,9 +21,10 @@ def audit(path: Path) -> dict:
         if offset + HEADER_BYTES > len(data):
             packets.append({"index": index, "offset": offset, "truncated_header": True})
             continue
-        fields = struct.unpack_from("<12I", data, offset)
+        header = struct.unpack_from("<8sIIIIIIII", data, offset)
+        fields = header[1:]
         next_offset = offsets[index + 1] if index + 1 < len(offsets) else len(data)
-        packets.append({"index": index, "offset": offset, "next_offset": next_offset, "frame_or_sequence": fields[5], "declared_packet_bytes": fields[3], "product_code": fields[4], "field6": fields[6], "field7": fields[7], "field8": fields[8], "field9": fields[9], "field10": fields[10], "field11": fields[11], "payload_bytes_between_headers": max(0, next_offset - offset - HEADER_BYTES)})
+        packets.append({"index": index, "offset": offset, "next_offset": next_offset, "version": fields[0], "declared_packet_bytes": fields[1], "product_code": fields[2], "frame_or_sequence": fields[3], "field5": fields[4], "num_detected_objects": fields[5], "num_tlvs": fields[6], "subframe": fields[7], "payload_bytes_between_headers": max(0, next_offset - offset - HEADER_BYTES)})
     declared = [row["declared_packet_bytes"] for row in packets if "declared_packet_bytes" in row]
     sequences = [row["frame_or_sequence"] for row in packets if "frame_or_sequence" in row]
     gaps = sum(1 for a, b in zip(sequences, sequences[1:]) if b != a + 1)
@@ -34,9 +35,9 @@ def run(inputs: list[Path], output: Path) -> dict:
     results = [audit(path) for path in inputs if path.is_file()]
     output.mkdir(parents=True, exist_ok=True)
     (output / "record_audit.json").write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
-    summary = {"status": "completed_custom_record_audit", "file_count": len(results), "packet_counts": {Path(row["path"]).name: row["packet_count"] for row in results}, "all_have_custom_magic": all(row["packet_count"] > 0 for row in results), "standard_dca_payload_ready": False, "requires_evidence": ["custom 48-byte header layout", "payload sample interpretation", "chirps/samples/RX/TX from matching CFG or capture metadata"]}
+    summary = {"status": "completed_custom_record_audit", "file_count": len(results), "packet_counts": {Path(row["path"]).name: row["packet_count"] for row in results}, "all_have_custom_magic": all(row["packet_count"] > 0 for row in results), "standard_dca_payload_ready": False, "requires_evidence": ["confirmed 40-byte UART header layout", "payload TLV interpretation", "matching CFG or capture metadata"]}
     (output / "summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
-    lines = ["# V0.4.99 自定义 AWR record 文件结构审计", "", f"扫描文件：{len(results)} 个。", "", "## 结论", "", "record_01.bin、record_02.bin、record_03.bin 均包含重复的 8 字节 AWR magic 和 48 字节候选帧头，不符合当前 V0.4.91 直接读取 payload-only DCA1000 BIN 的输入假设。", "", "当前只确认了文件结构和序号连续性，尚未确认 48 字节字段含义、payload 是否为 ADC IQ、RX/TX 排列或 chirp/sample 边界。因此 `standard_dca_payload_ready=false`。", "", "## 下一步", "", "需要将这些 record 文件与采集脚本的元数据、实际 CFG 和 UDP 保存模式对应起来；确认后再写专用解包器，不直接删头或猜测 IQ 维度。", ""]
+    lines = ["# V0.4.99 AWR UART record 文件结构审计", "", f"扫描文件：{len(results)} 个。", "", "## 结论", "", "record_01.bin、record_02.bin、record_03.bin 均符合 legacy `radar_server.py` 的 UART 输出帧格式：8 字节 TI magic + 8 个 uint32，共 40 字节帧头；头部包含包长、平台标识 0x2944、帧号、检测目标数和 TLV 数量。它们不是 DCA1000 ADC 原始 IQ。", "", "因此 `standard_dca_payload_ready=false` 的含义已明确：这些文件属于板载 UART 点云/中间结果记录，不能送入 V0.4.91 原始 IQ AoA 解码器。", "", "## 下一步", "", "应使用 UART TLV 解码器提取点云，作为板载点云对标数据；DCA1000 原始 IQ 仍需单独采集并保存为 payload-only BIN 或带明确元数据的 HDF5。", ""]
     (output / "output_analysis.md").write_text("\n".join(lines), encoding="utf-8")
     return summary
 

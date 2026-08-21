@@ -1,0 +1,13 @@
+{
+  "status": "completed_uart_tlv_record_decode",
+  "input_files": [
+    "D:\\hp-laptop\\USV\\awr2944_config_and_process_with_trace\\record\\record_01.bin",
+    "D:\\hp-laptop\\USV\\awr2944_config_and_process_with_trace\\record\\record_02.bin",
+    "D:\\hp-laptop\\USV\\awr2944_config_and_process_with_trace\\record\\record_03.bin"
+  ],
+  "frame_count": 2742,
+  "point_count": 34423,
+  "source_kind": "board_uart_tlv_point_cloud_not_adc_iq",
+  "dca1000_raw_iq_ready": false,
+  "hardware_aoa_validated": false
+}

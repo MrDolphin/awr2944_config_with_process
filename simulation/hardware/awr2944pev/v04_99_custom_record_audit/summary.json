@@ -9,8 +9,8 @@
   "all_have_custom_magic": true,
   "standard_dca_payload_ready": false,
   "requires_evidence": [
-    "custom 48-byte header layout",
-    "payload sample interpretation",
-    "chirps/samples/RX/TX from matching CFG or capture metadata"
+    "confirmed 40-byte UART header layout",
+    "payload TLV interpretation",
+    "matching CFG or capture metadata"
   ]
 }

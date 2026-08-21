@@ -12,13 +12,13 @@ class CustomRecordAuditTest(unittest.TestCase):
             path = Path(temp) / "record.bin"
             packets = []
             for sequence in (5, 6, 8):
-                header = struct.pack("<12I", int.from_bytes(MAGIC[:4], "little"), int.from_bytes(MAGIC[4:], "little"), 0x04070001, HEADER_BYTES + 4, 0x2944, sequence, 0, 8, 6, 0, 1, 4)
+                header = struct.pack("<8sIIIIIIII", MAGIC, 0x04070001, HEADER_BYTES + 4, 0x2944, sequence, 0, 8, 6, 0)
                 packets.append(header + b"DATA")
             path.write_bytes(b"".join(packets))
             result = audit(path)
             self.assertEqual(result["packet_count"], 3)
             self.assertEqual(result["sequence_gap_count"], 1)
-            self.assertEqual(result["header_bytes_assumed"], 48)
+            self.assertEqual(result["header_bytes_assumed"], 40)
 
 
 if __name__ == "__main__":
