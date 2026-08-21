@@ -1,0 +1,9 @@
+antenna,net_id,component,pad_name,layer,x_mil,y_mil,source_status
+TX1,110,727,B3,TOP,5778.4656,4565.6692,rf_net_pad_not_antenna_phase_center
+TX2,109,727,B5,TOP,5778.4656,4514.4881,rf_net_pad_not_antenna_phase_center
+TX3,108,727,B7,TOP,5778.4656,4463.307,rf_net_pad_not_antenna_phase_center
+TX4,107,727,B9,TOP,5778.4656,4412.1259,rf_net_pad_not_antenna_phase_center
+RX4,117,727,F2,TOP,5676.1034,4591.2597,rf_net_pad_not_antenna_phase_center
+RX3,118,727,H2,TOP,5624.9223,4591.2597,rf_net_pad_not_antenna_phase_center
+RX2,119,727,K2,TOP,5573.7412,4591.2597,rf_net_pad_not_antenna_phase_center
+RX1,120,727,M2,TOP,5522.5601,4591.2597,rf_net_pad_not_antenna_phase_center
