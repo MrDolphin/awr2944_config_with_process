@@ -1,0 +1,6 @@
+frame,radar_time_s,imu_left_time_s,imu_right_time_s,interpolation_gap_s,interpolation_alpha,roll_deg,pitch_deg,yaw_deg,alignment_status
+25,0.0,0.0,0.05,0.05,0.0,90.0,0.0,0.0,interpolated_or_exact
+26,0.025,0.0,0.05,0.05,0.5,90.4,0.25,0.5,interpolated_or_exact
+27,0.05,0.05,0.1,0.05,0.0,90.8,0.5,1.0,interpolated_or_exact
+28,0.075,0.05,0.1,0.05,0.4999999999999999,91.14999999999999,0.75,1.5,interpolated_or_exact
+29,0.1,0.05,0.1,0.05,1.0,91.5,1.0,2.0,interpolated_or_exact
