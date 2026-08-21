@@ -1,0 +1,22 @@
+stack_index,name,layerid,dielconst,dielheight,dielmaterial,copthick,componentplacement
+0,Top Paste,16973832,,,,,
+1,Top Overlay,16973830,,,,,
+2,Top Solder,16973834,3.500,0.8mil,Solder Resist,,
+3,Top Layer,16777217,,,,1.6mil,1
+4,Dielectric 1,17039362,3.000,5mil,RO3003,,
+5,GND1,16777222,,,,1.4mil,0
+6,Dielectric 2,17039366,4.040,5mil,FR-4 High Tg,,
+7,SIG1,16777223,,,,0.7mil,0
+8,Dielectric 3,17039367,4.040,10mil,FR-4 High Tg,,
+9,PWR1,16777219,,,,1.4mil,0
+10,Dielectric 4,17039364,4.040,5mil,FR-4 High Tg,,
+11,PWR2,16777220,,,,1.4mil,0
+12,Dielectric 5,17039363,4.040,10mil,FR-4 High Tg,,
+13,SIG2,16777224,,,,0.7mil,0
+14,Dielectric 6,17039368,4.040,5mil,FR-4 High Tg,,
+15,GND2,16777225,,,,1.4mil,0
+16,Dielectric 7,17039369,4.040,5mil,FR-4 High Tg,,
+17,Bottom Layer,16842751,,,,1.6mil,2
+18,Bottom Solder,16973835,3.500,0.8mil,Solder Resist,,
+19,Bottom Overlay,16973831,,,,,
+20,Bottom Paste,16973833,,,,,

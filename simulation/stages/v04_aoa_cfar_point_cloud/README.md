@@ -25,3 +25,5 @@ V0.4.13 对 PCB 坐标的原始、X 镜像、Y 镜像和 180° 旋转进行 AoA 
 V0.4.14 从 ASCII PCB 的 TX/RX 网络提取 Pad 和 Track 端点候选，结果见 `simulation/stages/v04_aoa_cfar_point_cloud/output/v04_14_rf_port_extraction/` 和 `docs/reports/v04_rf_port_extraction.md`。
 
 V0.4.15 将 RF 网络的 Pad、Track、Arc、Region 建成几何连通图，结果见 `simulation/stages/v04_aoa_cfar_point_cloud/output/v04_15_rf_connectivity/` 和 `docs/reports/v04_rf_connectivity.md`。
+
+V0.4.16 提取 PCB 层叠参数并统计 RF 对象层，结果见 `simulation/stages/v04_aoa_cfar_point_cloud/output/v04_16_pcb_layer_stack/` 和 `docs/reports/v04_pcb_layer_stack.md`。

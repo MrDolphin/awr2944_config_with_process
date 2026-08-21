@@ -70,3 +70,7 @@ V0.4.8 另外验证了当前 4TX TDM `chirpCfg` 序列到虚拟通道张量的�
 ## V0.4.15 RF 网络几何连通图
 
 已对 Pad、Track、Arc、Region 边界进行 1 mil 容差的几何连通分析，输出 `output/v04_15_rf_connectivity/rf_connectivity_summary.csv`。连通标志只表示 PCB ASCII 几何对象可连接，最短路径只是几何长度，不作为 77 GHz 相位延迟或相位中心输入。下一步需要层叠介质参数、RF 走线层信息和电磁/实测校准。
+
+## V0.4.16 PCB 层叠与 RF 对象层
+
+已从 ASCII PCB 的 `V9_STACK_LAYER*` 字段提取层叠参数，并统计 8 个 TX/RX 网络的 Track、Arc、Pad、Region 层。当前 RF 对象全部位于 TOP 层；层叠中可见 RO3003（约 εr=3.000、5 mil）和 FR-4 High Tg（约 εr=4.040、5/10 mil）等字段。结果见 `output/v04_16_pcb_layer_stack/`。这些是电磁建模输入，不是已完成的相位补偿。
