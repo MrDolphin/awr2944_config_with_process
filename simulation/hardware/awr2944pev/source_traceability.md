@@ -16,6 +16,8 @@
 - 两个方向图 CSV 是基于官方波束宽度/曲线的粗粒度数字化占位，用于软件回归，不是完整测量方向图。
 - `calibration_schema.json` 明确记录当前未进行角反射器校准。
 - 项目 CFG 的原始命令和 FOV 快照见 `simulation/stages/v04_aoa_cfar_point_cloud/config/awr2944p_cfg_snapshot.json`。
+- `C:\Users\56461\Downloads\2944p资料\sprr441a\SPRR441\PROC113D_ASCII.PcbDoc` 是 Altium ASCII PCB 数据；已提取 TX1～TX4/RX1～RX4 铜区 Region 的顶点包围盒和几何中心到 `pcb_antenna_regions.csv`。
+- `cad_virtual_array_coordinates.csv` 用 TX/RX 铜区几何中心求和生成虚拟通道相对坐标；它是 CAD-derived 几何近似，不是电气相位中心，也不替代 HFSS/CST 或角反射器校准。
 
 ## 允许使用的用途
 
