@@ -1,0 +1,22 @@
+copper_thickness,dielectric_constant,dielectric_height,dielectric_material,index,layer_id,name,status
+,,,,0,16973832,Top Paste,confirmed_from_ascii_pcb
+,,,,1,16973830,Top Overlay,confirmed_from_ascii_pcb
+,3.500,0.8mil,Solder Resist,2,16973834,Top Solder,confirmed_from_ascii_pcb
+1.6mil,,,,3,16777217,Top Layer,confirmed_from_ascii_pcb
+,3.000,5mil,RO3003,4,17039362,Dielectric 1,confirmed_from_ascii_pcb
+1.4mil,,,,5,16777222,GND1,confirmed_from_ascii_pcb
+,4.040,5mil,FR-4 High Tg,6,17039366,Dielectric 2,confirmed_from_ascii_pcb
+0.7mil,,,,7,16777223,SIG1,confirmed_from_ascii_pcb
+,4.040,10mil,FR-4 High Tg,8,17039367,Dielectric 3,confirmed_from_ascii_pcb
+1.4mil,,,,9,16777219,PWR1,confirmed_from_ascii_pcb
+,4.040,5mil,FR-4 High Tg,10,17039364,Dielectric 4,confirmed_from_ascii_pcb
+1.4mil,,,,11,16777220,PWR2,confirmed_from_ascii_pcb
+,4.040,10mil,FR-4 High Tg,12,17039363,Dielectric 5,confirmed_from_ascii_pcb
+0.7mil,,,,13,16777224,SIG2,confirmed_from_ascii_pcb
+,4.040,5mil,FR-4 High Tg,14,17039368,Dielectric 6,confirmed_from_ascii_pcb
+1.4mil,,,,15,16777225,GND2,confirmed_from_ascii_pcb
+,4.040,5mil,FR-4 High Tg,16,17039369,Dielectric 7,confirmed_from_ascii_pcb
+1.6mil,,,,17,16842751,Bottom Layer,confirmed_from_ascii_pcb
+,3.500,0.8mil,Solder Resist,18,16973835,Bottom Solder,confirmed_from_ascii_pcb
+,,,,19,16973831,Bottom Overlay,confirmed_from_ascii_pcb
+,,,,20,16973833,Bottom Paste,confirmed_from_ascii_pcb
