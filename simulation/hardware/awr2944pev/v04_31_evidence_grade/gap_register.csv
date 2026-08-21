@@ -1,0 +1,7 @@
+gap_id,item,status,required_evidence,blocks_real_array_claim
+phase_center,每个 TX/RX 的电气相位中心坐标,missing,封装/天线版图或近场测量,yes
+pin_mapping,芯片引脚到 TX/RX 天线馈点的连通关系,candidate,Altium ASCII SchDoc、网表或原理图引脚级解析,yes
+coordinate_frame,PCB 坐标到雷达坐标的原点、法向和镜像,candidate,装配基准和机械测量,yes
+channel_polarity,TX/RX 顺序、I/Q 符号和 LVDS lane 语义,missing,DCA1000 原始 bin + 已知角目标,yes
+complex_calibration,每通道复数幅相校准矩阵,missing,TI 校准流程或实测角反射器,yes
+pattern,真实 TX/RX 天线方向图和互耦,missing,TI 方向图数据或暗室/近场测试,no

@@ -55,3 +55,5 @@ V0.4.28 对用户新增的 AWR2944P EVM PCB/CAD 资料进行来源清单、ASCII
 V0.4.29 将 8 个已提取的 TX/RX 铜区与当前 `antGeometryCfg` 展开的 16 个虚拟通道做候选映射，并扫描平移归一化后的镜像/旋转解释；结果见 `simulation/hardware/awr2944pev/v04_29_candidate_mapping/` 和 `docs/reports/v04_29_candidate_mapping.md`。最小误差变换只代表相对几何筛查，不代表真实阵面方向或相位中心。
 
 V0.4.30 对新增资料中的 3 个 PDF 和 25 个 SchDoc 做文档证据审计；原理图 PDF 第 2 页出现“50 ohm GCPW traces to antenna”及 TX1~TX4/RX1~RX4，可支持 RF 通道候选，但未确认相位中心。结果见 `simulation/hardware/awr2944pev/v04_30_document_evidence/` 和 `docs/reports/v04_30_document_evidence.md`。
+
+V0.4.31 将 PCB RF 区域、`antGeometryCfg` 和原理图 GCPW 文字证据汇总到每个虚拟通道，并生成校准输入契约和缺口登记；结果见 `simulation/hardware/awr2944pev/v04_31_evidence_grade/` 和 `docs/reports/v04_31_evidence_grade.md`。16 个通道仍为 `candidate_only`。

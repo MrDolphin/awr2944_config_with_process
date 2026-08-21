@@ -1,0 +1,17 @@
+{
+  "version": "v04_31",
+  "required_for_real_aoa": [
+    "phase_center",
+    "pin_mapping",
+    "coordinate_frame",
+    "channel_polarity",
+    "complex_calibration"
+  ],
+  "accepted_inputs": [
+    "altium_ascii_schdoc_or_netlist",
+    "known_angle_corner_reflector_capture",
+    "tx_rx_calibration_measurement",
+    "mechanical_coordinate_datum"
+  ],
+  "current_array_input_status": "candidate_only"
+}

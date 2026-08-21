@@ -1,0 +1,9 @@
+{
+  "status": "completed_evidence_grade",
+  "virtual_channel_count": 16,
+  "rf_region_count": 8,
+  "schematic_gcpw_support": true,
+  "all_channels_candidate_only": true,
+  "real_array_confirmed": false,
+  "missing_gap_count": 4
+}
