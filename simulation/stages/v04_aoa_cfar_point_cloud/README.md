@@ -1,6 +1,6 @@
 # V0.4 AoA、CFAR与三维点云
 
-状态：V0.4.10 DCA1000/TDM/AoA 合成端到端闭环和通道排列故障指纹已完成；输入必须引用一个通过验收的 V0.3 复数回波运行目录。本阶段
+状态：V0.4.11 DCA1000/TDM/AoA 合成端到端闭环、通道排列故障指纹和 PCB/CAD 资料审计已完成；输入必须引用一个通过验收的 V0.3 复数回波运行目录。本阶段
 加入二维 AoA、CFAR 和三维杂波点云，并输出检测概率、虚警率、角度误差、
 异常跳变率及点云稳定性指标。
 
@@ -15,3 +15,5 @@ TI SDK 的生产 AoA/MUSIC/ESPRIT 实现；当前不声称真实 AoA 精度、FO
 或三维点云能力。下一步才加入噪声、真实阵列坐标和 AoA 扫描/CFAR。
 
 V0.4.10 的故障指纹表见 `docs/reports/v04_channel_diagnostics.md`；真实 EVM 数据到来前，通道顺序仍标记为 `synthetic_only`。
+
+V0.4.11 的 PCB/CAD 文件格式、SHA-256 和可提取字段见 `simulation/stages/v04_aoa_cfar_point_cloud/output/pcb_package_inventory.md`，分析报告见 `docs/reports/v04_pcb_package_audit.md`。

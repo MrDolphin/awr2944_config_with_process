@@ -37,3 +37,14 @@ V0.4.8 另外验证了当前 4TX TDM `chirpCfg` 序列到虚拟通道张量的�
 在真值方位 20°、俯仰 10° 的同一组合上，分别注入 RX 反序、TX 反序、TX0/TX1 交换和 I/Q 共轭。结果是：RX 反序只使俯仰变为 -10°；TX 反序只使方位变为 -20°；部分 TX 交换产生约 -4.12° 方位偏差；I/Q 共轭使方位和俯仰同时翻转。详细表格和真实数据应用步骤见 `docs/reports/v04_channel_diagnostics.md`。
 
 这些是当前坐标约定下的合成误差指纹，不是实测 EVM 结论。真实 `.bin` 到来后，应对同一数据运行五种排列并与角反射器真值比较；在此之前仍保留 `channel_order_verified=synthetic_only`。
+
+## V0.4.11 PCB/CAD 资料审计
+
+本阶段读取用户提供的 `sprr440a (1)` 和 `sprr441a` 目录，生成了带 SHA-256 的文件清单 `output/pcb_package_inventory.md`。审计结果表明：
+
+- `PROC113D_ASCII.PcbDoc` 可自动识别 8 个 TX/RX RF 铜区；本次独立复核输出 `output/pcb_antenna_regions_latest.csv`，每个区域 72 个顶点，已换算为毫米坐标。
+- `PROC113D_BRD.PcbDoc` 的文件头是 Altium OLE 二进制格式，当前没有直接把它解析成阵列坐标；需要 Altium 导出 ASCII、IPC-2581/ODB++ 或经过验证的 OLE 解析器。
+- `PROC113D_BRD.step` 可用于板框和机械安装面，不足以单独提供 RF 电气相位中心。
+- 装配图、层叠图、原理图用于确认朝向、层号、馈电关系和版本；BOM 只做版本追溯。
+
+因此，当前 `cad_virtual_array_coordinates.csv` 仍是 PCB 铜区几何中心近似，不能当作真实相位中心。下一步应提取馈电点、板面坐标系和 `Tx0Rx0...Tx3Rx3` 映射，再用电磁仿真或角反射器标定升级坐标可信度。
