@@ -1,0 +1,10 @@
+{
+  "status": "completed_uart_reference_comparison",
+  "reference_frames": 386,
+  "decoded_record01_frames": 654,
+  "overlap_frames": 386,
+  "point_count_match_frames": 89,
+  "coordinate_comparable_frames": 89,
+  "source_type": "uart_point_cloud_cross_check_not_adc_iq",
+  "hardware_aoa_validated": false
+}
