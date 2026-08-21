@@ -1,0 +1,138 @@
+{
+  "status": "completed_hdf5_known_angle_channel_order_validation",
+  "input": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_54_multiscene_aoa_validation\\scene_az015_el008_r030.h5",
+  "input_metadata": {
+    "dataset": "/recovered/virtual_iq",
+    "calibration_status": "synthetic_unity_not_measured",
+    "channel_order_verified": true,
+    "geometry_source": "simulation.v04.virtual_array_positions",
+    "schema_version": "awr2944p-known-angle-fixture-v0.4.33",
+    "source_type": "synthetic_known_angle_regression_only",
+    "truth_azimuth_deg": 15.0,
+    "truth_elevation_deg": 8.0,
+    "truth_range_m": 30.0,
+    "truth_velocity_mps": 0.0,
+    "tx_sequence": "TX1,TX2,TX3,TX4"
+  },
+  "geometry_source": "simulation.v04.virtual_array_positions",
+  "peak_range_m": 31.6187358046875,
+  "peak_velocity_mps": 0.0,
+  "peak_power_linear": 9288.809677273264,
+  "truth_azimuth_deg": 15.0,
+  "truth_elevation_deg": 8.0,
+  "best_candidates": [
+    {
+      "rx_order": "0,1,2,3",
+      "tx_order": "0,1,2,3",
+      "estimated_azimuth_deg": 15.0,
+      "estimated_elevation_deg": 8.0,
+      "azimuth_error_deg": 0.0,
+      "elevation_error_deg": 0.0,
+      "score": 0.9999999999999998,
+      "identity_order": true
+    },
+    {
+      "rx_order": "0,1,3,2",
+      "tx_order": "0,1,2,3",
+      "estimated_azimuth_deg": 15.0,
+      "estimated_elevation_deg": 6.0,
+      "azimuth_error_deg": 0.0,
+      "elevation_error_deg": -2.0,
+      "score": 0.916561023940674,
+      "identity_order": false
+    },
+    {
+      "rx_order": "0,2,1,3",
+      "tx_order": "0,1,2,3",
+      "estimated_azimuth_deg": 15.0,
+      "estimated_elevation_deg": 6.0,
+      "azimuth_error_deg": 0.0,
+      "elevation_error_deg": -2.0,
+      "score": 0.9161446079369491,
+      "identity_order": false
+    },
+    {
+      "rx_order": "1,0,2,3",
+      "tx_order": "0,1,2,3",
+      "estimated_azimuth_deg": 15.0,
+      "estimated_elevation_deg": 6.0,
+      "azimuth_error_deg": 0.0,
+      "elevation_error_deg": -2.0,
+      "score": 0.916561023940674,
+      "identity_order": false
+    },
+    {
+      "rx_order": "0,1,2,3",
+      "tx_order": "0,1,3,2",
+      "estimated_azimuth_deg": 12.0,
+      "estimated_elevation_deg": 8.0,
+      "azimuth_error_deg": -3.0,
+      "elevation_error_deg": 0.0,
+      "score": 0.7424514042901967,
+      "identity_order": false
+    },
+    {
+      "rx_order": "0,1,2,3",
+      "tx_order": "0,2,1,3",
+      "estimated_azimuth_deg": 12.0,
+      "estimated_elevation_deg": 8.0,
+      "azimuth_error_deg": -3.0,
+      "elevation_error_deg": 0.0,
+      "score": 0.7393834206395095,
+      "identity_order": false
+    },
+    {
+      "rx_order": "0,1,2,3",
+      "tx_order": "1,0,2,3",
+      "estimated_azimuth_deg": 12.0,
+      "estimated_elevation_deg": 8.0,
+      "azimuth_error_deg": -3.0,
+      "elevation_error_deg": 0.0,
+      "score": 0.7424514042901968,
+      "identity_order": false
+    },
+    {
+      "rx_order": "1,0,3,2",
+      "tx_order": "0,1,2,3",
+      "estimated_azimuth_deg": 15.0,
+      "estimated_elevation_deg": 5.0,
+      "azimuth_error_deg": 0.0,
+      "elevation_error_deg": -3.0,
+      "score": 0.8555576634473447,
+      "identity_order": false
+    },
+    {
+      "rx_order": "0,1,3,2",
+      "tx_order": "0,1,3,2",
+      "estimated_azimuth_deg": 12.0,
+      "estimated_elevation_deg": 6.0,
+      "azimuth_error_deg": -3.0,
+      "elevation_error_deg": -2.0,
+      "score": 0.6804662206481358,
+      "identity_order": false
+    },
+    {
+      "rx_order": "0,1,3,2",
+      "tx_order": "0,2,1,3",
+      "estimated_azimuth_deg": 12.0,
+      "estimated_elevation_deg": 6.0,
+      "azimuth_error_deg": -3.0,
+      "elevation_error_deg": -2.0,
+      "score": 0.6777390442651864,
+      "identity_order": false
+    }
+  ],
+  "identity_candidate": {
+    "rx_order": "0,1,2,3",
+    "tx_order": "0,1,2,3",
+    "estimated_azimuth_deg": 15.0,
+    "estimated_elevation_deg": 8.0,
+    "azimuth_error_deg": 0.0,
+    "elevation_error_deg": 0.0,
+    "score": 0.9999999999999998,
+    "identity_order": true
+  },
+  "source_is_hardware_measurement": false,
+  "channel_order_verified": false,
+  "candidate_count": 576
+}

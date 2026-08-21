@@ -1,0 +1,28 @@
+{
+  "schema_version": "v0.4.58-measured-package-manifest",
+  "coverage": {
+    "azimuth_deg": [5, 15, 30],
+    "elevation_deg": [2, 5, 8],
+    "range_m": [20, 30, 40]
+  },
+  "scenes": [
+    {
+      "scene_id": "scene_az005_el002_r020",
+      "capture": "../v04_54_multiscene_aoa_validation/scene_az005_el002_r020.h5",
+      "cfg": "../../../../Config/profile_3d_3Azim_1ElevTx_awr2944P.cfg",
+      "truth": "truth_az005_el002_r020.json"
+    },
+    {
+      "scene_id": "scene_az015_el008_r030",
+      "capture": "../v04_54_multiscene_aoa_validation/scene_az015_el008_r030.h5",
+      "cfg": "../../../../Config/profile_3d_3Azim_1ElevTx_awr2944P.cfg",
+      "truth": "truth_az015_el008_r030.json"
+    },
+    {
+      "scene_id": "scene_az030_el005_r040",
+      "capture": "../v04_54_multiscene_aoa_validation/scene_az030_el005_r040.h5",
+      "cfg": "../../../../Config/profile_3d_3Azim_1ElevTx_awr2944P.cfg",
+      "truth": "truth_az030_el005_r040.json"
+    }
+  ]
+}
