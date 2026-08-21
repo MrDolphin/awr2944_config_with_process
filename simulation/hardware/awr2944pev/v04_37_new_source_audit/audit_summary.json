@@ -1,0 +1,40 @@
+{
+  "status": "completed_pcb_source_audit",
+  "source_roots": [
+    "C:\\Users\\56461\\Downloads\\2944p资料\\sprr440a (1)\\SPRR440",
+    "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441"
+  ],
+  "ascii_pcb": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_ASCII.PcbDoc",
+  "record_counts": {
+    "Board": 27,
+    "EngineeringChangeOrderOptions": 1,
+    "OutputOptions": 2,
+    "PrinterOptions": 24,
+    "GerberOptions": 1,
+    "AdvancedPlacerOptions": 1,
+    "DesignRuleCheckerOptions": 1,
+    "PinSwapOptions": 1,
+    "TestpointOptions": 1,
+    "Class": 65,
+    "Net": 514,
+    "Component": 734,
+    "ParamItem": 28443,
+    "Polygon": 123,
+    "DXPRule": 92,
+    "Rule": 92,
+    "Embedded": 7,
+    "Arc": 3610,
+    "Pad": 2407,
+    "Via": 1913,
+    "Track": 63758,
+    "Text": 2894,
+    "Fill": 46,
+    "DifferentialPair": 28
+  },
+  "component_count": 734,
+  "net_count": 514,
+  "rf_net_candidate_count": 58,
+  "pad_count": 2407,
+  "layer_count": 21,
+  "phase_center_coordinates_confirmed": false
+}
