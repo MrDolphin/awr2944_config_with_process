@@ -1,0 +1,27 @@
+path,format,text_status,page,tokens,snippets,evidence_status
+C:\Users\56461\Downloads\2944p资料\sprr440a (1)\SPRR440\Schematics\PROC113D(001)_Sch.PDF,pdf,text_extracted,1,"TX2,TX3",Optionl path for LVDS data lanes TX2 and TX3 added,pdf_text_context
+C:\Users\56461\Downloads\2944p资料\sprr440a (1)\SPRR440\Schematics\PROC113D(001)_Sch.PDF,pdf,text_extracted,2,"RX1,RX2,RX3,RX4,TX1,TX2,TX3,TX4,antenna",50 ohm GCPW traces to antenna || TX1 || TX3 || TX2 || TX4 || RX1 || RX2 || RX3,pdf_text_context
+C:\Users\56461\Downloads\2944p资料\sprr440a (1)\SPRR440\Schematics\PROC113D(001)_Sch.PDF,pdf,text_extracted,4,"RF1,RF2",RF2 SUPPLY || RF1 SUPPLY,pdf_text_context
+C:\Users\56461\Downloads\2944p资料\sprr440a (1)\SPRR440\Schematics\PROC113D(001)_Sch.PDF,pdf,text_extracted,12,"RX0,RX1,RX2,TX0,TX1","RGMII RX2, RX1 SKEWRGMII RX0 SKEW || RGMII RX2, RX1 SKEW = 0, 0 || RGMII RX0 SKEW = 0 || RGMII TX1, TX0 SKEW = 0, 0 || ANEG_SEL, RGMII TX0 SKEW = 0, 0 || ANEG_SEL, RGMII TX0 SKEW || RGMII TX1, TX0 SKEW",pdf_text_context
+C:\Users\56461\Downloads\2944p资料\sprr440a (1)\SPRR440\Schematics\PROC113D(001)_Sch.PDF,pdf,text_extracted,21,"TX0_N,TX0_P,TX1_N,TX1_P,TX2_N,TX2_P,TX3_N,TX3_P",TX0_N || TX0_P || TX1_N || TX1_P || TX2_P || TX2_N || TX3_P || TX3_N,pdf_text_context
+C:\Users\56461\Downloads\2944p资料\sprr441a\SPRR441\PROC113D_3V3_Supply_Reference.SchDoc,schdoc,binary_token_scan,,"RFAMCKNA,RFBEOQBU,RFCVCNBY,RFJMIFOV,RFVDQCAE",,binary_token_candidate
+C:\Users\56461\Downloads\2944p资料\sprr441a\SPRR441\PROC113D_Auto_Ethernet_conn.SchDoc,schdoc,binary_token_scan,,"RFGUBITY,RFI",,binary_token_candidate
+C:\Users\56461\Downloads\2944p资料\sprr441a\SPRR441\PROC113D_Auto_Ethernet_PHY.SchDoc,schdoc,binary_token_scan,,"RFDIPQUN,RFESMFHT,RFMUNNNC,RFSQDLVA,RFSQVKSH,RFTEXUKX,RFVDYFOZ,RFZJZHZQ",,binary_token_candidate
+C:\Users\56461\Downloads\2944p资料\sprr441a\SPRR441\PROC113D_CAN_Interface.SchDoc,schdoc,binary_token_scan,,RFJOVWBC,,binary_token_candidate
+C:\Users\56461\Downloads\2944p资料\sprr441a\SPRR441\PROC113D_CoverSheet.SchDoc,schdoc,binary_token_scan,,"RF,RFRӨRs,RFdύ,Rf,RfKJxB,RfP,RfiF,TX2,TX3,antony,rF,rFX,rf",,binary_token_candidate
+C:\Users\56461\Downloads\2944p资料\sprr441a\SPRR441\PROC113D_Current_Sensors.SchDoc,schdoc,binary_token_scan,,"RFGVTPVJ,RFIHBPCB,RFREHHCP",,binary_token_candidate
+C:\Users\56461\Downloads\2944p资料\sprr441a\SPRR441\PROC113D_Debug_Connector.SchDoc,schdoc,binary_token_scan,,"RFFKPNTX,RFNGHSQC,RFQLUQKE,RFXHKIWU,TX0_N,TX0_P,TX1_N,TX1_P,TX2_N,TX2_P,TX3_N,TX3_P",,binary_token_candidate
+C:\Users\56461\Downloads\2944p资料\sprr441a\SPRR441\PROC113D_Decoupling_Reference.SchDoc,schdoc,binary_token_scan,,"RF1,RF2,RFJAGAYB,RFNBPKMP,RFQVOMXI",,binary_token_candidate
+C:\Users\56461\Downloads\2944p资料\sprr441a\SPRR441\PROC113D_Ethernet_PHY.SchDoc,schdoc,binary_token_scan,,"RFNEFZAJ,RFQIHDDR,RFTKNNSF,RX0,RX1,RX2,TX0,TX1",,binary_token_candidate
+C:\Users\56461\Downloads\2944p资料\sprr441a\SPRR441\PROC113D_Ethernet_PWR.SchDoc,schdoc,binary_token_scan,,RFXLBCTO,,binary_token_candidate
+C:\Users\56461\Downloads\2944p资料\sprr441a\SPRR441\PROC113D_FTDI.SchDoc,schdoc,binary_token_scan,,"RFDXPGYY,RFILBOVW,RFMVPZSG,RFOTJBHV,RFTFWAXB,RFVETQFY,RFVKEJCY",,binary_token_candidate
+C:\Users\56461\Downloads\2944p资料\sprr441a\SPRR441\PROC113D_FTDI_PWR.SchDoc,schdoc,binary_token_scan,,"RFALIURD,RFBRKUEE",,binary_token_candidate
+C:\Users\56461\Downloads\2944p资料\sprr441a\SPRR441\PROC113D_Hardware.SchDoc,schdoc,binary_token_scan,,"ANTFPBCA,RFZJDXTO",,binary_token_candidate
+C:\Users\56461\Downloads\2944p资料\sprr441a\SPRR441\PROC113D_IO_Reference.SchDoc,schdoc,binary_token_scan,,"ANTENNA,AWR29440p9z,RFERRWLY,RFGVLPHS,RFKHQUCR,RFOUSERC,RFQLUWBS,RFSECYPQ,RFYBLLJK,RX1,RX2,RX3,RX4,TX1,TX2,TX3,TX4,antenna",,binary_token_candidate
+C:\Users\56461\Downloads\2944p资料\sprr441a\SPRR441\PROC113D_JTAG_EMU_Connector.SchDoc,schdoc,binary_token_scan,,"RFASJGMN,RFCDHGKX,RFDLSIRN,RFMTIYML,RFOEJTAE,RFOLSUSM,RFPYMJRD",,binary_token_candidate
+C:\Users\56461\Downloads\2944p资料\sprr441a\SPRR441\PROC113D_PMIC_Reference.SchDoc,schdoc,binary_token_scan,,"RF,RFAYXOAF,RFBWIFTL,RFCLRCCY,RFRYBOFR",,binary_token_candidate
+C:\Users\56461\Downloads\2944p资料\sprr441a\SPRR441\PROC113D_PWR_Reference.SchDoc,schdoc,binary_token_scan,,"AWR29440p9z,RFATJALW,RFHCBARN,RFKGXEIF,RFMDWSJW,RFSBEBBA,RX1,RX2,RX3,RX4,TX1,TX2,TX3,TX4",,binary_token_candidate
+C:\Users\56461\Downloads\2944p资料\sprr441a\SPRR441\PROC113D_PWR_RST_LED.SchDoc,schdoc,binary_token_scan,,"ANTWMGTU,RFATUJSN,RFGMPGXK,RFGXCPGH,RFIUDDEM,RFUHBRXS",,binary_token_candidate
+C:\Users\56461\Downloads\2944p资料\sprr441a\SPRR441\PROC113D_SOP_Reference.SchDoc,schdoc,binary_token_scan,,"ANTHYCRD,RFGODMGL,RFJNNSOW,RFTPQJUP",,binary_token_candidate
+C:\Users\56461\Downloads\2944p资料\sprr441a\SPRR441\PROC113D_Temp_Sensor.SchDoc,schdoc,binary_token_scan,,RFSANEUI,,binary_token_candidate
+C:\Users\56461\Downloads\2944p资料\sprr441a\SPRR441\PROC113D_XDS110 Interface_1B.SchDoc,schdoc,binary_token_scan,,"RFIUTDGY,RFTAMFVS,RFWDDOSH,RFYEBQFX",,binary_token_candidate

@@ -1,0 +1,9 @@
+{
+  "status": "completed_document_evidence_audit",
+  "document_count": 28,
+  "pdf_count": 3,
+  "schdoc_count": 25,
+  "documents_with_rf_tokens": 22,
+  "phase_center_confirmed": false,
+  "mapping_confirmed": false
+}

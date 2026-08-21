@@ -1,0 +1,545 @@
+{
+  "documents": [
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr440a (1)\\SPRR440\\Assembly Drawings\\PROC113D(001)_Assy.PDF",
+      "file_sha256": "313499bd053476b3e6e9767f701f9030e354410d5c0ef326714d1955ba5a714b",
+      "format": "pdf",
+      "pages": 2,
+      "text_status": "text_extracted",
+      "rf_hits": []
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr440a (1)\\SPRR440\\Schematics\\PROC113D(001)_Sch.PDF",
+      "file_sha256": "1391965069217a2fa1bbdd4d53d57a4bd7715b7edfb8e8db7c047432b29239cf",
+      "format": "pdf",
+      "pages": 25,
+      "text_status": "text_extracted",
+      "rf_hits": [
+        {
+          "page": 1,
+          "tokens": [
+            "TX2",
+            "TX3"
+          ],
+          "snippets": [
+            "Optionl path for LVDS data lanes TX2 and TX3 added"
+          ]
+        },
+        {
+          "page": 2,
+          "tokens": [
+            "RX1",
+            "RX2",
+            "RX3",
+            "RX4",
+            "TX1",
+            "TX2",
+            "TX3",
+            "TX4",
+            "antenna"
+          ],
+          "snippets": [
+            "50 ohm GCPW traces to antenna",
+            "TX1",
+            "TX3",
+            "TX2",
+            "TX4",
+            "RX1",
+            "RX2",
+            "RX3"
+          ]
+        },
+        {
+          "page": 4,
+          "tokens": [
+            "RF1",
+            "RF2"
+          ],
+          "snippets": [
+            "RF2 SUPPLY",
+            "RF1 SUPPLY"
+          ]
+        },
+        {
+          "page": 12,
+          "tokens": [
+            "RX0",
+            "RX1",
+            "RX2",
+            "TX0",
+            "TX1"
+          ],
+          "snippets": [
+            "RGMII RX2, RX1 SKEWRGMII RX0 SKEW",
+            "RGMII RX2, RX1 SKEW = 0, 0",
+            "RGMII RX0 SKEW = 0",
+            "RGMII TX1, TX0 SKEW = 0, 0",
+            "ANEG_SEL, RGMII TX0 SKEW = 0, 0",
+            "ANEG_SEL, RGMII TX0 SKEW",
+            "RGMII TX1, TX0 SKEW"
+          ]
+        },
+        {
+          "page": 21,
+          "tokens": [
+            "TX0_N",
+            "TX0_P",
+            "TX1_N",
+            "TX1_P",
+            "TX2_N",
+            "TX2_P",
+            "TX3_N",
+            "TX3_P"
+          ],
+          "snippets": [
+            "TX0_N",
+            "TX0_P",
+            "TX1_N",
+            "TX1_P",
+            "TX2_P",
+            "TX2_N",
+            "TX3_P",
+            "TX3_N"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_3V3_Supply_Reference.SchDoc",
+      "file_sha256": "9ca916a3e058fbb98fab9e7ac718610d38011de47f1bc89fc6e807dd2ee47515",
+      "format": "schdoc",
+      "text_status": "binary_token_scan",
+      "rf_hits": [
+        {
+          "tokens": [
+            "RFAMCKNA",
+            "RFBEOQBU",
+            "RFCVCNBY",
+            "RFJMIFOV",
+            "RFVDQCAE"
+          ],
+          "snippets": []
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_Auto_Ethernet_conn.SchDoc",
+      "file_sha256": "148e46c4fe5bbc763287b6f56759a82bf816c763be1305172af878fa6077b720",
+      "format": "schdoc",
+      "text_status": "binary_token_scan",
+      "rf_hits": [
+        {
+          "tokens": [
+            "RFGUBITY",
+            "RFI"
+          ],
+          "snippets": []
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_Auto_Ethernet_PHY.SchDoc",
+      "file_sha256": "cfcbb9225636cd0b83f841401d25a4b6b6ac025d1f92094f6c5522d658999c10",
+      "format": "schdoc",
+      "text_status": "binary_token_scan",
+      "rf_hits": [
+        {
+          "tokens": [
+            "RFDIPQUN",
+            "RFESMFHT",
+            "RFMUNNNC",
+            "RFSQDLVA",
+            "RFSQVKSH",
+            "RFTEXUKX",
+            "RFVDYFOZ",
+            "RFZJZHZQ"
+          ],
+          "snippets": []
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_CAN_Interface.SchDoc",
+      "file_sha256": "8cdaba0c37b789f954dbd47310ba095c380391e7fdfd5386a3ed561a2903755a",
+      "format": "schdoc",
+      "text_status": "binary_token_scan",
+      "rf_hits": [
+        {
+          "tokens": [
+            "RFJOVWBC"
+          ],
+          "snippets": []
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_CoverSheet.SchDoc",
+      "file_sha256": "3ca6a129f571a20edc5c19dbf13c9c892a99605c47908ab7ebcabd800d694061",
+      "format": "schdoc",
+      "text_status": "binary_token_scan",
+      "rf_hits": [
+        {
+          "tokens": [
+            "RF",
+            "RFRӨRs",
+            "RFdύ",
+            "Rf",
+            "RfKJxB",
+            "RfP",
+            "RfiF",
+            "TX2",
+            "TX3",
+            "antony",
+            "rF",
+            "rFX",
+            "rf"
+          ],
+          "snippets": []
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_Current_Sensors.SchDoc",
+      "file_sha256": "1870caa7e8f6079f23868645c62854b659fa567cb4a477481d4c0e89aabca0b6",
+      "format": "schdoc",
+      "text_status": "binary_token_scan",
+      "rf_hits": [
+        {
+          "tokens": [
+            "RFGVTPVJ",
+            "RFIHBPCB",
+            "RFREHHCP"
+          ],
+          "snippets": []
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_Debug_Connector.SchDoc",
+      "file_sha256": "081988e482be6e6f939b8425ceb6a94250c2345f2d962da2ea74d0087913cf45",
+      "format": "schdoc",
+      "text_status": "binary_token_scan",
+      "rf_hits": [
+        {
+          "tokens": [
+            "RFFKPNTX",
+            "RFNGHSQC",
+            "RFQLUQKE",
+            "RFXHKIWU",
+            "TX0_N",
+            "TX0_P",
+            "TX1_N",
+            "TX1_P",
+            "TX2_N",
+            "TX2_P",
+            "TX3_N",
+            "TX3_P"
+          ],
+          "snippets": []
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_Decoupling_Reference.SchDoc",
+      "file_sha256": "c24ca177fa157981a45d70f2a0a5f0cf8a22cc80e068752681698988e88020f7",
+      "format": "schdoc",
+      "text_status": "binary_token_scan",
+      "rf_hits": [
+        {
+          "tokens": [
+            "RF1",
+            "RF2",
+            "RFJAGAYB",
+            "RFNBPKMP",
+            "RFQVOMXI"
+          ],
+          "snippets": []
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_Ethernet_Magnetics.SchDoc",
+      "file_sha256": "11d2a88188bca32b6c00456594a5f8a3eb033dff150d2d43d404e14eac1bafa5",
+      "format": "schdoc",
+      "text_status": "binary_token_scan",
+      "rf_hits": []
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_Ethernet_PHY.SchDoc",
+      "file_sha256": "cea48d9394716a5d006817c78eaf4b2c15a64f6c77fbda0010b2cff2f65782e1",
+      "format": "schdoc",
+      "text_status": "binary_token_scan",
+      "rf_hits": [
+        {
+          "tokens": [
+            "RFNEFZAJ",
+            "RFQIHDDR",
+            "RFTKNNSF",
+            "RX0",
+            "RX1",
+            "RX2",
+            "TX0",
+            "TX1"
+          ],
+          "snippets": []
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_Ethernet_PWR.SchDoc",
+      "file_sha256": "b6e4a3cfe74ad3c27cc725582584940d2795737373f832ee8f2a1c1b07dab1d7",
+      "format": "schdoc",
+      "text_status": "binary_token_scan",
+      "rf_hits": [
+        {
+          "tokens": [
+            "RFXLBCTO"
+          ],
+          "snippets": []
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_FTDI.SchDoc",
+      "file_sha256": "4113e9297051a27e1ad17da3e174514137abb76f1c47048c10857023354f044b",
+      "format": "schdoc",
+      "text_status": "binary_token_scan",
+      "rf_hits": [
+        {
+          "tokens": [
+            "RFDXPGYY",
+            "RFILBOVW",
+            "RFMVPZSG",
+            "RFOTJBHV",
+            "RFTFWAXB",
+            "RFVETQFY",
+            "RFVKEJCY"
+          ],
+          "snippets": []
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_FTDI_PWR.SchDoc",
+      "file_sha256": "e132e6399d7d3ff3d51617bc899eb0d1f003e69481e3bd6093ff0e6af286ea4d",
+      "format": "schdoc",
+      "text_status": "binary_token_scan",
+      "rf_hits": [
+        {
+          "tokens": [
+            "RFALIURD",
+            "RFBRKUEE"
+          ],
+          "snippets": []
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_Hardware.SchDoc",
+      "file_sha256": "c0a483a16d52385833adea13cc9e6c44ea472a4e7537f011a8632d435cef90db",
+      "format": "schdoc",
+      "text_status": "binary_token_scan",
+      "rf_hits": [
+        {
+          "tokens": [
+            "ANTFPBCA",
+            "RFZJDXTO"
+          ],
+          "snippets": []
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_IO_Reference.SchDoc",
+      "file_sha256": "d7a238a99ba386ab7337277a9e4f19149e0bdae455853bb847b05a12a34891f6",
+      "format": "schdoc",
+      "text_status": "binary_token_scan",
+      "rf_hits": [
+        {
+          "tokens": [
+            "ANTENNA",
+            "AWR29440p9z",
+            "RFERRWLY",
+            "RFGVLPHS",
+            "RFKHQUCR",
+            "RFOUSERC",
+            "RFQLUWBS",
+            "RFSECYPQ",
+            "RFYBLLJK",
+            "RX1",
+            "RX2",
+            "RX3",
+            "RX4",
+            "TX1",
+            "TX2",
+            "TX3",
+            "TX4",
+            "antenna"
+          ],
+          "snippets": []
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_JTAG_EMU_Connector.SchDoc",
+      "file_sha256": "8469ba770dd18c28b113f01af837e95b00afdb4dc933ac26025348fbde432d9e",
+      "format": "schdoc",
+      "text_status": "binary_token_scan",
+      "rf_hits": [
+        {
+          "tokens": [
+            "RFASJGMN",
+            "RFCDHGKX",
+            "RFDLSIRN",
+            "RFMTIYML",
+            "RFOEJTAE",
+            "RFOLSUSM",
+            "RFPYMJRD"
+          ],
+          "snippets": []
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_PCBlayers.PDF",
+      "file_sha256": "f30d8909cdcc8755dc003fb96a89c9a86694aa15bc09b4c9f3d0836083e183d0",
+      "format": "pdf",
+      "pages": 14,
+      "text_status": "text_extracted",
+      "rf_hits": []
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_PMIC_Reference.SchDoc",
+      "file_sha256": "224a73a6c6623a3237f34e9f45ed9cbcd12b608b7293f7a5a0dcf3d3e42f188d",
+      "format": "schdoc",
+      "text_status": "binary_token_scan",
+      "rf_hits": [
+        {
+          "tokens": [
+            "RF",
+            "RFAYXOAF",
+            "RFBWIFTL",
+            "RFCLRCCY",
+            "RFRYBOFR"
+          ],
+          "snippets": []
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_PWR_Reference.SchDoc",
+      "file_sha256": "2440a00c972526d9c0539138c4519babf204700a5356479adea83d14704f10ef",
+      "format": "schdoc",
+      "text_status": "binary_token_scan",
+      "rf_hits": [
+        {
+          "tokens": [
+            "AWR29440p9z",
+            "RFATJALW",
+            "RFHCBARN",
+            "RFKGXEIF",
+            "RFMDWSJW",
+            "RFSBEBBA",
+            "RX1",
+            "RX2",
+            "RX3",
+            "RX4",
+            "TX1",
+            "TX2",
+            "TX3",
+            "TX4"
+          ],
+          "snippets": []
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_PWR_RST_LED.SchDoc",
+      "file_sha256": "4689d75ad3a2ffcd51258d2be2fdc8383ad116ba7bbad1725d725e8081de5987",
+      "format": "schdoc",
+      "text_status": "binary_token_scan",
+      "rf_hits": [
+        {
+          "tokens": [
+            "ANTWMGTU",
+            "RFATUJSN",
+            "RFGMPGXK",
+            "RFGXCPGH",
+            "RFIUDDEM",
+            "RFUHBRXS"
+          ],
+          "snippets": []
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_QSPI_Flash_Reference.SchDoc",
+      "file_sha256": "8bf45335ebc07a5c37518dee88820b586a253563d0ba4d02a296e23154a2f9ab",
+      "format": "schdoc",
+      "text_status": "binary_token_scan",
+      "rf_hits": []
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_SOP_Reference.SchDoc",
+      "file_sha256": "952cbe5cd56bd733598d232ca9879a47e44d62dc8109263d33540c00d598e047",
+      "format": "schdoc",
+      "text_status": "binary_token_scan",
+      "rf_hits": [
+        {
+          "tokens": [
+            "ANTHYCRD",
+            "RFGODMGL",
+            "RFJNNSOW",
+            "RFTPQJUP"
+          ],
+          "snippets": []
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_Temp_Sensor.SchDoc",
+      "file_sha256": "ecb62b0548644130a2cb4972106731288275716574a24407b1531c08453ef385",
+      "format": "schdoc",
+      "text_status": "binary_token_scan",
+      "rf_hits": [
+        {
+          "tokens": [
+            "RFSANEUI"
+          ],
+          "snippets": []
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_VPP_LDO.SchDoc",
+      "file_sha256": "2c698fe206c0ff817e7a229a535fa68b15d200fa62dd35c30b9797cde9a7ad7d",
+      "format": "schdoc",
+      "text_status": "binary_token_scan",
+      "rf_hits": []
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_XDS110 Interface_1A.SchDoc",
+      "file_sha256": "a0a2b2c301f4b6b505a6986ace088b6bfbc6593eef5756381bdb30cd3fe6c4e9",
+      "format": "schdoc",
+      "text_status": "binary_token_scan",
+      "rf_hits": []
+    },
+    {
+      "path": "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a\\SPRR441\\PROC113D_XDS110 Interface_1B.SchDoc",
+      "file_sha256": "0b4d076dd5c123a970aa9a790a919c9e1a7078a25a6769b2e9c07e4f66789547",
+      "format": "schdoc",
+      "text_status": "binary_token_scan",
+      "rf_hits": [
+        {
+          "tokens": [
+            "RFIUTDGY",
+            "RFTAMFVS",
+            "RFWDDOSH",
+            "RFYEBQFX"
+          ],
+          "snippets": []
+        }
+      ]
+    }
+  ]
+}
