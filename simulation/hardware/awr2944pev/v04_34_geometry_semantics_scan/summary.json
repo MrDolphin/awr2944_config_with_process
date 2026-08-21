@@ -1,0 +1,85 @@
+{
+  "status": "completed_geometry_semantics_pairwise_scan",
+  "model_names": [
+    "cfg_raw",
+    "cfg_swap_row_column",
+    "tx_rx_regular",
+    "tx_rx_swapped",
+    "cfg_y_mirror",
+    "regular_y_mirror"
+  ],
+  "azimuth_grid_deg": [
+    -60.0,
+    -40.0,
+    -20.0,
+    0.0,
+    20.0,
+    40.0,
+    60.0
+  ],
+  "elevation_grid_deg": [
+    -20.0,
+    -10.0,
+    0.0,
+    10.0,
+    20.0
+  ],
+  "best_assumed_by_actual": {
+    "cfg_raw": {
+      "actual_model": "cfg_raw",
+      "assumed_model": "tx_rx_swapped",
+      "azimuth_rmse_deg": 5.105356236242619,
+      "elevation_rmse_deg": 24.83873423693936,
+      "azimuth_max_abs_error_deg": 15.026204045020691,
+      "elevation_max_abs_error_deg": 50.64071131847828,
+      "combined_rmse_deg": 17.930802837467215
+    },
+    "cfg_swap_row_column": {
+      "actual_model": "cfg_swap_row_column",
+      "assumed_model": "cfg_y_mirror",
+      "azimuth_rmse_deg": 40.56215223498966,
+      "elevation_rmse_deg": 20.57584090203244,
+      "azimuth_max_abs_error_deg": 70.90658768145718,
+      "elevation_max_abs_error_deg": 37.388212421194766,
+      "combined_rmse_deg": 32.1609501007062
+    },
+    "tx_rx_regular": {
+      "actual_model": "tx_rx_regular",
+      "assumed_model": "tx_rx_regular",
+      "azimuth_rmse_deg": 2.6565142651694297e-13,
+      "elevation_rmse_deg": 4.0900426352046917e-13,
+      "azimuth_max_abs_error_deg": 8.597567102697212e-13,
+      "elevation_max_abs_error_deg": 6.181721801112872e-13,
+      "combined_rmse_deg": 3.448587884833502e-13
+    },
+    "tx_rx_swapped": {
+      "actual_model": "tx_rx_swapped",
+      "assumed_model": "tx_rx_swapped",
+      "azimuth_rmse_deg": 2.5477469898233593e-13,
+      "elevation_rmse_deg": 4.083198604733458e-13,
+      "azimuth_max_abs_error_deg": 8.171241461241152e-13,
+      "elevation_max_abs_error_deg": 6.217248937900877e-13,
+      "combined_rmse_deg": 3.40319890469623e-13
+    },
+    "cfg_y_mirror": {
+      "actual_model": "cfg_y_mirror",
+      "assumed_model": "tx_rx_swapped",
+      "azimuth_rmse_deg": 5.10535623624267,
+      "elevation_rmse_deg": 24.729706160107302,
+      "azimuth_max_abs_error_deg": 15.026204045020762,
+      "elevation_max_abs_error_deg": 52.605336715104336,
+      "combined_rmse_deg": 17.85529373973152
+    },
+    "regular_y_mirror": {
+      "actual_model": "regular_y_mirror",
+      "assumed_model": "regular_y_mirror",
+      "azimuth_rmse_deg": 2.7671915780552725e-13,
+      "elevation_rmse_deg": 4.131787239789311e-13,
+      "azimuth_max_abs_error_deg": 8.810729923425242e-13,
+      "elevation_max_abs_error_deg": 6.217248937900877e-13,
+      "combined_rmse_deg": 3.516320166349034e-13
+    }
+  },
+  "hardware_geometry_confirmed": false,
+  "interpretation": "pairwise_semantic_screening_not_hardware_validation"
+}
