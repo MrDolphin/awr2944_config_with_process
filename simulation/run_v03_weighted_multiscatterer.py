@@ -23,14 +23,15 @@ from simulation.v03 import (
 def run_weighted_multi_scatterer(*, input_truth: Path, results_root: Path,
                                  run_id: str, stride: int = 20,
                                  max_scatterers: int = 64, time_index: int = 0,
-                                 front_face_only: bool = True) -> Path:
+                                 front_face_only: bool = True,
+                                 chirps_per_frame: int = 64) -> Path:
     with h5py.File(input_truth, "r") as handle:
         ranges = np.asarray(handle["/truth/slant_range_m"][time_index], dtype=float)
         rates = np.asarray(handle["/truth/slant_range_rate_mps"][time_index], dtype=float)
         grazing = np.asarray(handle["/truth/grazing_angle_deg"][time_index], dtype=float)
         case_id = str(handle.attrs["case_id"])
         source_producer = str(handle.attrs["producer"])
-    config = FmcwConfig()
+    config = FmcwConfig(chirps_per_frame=chirps_per_frame)
     selected: list[tuple[int, int]] = []
     step = max(1, stride)
     for y_index in range(0, ranges.shape[0], step):
@@ -83,6 +84,7 @@ def run_weighted_multi_scatterer(*, input_truth: Path, results_root: Path,
         "peak_range_m": result.peak_range_m, "peak_velocity_mps": result.peak_velocity_mps,
         "range_resolution_m": config.range_resolution_m,
         "velocity_resolution_mps": config.velocity_resolution_mps,
+        "chirps_per_frame": config.chirps_per_frame,
     }
     (output_run / "summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
     (output_run / "output_analysis.md").write_text(
@@ -97,7 +99,8 @@ def run_weighted_multi_scatterer(*, input_truth: Path, results_root: Path,
         "这是局部正面照射代理，不是全局射线遮挡，也不是经过海水介电常数、极化和粗糙面散射校准的 RCS。"
         "因此可用于比较权重模型前后的相对变化，不可直接作为 AWR2944P 实测杂波功率或探测距离。\n\n"
         f"最强峰：{result.peak_range_m:.3f} m，{result.peak_velocity_mps:.6f} m/s。"
-        f"距离分辨率 {config.range_resolution_m:.4f} m，速度分辨率 {config.velocity_resolution_mps:.4f} m/s。\n\n"
+        f"距离分辨率 {config.range_resolution_m:.4f} m，速度分辨率 {config.velocity_resolution_mps:.4f} m/s，"
+        f"慢时间 Chirp 数 {config.chirps_per_frame}。\n\n"
         "下一步验收：对 Hs=0.30/0.85/1.00 m 重复同一权重模型，比较距离展宽、速度展宽和正面微元比例；"
         "再接入实测 DCA1000 IQ 前，需增加散射系数、极化和平台姿态标定。\n",
         encoding="utf-8")
@@ -112,12 +115,14 @@ def main() -> int:
     parser.add_argument("--stride", type=int, default=20)
     parser.add_argument("--max-scatterers", type=int, default=64)
     parser.add_argument("--time-index", type=int, default=0)
+    parser.add_argument("--chirps-per-frame", type=int, default=64)
     parser.add_argument("--include-back-face", action="store_true")
     args = parser.parse_args()
     output = run_weighted_multi_scatterer(
         input_truth=args.input_truth.resolve(), results_root=args.results_root.resolve(),
         run_id=args.run_id, stride=args.stride, max_scatterers=args.max_scatterers,
-        time_index=args.time_index, front_face_only=not args.include_back_face)
+        time_index=args.time_index, front_face_only=not args.include_back_face,
+        chirps_per_frame=args.chirps_per_frame)
     print(f"Generated V0.3.3 weighted multi-scatterer run into {output}")
     return 0
 
