@@ -1,0 +1,9 @@
+{
+  "status": "completed_pcb_rf_array_candidate_extraction",
+  "source_sha256": "eba1791d75a42fe02ad2aa9672398f9252721cc243366510d27e3b170a9ceda6",
+  "channel_count": 8,
+  "tx_count": 4,
+  "rx_count": 4,
+  "hardware_validated": false,
+  "virtual_channel_count": 16
+}

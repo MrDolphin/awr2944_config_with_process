@@ -1,0 +1,17 @@
+virtual_channel,tx,rx,x_mm,y_mm,coordinate_status
+0,TX1,RX1,0.0,0.0,cad_region_centroid_sum_candidate_not_phase_center
+1,TX1,RX2,1.900001279999998,0.0,cad_region_centroid_sum_candidate_not_phase_center
+2,TX1,RX3,3.800000019999999,0.0,cad_region_centroid_sum_candidate_not_phase_center
+3,TX1,RX4,5.700001300000011,0.0,cad_region_centroid_sum_candidate_not_phase_center
+4,TX2,RX1,3.9180007999999873,3.135000079999969,cad_region_centroid_sum_candidate_not_phase_center
+5,TX2,RX2,5.818002079999985,3.135000079999969,cad_region_centroid_sum_candidate_not_phase_center
+6,TX2,RX3,7.718000819999986,3.135000079999969,cad_region_centroid_sum_candidate_not_phase_center
+7,TX2,RX4,9.618002100000012,3.135000079999969,cad_region_centroid_sum_candidate_not_phase_center
+8,TX3,RX1,7.83699981999996,0.0,cad_region_centroid_sum_candidate_not_phase_center
+9,TX3,RX2,9.737001099999986,0.0,cad_region_centroid_sum_candidate_not_phase_center
+10,TX3,RX3,11.636999839999987,0.0,cad_region_centroid_sum_candidate_not_phase_center
+11,TX3,RX4,13.537001119999985,0.0,cad_region_centroid_sum_candidate_not_phase_center
+12,TX4,RX1,15.673999639999977,0.0,cad_region_centroid_sum_candidate_not_phase_center
+13,TX4,RX2,17.574000920000003,0.0,cad_region_centroid_sum_candidate_not_phase_center
+14,TX4,RX3,19.473999660000004,0.0,cad_region_centroid_sum_candidate_not_phase_center
+15,TX4,RX4,21.374000940000002,0.0,cad_region_centroid_sum_candidate_not_phase_center

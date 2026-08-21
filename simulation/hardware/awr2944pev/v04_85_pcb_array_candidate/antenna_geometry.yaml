@@ -1,0 +1,66 @@
+source: PROC113D_ASCII.PcbDoc
+source_sha256: eba1791d75a42fe02ad2aa9672398f9252721cc243366510d27e3b170a9ceda6
+coordinate_system:
+  x: board X minus ORIGINX, millimetres
+  y: board Y minus ORIGINY, millimetres
+  z: 0 (PCB plane; phase-centre height unknown)
+  boresight: not established from CAD alone
+array_status: candidate_geometry_extracted_from_ascii_pcb
+hardware_validated: false
+channels:
+  - channel: RX1
+    role: RX
+    net_id: 120
+    chip_pad: 727.M2
+    x_mm: 54.610578
+    y_mm: 83.562630
+    z_mm: 0.0
+  - channel: RX2
+    role: RX
+    net_id: 119
+    chip_pad: 727.K2
+    x_mm: 56.510579
+    y_mm: 83.562630
+    z_mm: 0.0
+  - channel: RX3
+    role: RX
+    net_id: 118
+    chip_pad: 727.H2
+    x_mm: 58.410578
+    y_mm: 83.562630
+    z_mm: 0.0
+  - channel: RX4
+    role: RX
+    net_id: 117
+    chip_pad: 727.F2
+    x_mm: 60.310579
+    y_mm: 83.562630
+    z_mm: 0.0
+  - channel: TX1
+    role: TX
+    net_id: 110
+    chip_pad: 727.B3
+    x_mm: 67.090209
+    y_mm: 83.688953
+    z_mm: 0.0
+  - channel: TX2
+    role: TX
+    net_id: 109
+    chip_pad: 727.B5
+    x_mm: 71.008210
+    y_mm: 86.823953
+    z_mm: 0.0
+  - channel: TX3
+    role: TX
+    net_id: 108
+    chip_pad: 727.B7
+    x_mm: 74.927209
+    y_mm: 83.688953
+    z_mm: 0.0
+  - channel: TX4
+    role: TX
+    net_id: 107
+    chip_pad: 727.B9
+    x_mm: 82.764208
+    y_mm: 83.688953
+    z_mm: 0.0
