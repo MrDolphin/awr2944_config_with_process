@@ -1,0 +1,80 @@
+{
+  "results": {
+    "no_calibration": {
+      "azimuth_rmse_deg": 39.01932975394601,
+      "elevation_rmse_deg": 20.778744030891822,
+      "azimuth_max_abs_error_deg": 63.69085618775387,
+      "elevation_max_abs_error_deg": 42.51364663420502
+    },
+    "ideal_inverse_correction": {
+      "azimuth_rmse_deg": 38.3208206295213,
+      "elevation_rmse_deg": 22.612536471379276,
+      "azimuth_max_abs_error_deg": 63.405770329010046,
+      "elevation_max_abs_error_deg": 42.39894728706385
+    },
+    "wrong_half_phase_correction": {
+      "azimuth_rmse_deg": 38.321043830597354,
+      "elevation_rmse_deg": 22.612599788984195,
+      "azimuth_max_abs_error_deg": 63.54821645807357,
+      "elevation_max_abs_error_deg": 42.45627870633175
+    }
+  },
+  "calibration": {
+    "schema_version": "awr2944p-calibration-v0.1",
+    "channel_order": "rx0..rx3 rows, tx0..tx3 columns",
+    "amplitude": [
+      [
+        1.0,
+        0.98,
+        1.03,
+        1.01
+      ],
+      [
+        1.02,
+        0.97,
+        1.01,
+        1.04
+      ],
+      [
+        0.99,
+        1.03,
+        0.96,
+        1.02
+      ],
+      [
+        1.01,
+        1.0,
+        1.04,
+        0.98
+      ]
+    ],
+    "phase_deg": [
+      [
+        0.0,
+        3.0,
+        6.0,
+        9.0
+      ],
+      [
+        2.0,
+        5.0,
+        8.0,
+        11.0
+      ],
+      [
+        -2.0,
+        1.0,
+        4.0,
+        7.0
+      ],
+      [
+        -4.0,
+        -1.0,
+        2.0,
+        5.0
+      ]
+    ],
+    "calibration_status": "synthetic_injected_error_not_measured",
+    "source": "V0.4.18 deterministic regression fixture"
+  }
+}
