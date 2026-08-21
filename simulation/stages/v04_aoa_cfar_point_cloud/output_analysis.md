@@ -99,6 +99,10 @@ V0.4.8 另外验证了当前 4TX TDM `chirpCfg` 序列到虚拟通道张量的�
 
 已在规范 HDF5 上增加 sample 轴距离 FFT、TDM frame 轴 Doppler FFT，并对最大功率单元提取 4×4 通道做 AoA。结果保留复数谱和峰值通道，仍标记 `peak_cell_aoa_not_hardware_validated`。
 
+## V0.4.23 CA-CFAR 三维点云
+
+已加入 2D CA-CFAR、局部峰值筛选和多点 `(range, velocity, azimuth, elevation, power, x, y, z)` 输出。默认 Pfa=1e-3、训练单元 4×4、保护单元 1×1；结果仍标记 `cfar_peak_point_cloud_not_hardware_validated`。
+
 本次无校准方位/俯仰 RMSE 为 39.0193°/20.7787°，理想逆补偿恢复到 38.3208°/22.6125° 的合成基线。该结果证明了校准接口方向，但没有消除 PCB/CFG 坐标模型误差。
 
 当前输出中 `ε_eff=1` 的方位/俯仰 RMSE 为 38.3208°/22.6125°，`ε_eff=4.04` 为 38.0000°/23.6879°。变化量小于当前整体坐标模型误差，说明现在不能靠调整 ε_eff 修复 AoA；必须先解决相位中心、通道坐标和真实校准问题。
