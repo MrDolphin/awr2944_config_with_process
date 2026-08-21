@@ -1,0 +1,20 @@
+{
+  "schema_version": "awr2944p-power-calibration-v0.4.50",
+  "status": "capture_processed_channel_order_unverified",
+  "source_file": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_50_dca_reference_calibration\\synthetic_reference.bin",
+  "source_format": "dca1000_int16_bin",
+  "expected_range_m": 21.079157203125,
+  "expected_velocity_mps": 0.0,
+  "peak_range_m": 21.079157203125,
+  "peak_velocity_mps": 0.0,
+  "reference_power_linear": 5763781339540.802,
+  "reference_adc_rms": 1200.2437744140625,
+  "synthetic_reference_power_linear": 1.0,
+  "synthetic_to_measured_power_ratio": 5763781339540.802,
+  "channel_order_verified": false,
+  "tx_sequence": [
+    0
+  ],
+  "wire_order_assumption": "sample -> rx -> I,Q",
+  "measurement_provenance_required": true
+}
