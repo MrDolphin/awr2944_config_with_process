@@ -70,6 +70,32 @@ class RangeDopplerResult:
     peak_power_linear: float
 
 
+def compute_controlled_scatterer_weights(
+    slant_range_m: np.ndarray,
+    grazing_angle_deg: np.ndarray,
+    *,
+    front_face_only: bool = True,
+) -> np.ndarray:
+    """Return a transparent, non-calibrated sea-facet amplitude proxy.
+
+    The model applies amplitude proportional to ``1/R^2`` and optionally
+    rejects locally back-facing facets (grazing angle <= 0).  It is a
+    geometry regression aid, not a sea electromagnetic reflectivity model and
+    does not perform global ray occlusion.
+    """
+    ranges = np.asarray(slant_range_m, dtype=float)
+    grazing = np.asarray(grazing_angle_deg, dtype=float)
+    if ranges.shape != grazing.shape:
+        raise ValueError("range and grazing-angle arrays must have the same shape")
+    if np.any(~np.isfinite(ranges)) or np.any(ranges <= 0.0):
+        raise ValueError("slant ranges must be finite and positive")
+    weights = 1.0 / np.square(ranges)
+    if front_face_only:
+        weights = np.where(grazing > 0.0, weights, 0.0)
+    peak = float(np.max(weights))
+    return weights / peak if peak > 0.0 else weights
+
+
 def generate_single_scatterer_iq(
     config: FmcwConfig,
     *,
