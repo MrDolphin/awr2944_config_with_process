@@ -1,0 +1,15 @@
+{
+  "status": "awaiting_valid_dca_iq",
+  "manifest": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_111_cfg_linked_manifest\\known_angle_capture_manifest.template.json",
+  "capture": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_111_cfg_linked_manifest\\capture.bin",
+  "issues": [
+    "capture_file_missing"
+  ],
+  "required_geometry": {
+    "samples_per_chirp": 656,
+    "chirps": 64,
+    "rx_count": 4
+  },
+  "decoded": false,
+  "hardware_aoa_validated": false
+}
