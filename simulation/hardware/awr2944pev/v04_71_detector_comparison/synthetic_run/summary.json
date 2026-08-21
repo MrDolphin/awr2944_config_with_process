@@ -1,0 +1,14 @@
+{
+  "status": "completed_detector_comparison",
+  "case_count": 5,
+  "scenario_count": 9,
+  "detectors": [
+    "ca_cfar_local_peak",
+    "ca_threshold_only",
+    "fixed_energy_local_peak",
+    "os_cfar_local_peak"
+  ],
+  "fixed_energy_percentile": 99.0,
+  "os_cfar_status": "exploratory_order_statistic_not_ti_sdk_equivalent",
+  "hardware_validated": false
+}
