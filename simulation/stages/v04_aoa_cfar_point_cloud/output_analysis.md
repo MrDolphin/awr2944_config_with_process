@@ -62,3 +62,7 @@ V0.4.8 另外验证了当前 4TX TDM `chirpCfg` 序列到虚拟通道张量的�
 已用 PCB 坐标生成相位、用 CFG 理想阵列估计角度，分别筛查 raw、X 镜像、Y 镜像和 180° 旋转。该设计能暴露坐标模型差异，避免“生成和估计使用同一错误坐标”造成假性零误差。结果目录为 `output/v04_13_coordinate_transform_scan/`，详细边界见 `docs/reports/v04_coordinate_transform_scan.md`。
 
 使用 CFG 展开的阵列坐标后，raw 的方位/俯仰 RMSE 为 38.2415°/21.8899°，Y 镜像为 38.2415°/22.4927°，X 镜像和 180° 旋转的方位 RMSE 更大。四种简单变换均未达到可用于真实 AoA 的程度，因此不能把某一种变换直接冻结为 EVM 阵列坐标。
+
+## V0.4.14 RF 网络馈电候选
+
+已从 ASCII PCB 的 8 个 RF 网络提取 Pad 和 Track 端点，单独保存为 `output/v04_14_rf_port_extraction/`。Pad 坐标可作为芯片端/器件端连接参考，Track 端点范围可用于追踪走线朝向；二者都没有被标记为天线相位中心。下一步需要建立 Track/Arc/Via 连通图，并结合层叠与电磁仿真或角反射器校准。
