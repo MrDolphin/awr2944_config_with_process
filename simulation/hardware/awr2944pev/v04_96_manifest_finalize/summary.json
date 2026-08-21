@@ -1,0 +1,14 @@
+{
+  "status": "completed_manifest_finalize",
+  "manifest_count": 30,
+  "capture_found_count": 0,
+  "cfg_found_count": 0,
+  "both_found_count": 0,
+  "metadata_fields_overwritten": [
+    "capture_file_if_detected",
+    "capture_sha256_if_file_exists",
+    "capture.cfg_sha256_if_file_exists",
+    "evidence_status_if_both_files_exist"
+  ],
+  "hardware_aoa_validated": false
+}
