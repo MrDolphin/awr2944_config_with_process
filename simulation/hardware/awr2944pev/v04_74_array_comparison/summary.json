@@ -1,0 +1,10 @@
+{
+  "status": "completed_array_comparison",
+  "groups": 180,
+  "abstract_summary": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_72_detector_point_cloud\\detector_point_cloud_summary.csv",
+  "cad_summary": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_74_cad_array_point_cloud\\detector_point_cloud_summary.csv",
+  "abstract_nonfinite_aoa_count": 31,
+  "cad_nonfinite_aoa_count": 31,
+  "cad_geometry_status": "copper_centroid_virtual_array_not_phase_center",
+  "hardware_validated": false
+}

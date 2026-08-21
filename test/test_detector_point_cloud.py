@@ -1,7 +1,7 @@
 import csv, tempfile, unittest
 from pathlib import Path
 import h5py, numpy as np
-from simulation.run_v04_72_detector_point_cloud import run
+from simulation.run_v04_72_detector_point_cloud import run, _geometry_for_input
 
 
 class DetectorPointCloudTest(unittest.TestCase):
@@ -22,6 +22,14 @@ class DetectorPointCloudTest(unittest.TestCase):
                 rows = list(csv.DictReader(handle))
             self.assertEqual(len(rows), 4 * 9)
             self.assertTrue(all(int(row["stored_point_count"]) <= 3 for row in rows))
+
+    def test_cad_geometry_contract(self):
+        root = Path(__file__).resolve().parents[1]
+        cad = root / "simulation/hardware/awr2944pev/v04_73_new_pcb_package/cad_virtual_array_coordinates.csv"
+        x, y = _geometry_for_input(cad, 299792458.0 / 77e9)
+        self.assertEqual(x.shape, (4, 4))
+        self.assertGreater(float(np.ptp(x)), 0.0)
+        self.assertGreater(float(np.ptp(y)), 0.0)
 
 
 if __name__ == "__main__": unittest.main()

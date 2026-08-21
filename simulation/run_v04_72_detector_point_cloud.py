@@ -18,6 +18,23 @@ from simulation.v03 import FmcwConfig
 DETECTORS = ("ca_cfar_local_peak", "ca_threshold_only", "os_cfar_local_peak", "fixed_energy_local_peak")
 
 
+def _geometry_for_input(path: Path, wavelength_m: float):
+    """Load either SDK mapping CSV or CAD-derived virtual-channel CSV."""
+    with path.open(encoding="utf-8", newline="") as handle:
+        header = handle.readline()
+    if "virtual_channel" in header and "x_lambda" in header:
+        with path.open(encoding="utf-8", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        x = np.zeros((4, 4)); y = np.zeros((4, 4))
+        for row in rows:
+            index = int(row["virtual_channel"])
+            tx, rx = divmod(index, 4)
+            x[rx, tx] = float(row["x_lambda"]) * wavelength_m
+            y[rx, tx] = float(row["y_lambda"]) * wavelength_m
+        return x, y
+    return geometry(path, wavelength_m)
+
+
 def _retain(detector, plane, d, r, scenario, fixed_threshold):
     cell = float(plane[d, r]); local = _local_max(plane, d, r)
     if detector == "ca_cfar_local_peak":
@@ -34,7 +51,7 @@ def run(input_root: Path, geometry_csv: Path, output: Path, max_points_per_group
     rows, summaries = [], []
     nonfinite_aoa_count = 0
     wavelength = 299792458.0 / 77e9
-    x, y = geometry(geometry_csv, wavelength)
+    x, y = _geometry_for_input(geometry_csv, wavelength)
     for path in sorted(input_root.glob("*_range_doppler.h5")):
         case_id = path.stem.replace("_range_doppler", "")
         with h5py.File(path, "r") as h:
