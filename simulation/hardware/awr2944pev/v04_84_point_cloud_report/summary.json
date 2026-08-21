@@ -1,0 +1,8 @@
+{
+  "status": "completed_point_cloud_report",
+  "case_count": 5,
+  "detector_count": 4,
+  "point_count": 6040,
+  "figure_count": 6,
+  "hardware_validated": false
+}
