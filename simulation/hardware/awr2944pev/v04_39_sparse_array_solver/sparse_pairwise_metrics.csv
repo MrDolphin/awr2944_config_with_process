@@ -1,0 +1,10 @@
+actual_model,assumed_model,azimuth_rmse_deg,elevation_rmse_deg,azimuth_max_abs_error_deg,elevation_max_abs_error_deg,combined_rmse_deg
+ideal_half_lambda,ideal_half_lambda,0.0,0.0,0.0,0.0,0.0
+ideal_half_lambda,cfg_candidate,43.103198422921174,24.578736454795347,86.0,40.0,35.08560958569767
+ideal_half_lambda,pcb_centroid_candidate,43.420205961214485,15.534293859531747,93.0,29.0,32.60850020645362
+cfg_candidate,ideal_half_lambda,63.04918714781341,20.701966780270627,100.0,40.0,46.92425507438252
+cfg_candidate,cfg_candidate,0.0,0.0,0.0,0.0,0.0
+cfg_candidate,pcb_centroid_candidate,63.7683306979256,18.258461834761125,100.0,38.0,46.90293929260419
+pcb_centroid_candidate,ideal_half_lambda,42.53200475608255,19.922707790716746,100.0,40.0,33.21058351102638
+pcb_centroid_candidate,cfg_candidate,55.55332058996499,26.238466854165527,120.0,40.0,43.44323060862631
+pcb_centroid_candidate,pcb_centroid_candidate,0.0,0.0,0.0,0.0,0.0
