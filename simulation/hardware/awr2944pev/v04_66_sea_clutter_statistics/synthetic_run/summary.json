@@ -1,0 +1,10 @@
+{
+  "status": "completed_sea_clutter_delay_statistics",
+  "case_count": 2,
+  "delay_count": 5,
+  "best_delay_by_mean_angular_change_s": 0.01,
+  "worst_delay_by_max_position_change_s": -0.01,
+  "best_delay_mean_angular_change_deg": 1.770225739891147,
+  "worst_delay_max_position_change_m": 0.4020178109362444,
+  "source_is_hardware": false
+}
