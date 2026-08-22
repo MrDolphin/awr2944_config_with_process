@@ -1,0 +1,37 @@
+{
+  "status": "completed_first_order_installation_coverage",
+  "height_m": 1.0,
+  "beam_3db_half_deg": 3.0,
+  "beam_6db_half_deg": 5.0,
+  "mounting_pitch_deg": [
+    0.0,
+    3.0,
+    5.0,
+    8.0,
+    10.0
+  ],
+  "sea_states": [
+    {
+      "case_id": "ss0_flat",
+      "target_hs_m": 0.0
+    },
+    {
+      "case_id": "ss1_rippled",
+      "target_hs_m": 0.05
+    },
+    {
+      "case_id": "ss2_normal",
+      "target_hs_m": 0.3
+    },
+    {
+      "case_id": "ss3_nominal",
+      "target_hs_m": 0.85
+    },
+    {
+      "case_id": "ss3_upper",
+      "target_hs_m": 1.0
+    }
+  ],
+  "model_boundary": "flat mean surface plus crest/trough height proxies; no antenna pattern, shadowing, vessel motion or measured sea surface",
+  "hardware_aoa_validated": false
+}
