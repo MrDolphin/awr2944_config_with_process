@@ -1,0 +1,55 @@
+{
+  "status": "completed_pcb_source_reconciliation",
+  "source_roots": [
+    "C:\\Users\\56461\\Downloads\\2944p资料\\sprr440a (1)",
+    "C:\\Users\\56461\\Downloads\\2944p资料\\sprr441a"
+  ],
+  "file_count": 43,
+  "kind_counts": {
+    "altium_source": 35,
+    "bom": 1,
+    "document": 3,
+    "mechanical_cad": 1,
+    "other": 3
+  },
+  "ascii_pcb_candidates": [
+    {
+      "source_root": "sprr441a",
+      "relative_path": "SPRR441\\PROC113D_ASCII.PcbDoc",
+      "suffix": ".pcbdoc",
+      "bytes": 44581965,
+      "kind": "altium_source",
+      "sha256": "eba1791d75a42fe02ad2aa9672398f9252721cc243366510d27e3b170a9ceda6",
+      "ascii_pcb": {
+        "format": "Altium ASCII PcbDoc",
+        "component_count": 734,
+        "net_count": 514,
+        "target_rf_pad_count": 8,
+        "target_rf_nets": [
+          "RX1",
+          "RX2",
+          "RX3",
+          "RX4",
+          "TX1",
+          "TX2",
+          "TX3",
+          "TX4"
+        ],
+        "chip": {
+          "SOURCEDESIGNATOR": "U29",
+          "SOURCEDESCRIPTION": "XA2944BGALT",
+          "X": "5586.5365mil",
+          "Y": "4399.3306mil",
+          "ROTATION": " 2.70000000000000E+0002"
+        }
+      }
+    }
+  ],
+  "phase_center_ready": false,
+  "evidence_boundary": [
+    "ASCII PCB gives board/package/RF-net coordinates, not chip antenna phase centers",
+    "STEP and assembly drawings support mechanical orientation and mounting evidence",
+    "BOM supports component identity/version but does not provide array phase centers",
+    "measured or EM-derived TX/RX patterns and calibration remain required"
+  ]
+}
