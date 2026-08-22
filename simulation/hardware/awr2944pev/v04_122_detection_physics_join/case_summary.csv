@@ -1,0 +1,3 @@
+case_id,rows,max_detection_probability,min_detection_probability,max_false_alarms_per_frame,three_db_facets,mean_three_db_scatter_proxy,three_db_doppler_min_hz,three_db_doppler_max_hz
+ss2_normal,44,1.0,0.0,0.0,53,1.8607865902403863e-05,-34.36447470415653,36.310012112098356
+ss3_upper,44,1.0,0.0,0.2682926829268293,159,9.610500850989918e-05,-86.84905879161609,85.71472244729465

@@ -1,0 +1,9 @@
+{
+  "status": "completed_detection_physics_join",
+  "boundary_source": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_47_detection_boundary\\detection_boundary_sweep.csv",
+  "physics_source": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_120_masked_microfacet_clutter\\case_summary.csv",
+  "row_count": 88,
+  "case_count": 2,
+  "hardware_validated": false,
+  "interpretation": "descriptive synthetic join; target injection and clutter proxies are not measured"
+}
