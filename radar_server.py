@@ -18,17 +18,22 @@ from radar_runtime import PointCloudRecorder
 from encoder_gpio import open_encoder_sweep_session
 from encoder_scan import EncoderSweepPlan
 
-# 配置日志：同时输出到文件和控制台
+# 配置日志：优先写入工作树/环境变量指定文件；只读或受限环境下仍保留控制台日志。
 config_dir = os.path.dirname(os.path.abspath(__file__))
-log_path = os.path.join(config_dir, "radar_debug.log")
+log_path = os.environ.get("RADAR_LOG_PATH", os.path.join(config_dir, "radar_debug.log"))
+log_handlers = [logging.StreamHandler(sys.stdout)]
+try:
+    log_handlers.insert(0, logging.FileHandler(log_path, encoding='utf-8'))
+except OSError:
+    # Importing the server must remain possible for offline protocol tests and
+    # read-only deployments; failure to open a diagnostic file is not a radar
+    # transport failure.
+    pass
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[
-        logging.FileHandler(log_path, encoding='utf-8'),
-        logging.StreamHandler(sys.stdout)
-    ]
+    handlers=log_handlers,
 )
 logger = logging.getLogger("RadarServer")
 
