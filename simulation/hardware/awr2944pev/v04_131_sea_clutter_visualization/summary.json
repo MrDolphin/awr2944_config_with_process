@@ -1,0 +1,9 @@
+{
+  "status": "completed_sea_clutter_3d_visualization",
+  "source_rows": 4936,
+  "case_count": 5,
+  "model_count": 4,
+  "figures_case": "ss3_upper",
+  "point_semantics": "sea_surface_facets_with_synthetic_grid_aoa_and_pattern_proxy",
+  "hardware_aoa_validated": false
+}
