@@ -1,0 +1,56 @@
+{
+  "status": "completed_coarse_pattern_weighted_clutter",
+  "physics_source": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_120_masked_microfacet_clutter\\masked_microfacet_clutter.csv",
+  "azimuth_pattern": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\antenna_pattern_azimuth.csv",
+  "elevation_pattern": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\antenna_pattern_elevation.csv",
+  "pattern_evidence": "coarse_digitization_from_TI_EVM_user_guide_figures",
+  "row_count": 9840,
+  "hardware_aoa_validated": false,
+  "summaries": [
+    {
+      "case_id": "ss0_flat",
+      "rows": 1968,
+      "unweighted_scatter_3db_sum": 0.0,
+      "pattern_weighted_scatter_3db_sum": 0.0,
+      "unweighted_scatter_6db_sum": 0.13551605919269175,
+      "pattern_weighted_scatter_6db_sum": 0.01337621844268737,
+      "mean_pattern_gain_dBi": -13.339256389082985
+    },
+    {
+      "case_id": "ss1_rippled",
+      "rows": 1968,
+      "unweighted_scatter_3db_sum": 0.0,
+      "pattern_weighted_scatter_3db_sum": 0.0,
+      "unweighted_scatter_6db_sum": 0.13816120014528704,
+      "pattern_weighted_scatter_6db_sum": 0.01346284325311646,
+      "mean_pattern_gain_dBi": -13.349688384504208
+    },
+    {
+      "case_id": "ss2_normal",
+      "rows": 1968,
+      "unweighted_scatter_3db_sum": 0.0366202800959308,
+      "pattern_weighted_scatter_3db_sum": 0.004397312974438041,
+      "unweighted_scatter_6db_sum": 0.20513633814311047,
+      "pattern_weighted_scatter_6db_sum": 0.02014919174330117,
+      "mean_pattern_gain_dBi": -13.198196393699963
+    },
+    {
+      "case_id": "ss3_nominal",
+      "rows": 1968,
+      "unweighted_scatter_3db_sum": 0.14976361432883664,
+      "pattern_weighted_scatter_3db_sum": 0.02173667528468828,
+      "unweighted_scatter_6db_sum": 0.36104837701345965,
+      "pattern_weighted_scatter_6db_sum": 0.04094617648116922,
+      "mean_pattern_gain_dBi": -12.836243755274324
+    },
+    {
+      "case_id": "ss3_upper",
+      "rows": 1968,
+      "unweighted_scatter_3db_sum": 0.1891346567474816,
+      "pattern_weighted_scatter_3db_sum": 0.029544322652979134,
+      "unweighted_scatter_6db_sum": 0.4227225480121645,
+      "pattern_weighted_scatter_6db_sum": 0.05110536522839098,
+      "mean_pattern_gain_dBi": -12.731970539181978
+    }
+  ]
+}
