@@ -1,0 +1,14 @@
+{
+  "status": "completed_cfg_lvds_comparison",
+  "target_cfg": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\Config\\profile_3d_3Azim_1ElevTx_awr2944P.cfg",
+  "reference_cfg": "D:\\hp-laptop\\USV\\awr2944_config_and_process_with_trace\\mathlab\\PostProc\\profile-2944.cfg",
+  "target_sha256": "5c605926277ab9f67bb3a11656b0640f37c49d455a709d40715b6200bf8d2027",
+  "reference_sha256": "6c62f836b9e284cb4ac332662cab6ff2ccd280e131f17083f5a4e59e2c2ae55d",
+  "target_lvds_present": false,
+  "reference_lvds_present": true,
+  "target_profile": "0 77 186 7 57.14 0 0 70 1 656 13349 0 0 158",
+  "reference_profile": "0 77 34 6 66 0 0 60 0 256 5000 0 0 30",
+  "target_frame": "0 3 16 0 656 100 1 0",
+  "reference_frame": "0 0 128 0 256 200 1 0",
+  "safe_to_replace_target_cfg": false
+}
