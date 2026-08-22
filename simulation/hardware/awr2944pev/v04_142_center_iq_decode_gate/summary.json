@@ -1,0 +1,28 @@
+{
+  "status": "decode_not_started_readiness_gate_failed",
+  "case_dir": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch\\lv003_az+00_el-10_r10",
+  "readiness": {
+    "status": "awaiting_center_capture_inputs",
+    "case_dir": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch\\lv003_az+00_el-10_r10",
+    "manifest": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch\\lv003_az+00_el-10_r10\\manifest.json",
+    "cfg": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch\\lv003_az+00_el-10_r10\\profile_3d_3Azim_1ElevTx_awr2944P.cfg",
+    "capture": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch\\lv003_az+00_el-10_r10\\capture.bin",
+    "cfg_sha256_expected": "d410727aea1f03c6211dcb58244386f7234bd17a5bdc23917848c5dee17135ac",
+    "cfg_sha256_actual": "d410727aea1f03c6211dcb58244386f7234bd17a5bdc23917848c5dee17135ac",
+    "capture_bytes": 0,
+    "issues": [
+      "capture_missing",
+      "capture_timestamp_missing",
+      "imu_or_platform_pose_reference_missing"
+    ],
+    "ready_for_decode": false,
+    "channel_order_verified": false,
+    "ti_calibration_status": "not_measured",
+    "hardware_aoa_validated": false,
+    "next_action": "complete the listed capture inputs, then rerun this check"
+  },
+  "decode_started": false,
+  "decoded": false,
+  "hardware_aoa_validated": false,
+  "next_action": "complete readiness issues, then rerun this command"
+}
