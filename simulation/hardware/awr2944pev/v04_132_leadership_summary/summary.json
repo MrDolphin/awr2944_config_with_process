@@ -1,0 +1,25 @@
+{
+  "status": "completed_leadership_summary",
+  "case_count": 5,
+  "model_count": 4,
+  "max_proxy_case": {
+    "case_id": "ss3_upper",
+    "model": "rf_endpoint_candidate",
+    "point_count": "293",
+    "nonzero_weight_points": "293",
+    "two_way_scatter_sum": "0.011640765516008669",
+    "mean_estimated_azimuth_deg": "-3.9044368600682593",
+    "mean_estimated_elevation_deg": "-0.5460750853242321"
+  },
+  "best_synthetic_aoa_model": {
+    "model": "ideal_half_lambda",
+    "active_rows": "1234",
+    "unique_angle_cache_entries": "1034",
+    "azimuth_rmse_deg": "1.2551722431548673",
+    "elevation_rmse_deg": "1.1717291186374945",
+    "one_way_scatter_sum": "0.16053676155066007",
+    "two_way_scatter_sum": "0.02340209814852092",
+    "mean_estimated_pattern_gain_dBi": "-9.183981631550513"
+  },
+  "real_hardware_validated": false
+}
