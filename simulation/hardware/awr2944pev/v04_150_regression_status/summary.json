@@ -1,0 +1,9 @@
+{
+  "status": "full_regression_passed",
+  "latest_stage": "V0.4.149",
+  "tests": 225,
+  "duration_s": 83.552,
+  "hardware_capture_present": false,
+  "hardware_aoa_validated": false,
+  "next_gate": "operator_center_angle_capture_then_v04_149_v04_142"
+}
