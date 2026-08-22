@@ -1,0 +1,10 @@
+{
+  "status": "completed_cfar_physics_join",
+  "cfar_source": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_45_cfar_sweep\\cfar_sweep.csv",
+  "physics_source": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_120_masked_microfacet_clutter\\case_summary.csv",
+  "row_count": 45,
+  "selected_scenario": "pfa1e3_train4",
+  "selected_rows": 5,
+  "hardware_aoa_validated": false,
+  "interpretation": "descriptive join of synthetic CFAR and physics proxies; no causal detection claim"
+}
