@@ -1,0 +1,28 @@
+{
+  "status": "completed_four_array_model_comparison",
+  "models": [
+    "ideal_half_lambda",
+    "pcb_copper_centroid",
+    "rf_endpoint_candidate",
+    "cfg_candidate"
+  ],
+  "azimuth_grid_deg": [
+    -60.0,
+    -40.0,
+    -20.0,
+    0.0,
+    20.0,
+    40.0,
+    60.0
+  ],
+  "elevation_grid_deg": [
+    -20.0,
+    -10.0,
+    0.0,
+    10.0,
+    20.0
+  ],
+  "hardware_aoa_validated": false,
+  "phase_center_ready": false,
+  "metrics_rows": 16
+}
