@@ -1,0 +1,11 @@
+{
+  "status": "completed_lvds_candidate_manifest_batch",
+  "case_count": 5,
+  "cfg": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_139_lvds_candidate_cfg\\profile_3d_3Azim_1ElevTx_awr2944P.cfg",
+  "cfg_sha256": "d410727aea1f03c6211dcb58244386f7234bd17a5bdc23917848c5dee17135ac",
+  "authoritative_hardware_cfg": false,
+  "real_capture_present": false,
+  "hardware_aoa_validated": false,
+  "evidence_status": "candidate_cfg_awaiting_operator_review",
+  "next_action": "operator_confirm_sdk_firmware_and_run_short_center_angle_capture"
+}
