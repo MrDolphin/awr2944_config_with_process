@@ -1,0 +1,12 @@
+{
+  "status": "project_status_snapshot_created",
+  "latest_stage": "V0.4.146",
+  "full_regression_tests": 220,
+  "full_regression_status": "passed",
+  "hardware_capture_present": false,
+  "hardware_aoa_validated": false,
+  "ti_calibration_verified": false,
+  "channel_order_verified": false,
+  "next_gate": "operator_center_angle_capture_then_v04_141_v04_142",
+  "evidence_stages": ["V0.4.140", "V0.4.141", "V0.4.142", "V0.4.143", "V0.4.144", "V0.4.145", "V0.4.146"]
+}
