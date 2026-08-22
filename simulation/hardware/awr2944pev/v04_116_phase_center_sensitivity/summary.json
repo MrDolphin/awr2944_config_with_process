@@ -1,0 +1,53 @@
+{
+  "status": "completed_phase_center_sensitivity",
+  "provisional_geometry": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_106_provisional_array_geometry\\virtual_array_coordinates.csv",
+  "actual_model": "ideal_half_lambda",
+  "truth_grid": {
+    "azimuth_deg": [
+      -45.0,
+      -30.0,
+      -15.0,
+      0.0,
+      15.0,
+      30.0,
+      45.0
+    ],
+    "elevation_deg": [
+      -10.0,
+      0.0,
+      10.0
+    ]
+  },
+  "rows": [
+    {
+      "phase_center_perturbation_mm": 0.0,
+      "azimuth_rmse_deg": 32.487360179438575,
+      "elevation_rmse_deg": 9.797958971132712,
+      "combined_rmse_deg": 23.99404688072201,
+      "max_abs_error_deg": 58.0
+    },
+    {
+      "phase_center_perturbation_mm": 0.25,
+      "azimuth_rmse_deg": 32.294773276064056,
+      "elevation_rmse_deg": 10.05698051817031,
+      "combined_rmse_deg": 23.91751699168664,
+      "max_abs_error_deg": 58.0
+    },
+    {
+      "phase_center_perturbation_mm": 0.5,
+      "azimuth_rmse_deg": 32.15142742887609,
+      "elevation_rmse_deg": 10.23532631438318,
+      "combined_rmse_deg": 23.858711097586458,
+      "max_abs_error_deg": 57.0
+    },
+    {
+      "phase_center_perturbation_mm": 1.0,
+      "azimuth_rmse_deg": 31.741515551778708,
+      "elevation_rmse_deg": 10.23532631438318,
+      "combined_rmse_deg": 23.582681296724026,
+      "max_abs_error_deg": 56.0
+    }
+  ],
+  "hardware_aoa_validated": false,
+  "interpretation": "synthetic bounded coordinate-error sensitivity; not measured antenna phase-center error"
+}
