@@ -1,0 +1,57 @@
+{
+  "status": "completed_dynamic_beam_coverage",
+  "input_root": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\stages\\v02_dynamic_sea_truth\\results\\matlab\\v02b_quick_seed101_hs1m\\data",
+  "case_count": 5,
+  "frame_count": 205,
+  "installation": {
+    "height_m": 1.0,
+    "mounting_pitch_deg": 5.0,
+    "azimuth_half_deg": 30.0,
+    "beam_3db_half_deg": 3.0,
+    "beam_6db_half_deg": 5.0
+  },
+  "cases": [
+    {
+      "case_id": "ss0_flat",
+      "frames": 41,
+      "mean_three_db_fraction": 0.04030403040304031,
+      "mean_six_db_fraction": 0.5717571757175718,
+      "three_db_near_min_m": 7.280109889280518,
+      "three_db_far_max_m": 28.635642126552707
+    },
+    {
+      "case_id": "ss1_rippled",
+      "frames": 41,
+      "mean_three_db_fraction": 0.04030159113472323,
+      "mean_six_db_fraction": 0.5717571757175718,
+      "three_db_near_min_m": 7.0,
+      "three_db_far_max_m": 29.410882339705484
+    },
+    {
+      "case_id": "ss2_normal",
+      "frames": 41,
+      "mean_three_db_fraction": 0.040674799187235794,
+      "mean_six_db_fraction": 0.5717669327908401,
+      "three_db_near_min_m": 6.082762530298219,
+      "three_db_far_max_m": 36.138621999185304
+    },
+    {
+      "case_id": "ss3_nominal",
+      "frames": 41,
+      "mean_three_db_fraction": 0.04309699262609187,
+      "mean_six_db_fraction": 0.571701072546279,
+      "three_db_near_min_m": 4.123105625617661,
+      "three_db_far_max_m": 45.18849411078001
+    },
+    {
+      "case_id": "ss3_upper",
+      "frames": 41,
+      "mean_three_db_fraction": 0.04333604092116528,
+      "mean_six_db_fraction": 0.5716474086433033,
+      "three_db_near_min_m": 4.0,
+      "three_db_far_max_m": 50.44799302251776
+    }
+  ],
+  "model_boundary": "height-only geometric beam mask; no measured antenna pattern, reflectivity, shadowing, vessel motion or CFAR",
+  "hardware_aoa_validated": false
+}
