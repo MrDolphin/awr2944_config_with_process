@@ -1,0 +1,55 @@
+{
+  "status": "completed_beam_masked_3d_point_cloud",
+  "input_root": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\stages\\v02_dynamic_sea_truth\\results\\matlab\\v02b_quick_seed101_hs1m\\data",
+  "output": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_119_beam_masked_point_cloud",
+  "selected_cases": [
+    {
+      "case_id": "ss0_flat",
+      "frame": 20,
+      "time_s": 10.0,
+      "point_count": 9999,
+      "three_db_points": 403,
+      "six_db_points": 5717
+    },
+    {
+      "case_id": "ss1_rippled",
+      "frame": 20,
+      "time_s": 10.0,
+      "point_count": 9999,
+      "three_db_points": 405,
+      "six_db_points": 5717
+    },
+    {
+      "case_id": "ss2_normal",
+      "frame": 20,
+      "time_s": 10.0,
+      "point_count": 9999,
+      "three_db_points": 404,
+      "six_db_points": 5717
+    },
+    {
+      "case_id": "ss3_nominal",
+      "frame": 20,
+      "time_s": 10.0,
+      "point_count": 9999,
+      "three_db_points": 437,
+      "six_db_points": 5716
+    },
+    {
+      "case_id": "ss3_upper",
+      "frame": 20,
+      "time_s": 10.0,
+      "point_count": 9999,
+      "three_db_points": 437,
+      "six_db_points": 5713
+    }
+  ],
+  "installation": {
+    "mounting_pitch_deg": 5.0,
+    "azimuth_half_deg": 30.0,
+    "beam_3db_half_deg": 3.0,
+    "beam_6db_half_deg": 5.0
+  },
+  "point_cloud_semantics": "surface geometry points with beam masks; no scattering amplitude or radar detection",
+  "hardware_aoa_validated": false
+}
