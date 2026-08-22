@@ -1,0 +1,10 @@
+{
+  "status": "completed_v111_capture_completeness_check",
+  "planned_count": 30,
+  "basic_complete_count": 0,
+  "ready_for_v0112_count": 0,
+  "coverage_fraction": 0.0,
+  "ready_fraction": 0.0,
+  "hardware_aoa_validated": false,
+  "next_action": "collect missing capture.bin/HDF5 files"
+}
