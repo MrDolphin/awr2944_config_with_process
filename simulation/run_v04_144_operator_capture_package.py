@@ -55,7 +55,7 @@ def run(cfg: Path, dca_reference: Path, output: Path) -> dict:
         "## 人工执行顺序", "",
         "1. 确认 AWR2944P SDK/固件接受 V0.4.139 候选 CFG；确认不使用正式配置覆盖。",
         "2. 确认 PC 网卡、DCA1000 IP、MAC、配置端口和数据端口与现场实际值一致；历史 JSON 中的地址不能直接照搬。",
-        "3. 在 DCA1000 CLI 安装目录运行 `DCA1000EVM_CLI_Control.exe --help` 和 `DCA1000EVM_CLI_Record.exe --help`，按本机 CLI 版本确认参数顺序。",
+        "3. 当前已验证这套 CLI 使用 `-h`（不是 `--help`）：运行 `DCA1000EVM_CLI_Control.exe -h` 和 `DCA1000EVM_CLI_Record.exe -h`；再按本机 CLI 版本确认 JSON 参数顺序。",
         "4. 先布置中心角 10 m 角反射器，记录安装高度、方位/俯仰和 IMU 姿态。",
         "5. 手工执行 FPGA/configure、record/start、短时停止；不要在本项目脚本中自动下发。",
         "6. 把原始文件复制到 V0.4.140 的 `lv003_az+00_el-10_r10`，并记录文件 SHA-256。",

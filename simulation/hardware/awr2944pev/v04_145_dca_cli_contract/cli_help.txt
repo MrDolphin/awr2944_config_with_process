@@ -1,0 +1,30 @@
+V0.4.145 read-only CLI contract evidence
+
+Commands executed locally:
+DCA1000EVM_CLI_Control.exe (no arguments)
+DCA1000EVM_CLI_Record.exe (no arguments)
+
+CONTROL OPTIONS
+fpga Configure FPGA
+eeprom Update EEPROM
+reset_fpga Reset FPGA
+reset_ar_device Reset AR Device
+start_record Start Record
+stop_record Stop Record
+record Configure Record delay
+dll_version Read DLL version
+cli_version Read CLI_Control tool version
+fpga_version Read FPGA version
+query_status Read status of record process
+query_sys_status DCA1000EVM System aliveness
+-h List of commands supported
+-q Quiet mode - No status display in the console
+
+RECORD OPTIONS
+start_record Start Record
+dll_version Read DLL version
+cli_version Read CLI_Record tool version
+-h List of commands supported
+-q Quiet mode - No status display in the console
+
+No hardware command, network command, FPGA configuration, or record command was executed.

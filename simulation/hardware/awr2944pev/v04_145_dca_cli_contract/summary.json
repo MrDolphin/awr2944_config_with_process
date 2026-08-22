@@ -1,0 +1,10 @@
+{
+  "status": "dca_cli_syntax_confirmed_read_only",
+  "control_cli_present": true,
+  "record_cli_present": true,
+  "help_argument": "-h",
+  "long_help_argument_supported": false,
+  "hardware_commands_executed": false,
+  "network_commands_executed": false,
+  "next_action": "operator_verify_json_and_network_then_capture_center_case"
+}
