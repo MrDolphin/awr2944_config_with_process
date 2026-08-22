@@ -1,0 +1,70 @@
+{
+  "status": "awaiting_known_angle_manifests",
+  "input_root": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_135_known_angle_manifest_batch",
+  "candidate_csv": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\virtual_array_coordinates.csv",
+  "manifest_count": 5,
+  "processed_capture_count": 0,
+  "failure_count": 5,
+  "failures": [
+    {
+      "capture_id": "ka001_az-30_el-10_r10",
+      "manifest": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_135_known_angle_manifest_batch\\ka001_az-30_el-10_r10\\manifest.json",
+      "error": "FileNotFoundError: [Errno 2] No such file or directory: 'D:\\\\hp-laptop\\\\USV\\\\awr2944_sea_clutter_v02\\\\simulation\\\\hardware\\\\awr2944pev\\\\v04_135_known_angle_manifest_batch\\\\ka001_az-30_el-10_r10\\\\capture.bin'"
+    },
+    {
+      "capture_id": "ka002_az-15_el-10_r10",
+      "manifest": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_135_known_angle_manifest_batch\\ka002_az-15_el-10_r10\\manifest.json",
+      "error": "FileNotFoundError: [Errno 2] No such file or directory: 'D:\\\\hp-laptop\\\\USV\\\\awr2944_sea_clutter_v02\\\\simulation\\\\hardware\\\\awr2944pev\\\\v04_135_known_angle_manifest_batch\\\\ka002_az-15_el-10_r10\\\\capture.bin'"
+    },
+    {
+      "capture_id": "ka003_az+00_el-10_r10",
+      "manifest": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_135_known_angle_manifest_batch\\ka003_az+00_el-10_r10\\manifest.json",
+      "error": "FileNotFoundError: [Errno 2] No such file or directory: 'D:\\\\hp-laptop\\\\USV\\\\awr2944_sea_clutter_v02\\\\simulation\\\\hardware\\\\awr2944pev\\\\v04_135_known_angle_manifest_batch\\\\ka003_az+00_el-10_r10\\\\capture.bin'"
+    },
+    {
+      "capture_id": "ka004_az+15_el-10_r10",
+      "manifest": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_135_known_angle_manifest_batch\\ka004_az+15_el-10_r10\\manifest.json",
+      "error": "FileNotFoundError: [Errno 2] No such file or directory: 'D:\\\\hp-laptop\\\\USV\\\\awr2944_sea_clutter_v02\\\\simulation\\\\hardware\\\\awr2944pev\\\\v04_135_known_angle_manifest_batch\\\\ka004_az+15_el-10_r10\\\\capture.bin'"
+    },
+    {
+      "capture_id": "ka005_az+30_el-10_r10",
+      "manifest": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_135_known_angle_manifest_batch\\ka005_az+30_el-10_r10\\manifest.json",
+      "error": "FileNotFoundError: [Errno 2] No such file or directory: 'D:\\\\hp-laptop\\\\USV\\\\awr2944_sea_clutter_v02\\\\simulation\\\\hardware\\\\awr2944pev\\\\v04_135_known_angle_manifest_batch\\\\ka005_az+30_el-10_r10\\\\capture.bin'"
+    }
+  ],
+  "aggregate": [
+    {
+      "transform": "identity",
+      "capture_count": 0,
+      "combined_rmse_deg": null,
+      "mean_combined_error_deg": null,
+      "max_combined_error_deg": null
+    },
+    {
+      "transform": "mirror_x",
+      "capture_count": 0,
+      "combined_rmse_deg": null,
+      "mean_combined_error_deg": null,
+      "max_combined_error_deg": null
+    },
+    {
+      "transform": "mirror_y",
+      "capture_count": 0,
+      "combined_rmse_deg": null,
+      "mean_combined_error_deg": null,
+      "max_combined_error_deg": null
+    },
+    {
+      "transform": "rotate_180",
+      "capture_count": 0,
+      "combined_rmse_deg": null,
+      "mean_combined_error_deg": null,
+      "max_combined_error_deg": null
+    }
+  ],
+  "best_transform_by_batch_rmse": null,
+  "hardware_aoa_validated": false,
+  "evidence_status": "real_capture_candidate_only_until_channel_order_calibration_and_phase_center_are_verified",
+  "stage": "v04.136_known_angle_batch_gate",
+  "real_capture_required": true
+}
