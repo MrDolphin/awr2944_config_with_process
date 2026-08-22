@@ -1,0 +1,77 @@
+{
+  "status": "completed_masked_microfacet_clutter_proxy",
+  "input_root": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\stages\\v02_dynamic_sea_truth\\results\\matlab\\v02b_quick_seed101_hs1m\\data",
+  "case_count": 5,
+  "row_count": 9840,
+  "installation": {
+    "mounting_pitch_deg": 5.0,
+    "azimuth_half_deg": 30.0,
+    "beam_3db_half_deg": 3.0,
+    "beam_6db_half_deg": 5.0
+  },
+  "physics_source": "V0.42 normal/incidence/radial velocity/Doppler/scatter proxy",
+  "point_cloud_semantics": "masked microfacet clutter proxy, not measured radar detections",
+  "hardware_aoa_validated": false,
+  "cases": [
+    {
+      "case_id": "ss0_flat",
+      "frames": 41,
+      "candidate_facets": 1968,
+      "three_db_facets": 0,
+      "six_db_facets": 205,
+      "mean_three_db_scatter_proxy": 0.0,
+      "mean_six_db_scatter_proxy": 6.885978617514823e-05,
+      "three_db_doppler_min_hz": null,
+      "three_db_doppler_max_hz": null,
+      "rms_three_db_radial_velocity_mps": null
+    },
+    {
+      "case_id": "ss1_rippled",
+      "frames": 41,
+      "candidate_facets": 1968,
+      "three_db_facets": 0,
+      "six_db_facets": 207,
+      "mean_three_db_scatter_proxy": 0.0,
+      "mean_six_db_scatter_proxy": 7.02038618624426e-05,
+      "three_db_doppler_min_hz": null,
+      "three_db_doppler_max_hz": null,
+      "rms_three_db_radial_velocity_mps": null
+    },
+    {
+      "case_id": "ss2_normal",
+      "frames": 41,
+      "candidate_facets": 1968,
+      "three_db_facets": 53,
+      "six_db_facets": 242,
+      "mean_three_db_scatter_proxy": 1.8607865902403863e-05,
+      "mean_six_db_scatter_proxy": 0.00010423594417840978,
+      "three_db_doppler_min_hz": -34.36447470415653,
+      "three_db_doppler_max_hz": 36.310012112098356,
+      "rms_three_db_radial_velocity_mps": 0.033301058342641826
+    },
+    {
+      "case_id": "ss3_nominal",
+      "frames": 41,
+      "candidate_facets": 1968,
+      "three_db_facets": 141,
+      "six_db_facets": 287,
+      "mean_three_db_scatter_proxy": 7.609939752481536e-05,
+      "mean_six_db_scatter_proxy": 0.00018345954116537585,
+      "three_db_doppler_min_hz": -70.71705346796438,
+      "three_db_doppler_max_hz": 74.3392033078437,
+      "rms_three_db_radial_velocity_mps": 0.05873817636870695
+    },
+    {
+      "case_id": "ss3_upper",
+      "frames": 41,
+      "candidate_facets": 1968,
+      "three_db_facets": 159,
+      "six_db_facets": 293,
+      "mean_three_db_scatter_proxy": 9.610500850989918e-05,
+      "mean_six_db_scatter_proxy": 0.00021479804268910798,
+      "three_db_doppler_min_hz": -86.84905879161609,
+      "three_db_doppler_max_hz": 85.71472244729465,
+      "rms_three_db_radial_velocity_mps": 0.06775398045984175
+    }
+  ]
+}
