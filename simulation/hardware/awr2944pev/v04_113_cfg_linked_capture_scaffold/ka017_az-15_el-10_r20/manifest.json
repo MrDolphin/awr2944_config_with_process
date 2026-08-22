@@ -1,0 +1,70 @@
+{
+  "schema_version": "awr2944p-known-angle-capture-v0.4.111",
+  "capture_id": "ka017_az-15_el-10_r20",
+  "capture_file": "capture.bin",
+  "capture_sha256": null,
+  "target": {
+    "type": "corner_reflector",
+    "azimuth_deg": -15.0,
+    "elevation_deg": -10.0,
+    "range_m": 20.0,
+    "radial_velocity_mps": 0.0,
+    "truth_source": "survey_or_total_station"
+  },
+  "radar_pose": {
+    "installation_height_m": 1.0,
+    "boresight_azimuth_deg": 0.0,
+    "boresight_elevation_deg": 0.0,
+    "board_to_radar_transform_candidate": "identity",
+    "pose_source": "mechanical_measurement_required"
+  },
+  "capture": {
+    "cfg_file": "profile_3d_3Azim_1ElevTx_awr2944P.cfg",
+    "cfg_sha256": "5c605926277ab9f67bb3a11656b0640f37c49d455a709d40715b6200bf8d2027",
+    "raw_dtype": "int16",
+    "wire_order_assumption": "sample_rx_iq",
+    "tdm_tx_sequence": [
+      0,
+      2,
+      3,
+      1
+    ],
+    "chirps": 64,
+    "samples_per_chirp": 656,
+    "rx_count": 4,
+    "frame_count": 0,
+    "channel_order_verified": false,
+    "capture_timestamp": "replace_with_iso8601",
+    "imu_or_platform_pose_reference": "replace_with_imu_log_or_none"
+  },
+  "calibration": {
+    "ti_calibration_status": "not_measured",
+    "calibration_file": null,
+    "calibration_sha256": null
+  },
+  "cfg_geometry": {
+    "profile_id": 0,
+    "start_frequency_ghz": 77.0,
+    "adc_samples": 656,
+    "frame_start_chirp": 0,
+    "frame_end_chirp": 3,
+    "loops_per_frame": 16,
+    "chirps_per_frame": 64,
+    "chirp_count": 4,
+    "tx_masks": [
+      1,
+      4,
+      8,
+      2
+    ],
+    "tx_order_bit_index": [
+      0,
+      2,
+      3,
+      1
+    ],
+    "rx_count": 4,
+    "source_sha256": "5c605926277ab9f67bb3a11656b0640f37c49d455a709d40715b6200bf8d2027"
+  },
+  "evidence_status": "planned_awaiting_capture"
+}
