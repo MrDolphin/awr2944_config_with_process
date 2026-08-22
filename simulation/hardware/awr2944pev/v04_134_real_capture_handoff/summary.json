@@ -1,0 +1,73 @@
+{
+  "status": "completed_real_capture_handoff",
+  "case_count": 5,
+  "cases": [
+    {
+      "capture_id": "ka001_az-30_el-10_r10",
+      "azimuth_deg": -30,
+      "elevation_deg": -10,
+      "range_m": 10,
+      "directory": "ka001_az-30_el-10_r10",
+      "raw_file": "capture.bin",
+      "cfg_file": "profile_3d_3Azim_1ElevTx_awr2944P.cfg",
+      "dca1000_config_file": "dca1000_config.json",
+      "calibration_file": "ti_calibration.json",
+      "imu_pose_file": "imu_pose.csv",
+      "required_before_decode": "capture.bin + manifest.json + CFG hash + DCA1000 config + calibration status + pose reference"
+    },
+    {
+      "capture_id": "ka002_az-15_el-10_r10",
+      "azimuth_deg": -15,
+      "elevation_deg": -10,
+      "range_m": 10,
+      "directory": "ka002_az-15_el-10_r10",
+      "raw_file": "capture.bin",
+      "cfg_file": "profile_3d_3Azim_1ElevTx_awr2944P.cfg",
+      "dca1000_config_file": "dca1000_config.json",
+      "calibration_file": "ti_calibration.json",
+      "imu_pose_file": "imu_pose.csv",
+      "required_before_decode": "capture.bin + manifest.json + CFG hash + DCA1000 config + calibration status + pose reference"
+    },
+    {
+      "capture_id": "ka003_az+00_el-10_r10",
+      "azimuth_deg": 0,
+      "elevation_deg": -10,
+      "range_m": 10,
+      "directory": "ka003_az+00_el-10_r10",
+      "raw_file": "capture.bin",
+      "cfg_file": "profile_3d_3Azim_1ElevTx_awr2944P.cfg",
+      "dca1000_config_file": "dca1000_config.json",
+      "calibration_file": "ti_calibration.json",
+      "imu_pose_file": "imu_pose.csv",
+      "required_before_decode": "capture.bin + manifest.json + CFG hash + DCA1000 config + calibration status + pose reference"
+    },
+    {
+      "capture_id": "ka004_az+15_el-10_r10",
+      "azimuth_deg": 15,
+      "elevation_deg": -10,
+      "range_m": 10,
+      "directory": "ka004_az+15_el-10_r10",
+      "raw_file": "capture.bin",
+      "cfg_file": "profile_3d_3Azim_1ElevTx_awr2944P.cfg",
+      "dca1000_config_file": "dca1000_config.json",
+      "calibration_file": "ti_calibration.json",
+      "imu_pose_file": "imu_pose.csv",
+      "required_before_decode": "capture.bin + manifest.json + CFG hash + DCA1000 config + calibration status + pose reference"
+    },
+    {
+      "capture_id": "ka005_az+30_el-10_r10",
+      "azimuth_deg": 30,
+      "elevation_deg": -10,
+      "range_m": 10,
+      "directory": "ka005_az+30_el-10_r10",
+      "raw_file": "capture.bin",
+      "cfg_file": "profile_3d_3Azim_1ElevTx_awr2944P.cfg",
+      "dca1000_config_file": "dca1000_config.json",
+      "calibration_file": "ti_calibration.json",
+      "imu_pose_file": "imu_pose.csv",
+      "required_before_decode": "capture.bin + manifest.json + CFG hash + DCA1000 config + calibration status + pose reference"
+    }
+  ],
+  "real_capture_present": false,
+  "next_gate": "run V0.4.133 after placing capture.bin and completed manifests"
+}
