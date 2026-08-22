@@ -1,0 +1,14 @@
+{
+  "status": "completed_grid_beam_aoa",
+  "models": [
+    "ideal_half_lambda",
+    "pcb_copper_centroid",
+    "rf_endpoint_candidate",
+    "cfg_candidate"
+  ],
+  "azimuth_grid_step_deg": 2.0,
+  "elevation_grid_step_deg": 2.0,
+  "truth_case_count": 560,
+  "hardware_aoa_validated": false,
+  "phase_center_ready": false
+}
