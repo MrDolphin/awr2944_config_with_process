@@ -108,6 +108,11 @@ def parse_args() -> argparse.Namespace:
         help="Send a DCA1000 record-stop command when capture exits.",
     )
     parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Parse CFG/DCA settings and print the capture plan without opening UDP or sending commands.",
+    )
+    parser.add_argument(
         "--socket-buffer-mb",
         type=int,
         default=128,
@@ -331,6 +336,25 @@ def capture(args: argparse.Namespace) -> int:
             "in the radar profile, for example: lvdsStreamCfg -1 0 1 0",
             file=sys.stderr,
         )
+
+    if args.dry_run:
+        plan = {
+            "status": "dry_run_only",
+            "hardware_commands_executed": False,
+            "udp_socket_opened": False,
+            "dca_ip": dca_ip,
+            "config_port": config_port,
+            "data_port": data_port,
+            "listen_ip": args.listen_ip,
+            "duration_s": args.duration,
+            "bytes": args.bytes,
+            "frames": args.frames,
+            "radar_cfg": radar_cfg,
+            "cfg": str(Path(args.cfg).resolve()) if args.cfg else None,
+            "cf_json": str(Path(args.cf_json).resolve()) if args.cf_json else None,
+        }
+        print(json.dumps(plan, ensure_ascii=False, indent=2))
+        return 0
 
     out_base = choose_output_dir(args.output_dir, args.min_free_gb)
     bin_path, meta_path = make_capture_paths(out_base, args.prefix)

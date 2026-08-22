@@ -1,0 +1,56 @@
+{
+  "status": "dry_run_only",
+  "hardware_commands_executed": false,
+  "udp_socket_opened": false,
+  "dca_ip": "<operator_verify>",
+  "config_port": 4096,
+  "data_port": 4098,
+  "listen_ip": "0.0.0.0",
+  "duration_s": 3.0,
+  "bytes": null,
+  "frames": null,
+  "radar_cfg": {
+    "cfg_path": "simulation\\hardware\\awr2944pev\\v04_139_lvds_candidate_cfg\\profile_3d_3Azim_1ElevTx_awr2944P.cfg",
+    "rx_mask": 15,
+    "tx_mask": 15,
+    "num_rx": 4,
+    "num_tx": 4,
+    "adc_output_fmt": 2,
+    "adcbuf_cfg": [
+      "-1",
+      "1",
+      "1",
+      "1",
+      "1"
+    ],
+    "start_freq_ghz": 77.0,
+    "idle_time_us": 186.0,
+    "adc_start_time_us": 7.0,
+    "ramp_end_time_us": 57.14,
+    "freq_slope_mhz_per_us": 70.0,
+    "num_adc_samples": 656,
+    "sample_rate_ksps": 13349.0,
+    "frame_num_adc_samples": 656,
+    "frame_chirp_start": 0,
+    "frame_chirp_end": 3,
+    "num_loops": 16,
+    "frame_period_ms": 100.0,
+    "num_chirps_per_loop": 4,
+    "num_chirps_per_frame": 64,
+    "lvds_stream_cfg": [
+      "-1",
+      "0",
+      "1",
+      "0"
+    ],
+    "chirp_tx_masks": {
+      "0": 1,
+      "1": 4,
+      "2": 8,
+      "3": 2
+    },
+    "estimated_payload_bytes_per_frame": 671744
+  },
+  "cfg": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_139_lvds_candidate_cfg\\profile_3d_3Azim_1ElevTx_awr2944P.cfg",
+  "cf_json": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_144_operator_capture_package\\dca1000_reference_sanitized.json"
+}
