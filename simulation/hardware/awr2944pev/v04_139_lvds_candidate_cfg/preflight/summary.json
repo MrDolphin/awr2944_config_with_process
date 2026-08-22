@@ -1,0 +1,17 @@
+{
+  "status": "completed_capture_environment_preflight",
+  "checks": {
+    "cfg_exists": true,
+    "lvds_stream_config_present": true,
+    "dca1000_cli_control_present": true,
+    "dca1000_cli_record_present": true,
+    "python_serial_present": true,
+    "python_numpy_present": true,
+    "python_h5py_present": true,
+    "output_writable": true
+  },
+  "hardware_connected": false,
+  "capture_started": false,
+  "ready_for_operator_capture": true,
+  "next_action": "connect hardware and run the handoff command only after operator review"
+}

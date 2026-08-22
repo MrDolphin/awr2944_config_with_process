@@ -1,0 +1,13 @@
+{
+  "status": "completed_lvds_candidate_cfg",
+  "source_cfg": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\Config\\profile_3d_3Azim_1ElevTx_awr2944P.cfg",
+  "candidate_cfg": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_139_lvds_candidate_cfg\\profile_3d_3Azim_1ElevTx_awr2944P.cfg",
+  "source_sha256": "5c605926277ab9f67bb3a11656b0640f37c49d455a709d40715b6200bf8d2027",
+  "candidate_sha256": "d410727aea1f03c6211dcb58244386f7234bd17a5bdc23917848c5dee17135ac",
+  "lvds_line": "lvdsStreamCfg -1 0 1 0",
+  "inserted": true,
+  "same_profile_and_frame": true,
+  "authoritative_hardware_cfg": false,
+  "ti_board_validation": false,
+  "next_action": "review against TI SDK/board version, then perform short operator-approved center-angle capture"
+}
