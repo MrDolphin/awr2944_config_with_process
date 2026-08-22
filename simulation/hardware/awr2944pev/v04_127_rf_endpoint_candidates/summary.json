@@ -1,0 +1,112 @@
+{
+  "status": "completed_rf_endpoint_candidate_extraction",
+  "row_count": 8,
+  "candidate_method": "farthest endpoint in each TX/RX graph from package pad",
+  "phase_center_ready": false,
+  "candidates": [
+    {
+      "net": "RX1",
+      "candidate_kind": "farthest_rf_graph_endpoint",
+      "x_mil": 5487.127,
+      "y_mil": 4948.7637,
+      "x_mm": 139.3730258,
+      "y_mm": 125.69859798,
+      "package_pad_x_mil": 5522.5601,
+      "package_pad_y_mil": 4591.2597,
+      "distance_from_package_pad_mil": 359.2556396100283,
+      "distance_to_copper_centroid_mil": 375.10434007796226,
+      "coordinate_status": "rf_graph_endpoint_candidate_not_phase_center"
+    },
+    {
+      "net": "RX2",
+      "candidate_kind": "farthest_rf_graph_endpoint",
+      "x_mil": 5561.9302,
+      "y_mil": 4948.7637,
+      "x_mm": 141.27302708,
+      "y_mm": 125.69859798,
+      "package_pad_x_mil": 5573.7412,
+      "package_pad_y_mil": 4591.2597,
+      "distance_from_package_pad_mil": 357.6990491139173,
+      "distance_to_copper_centroid_mil": 375.10434007796226,
+      "coordinate_status": "rf_graph_endpoint_candidate_not_phase_center"
+    },
+    {
+      "net": "RX3",
+      "candidate_kind": "farthest_rf_graph_endpoint",
+      "x_mil": 5636.7333,
+      "y_mil": 4948.7637,
+      "x_mm": 143.17302582,
+      "y_mm": 125.69859798,
+      "package_pad_x_mil": 5624.9223,
+      "package_pad_y_mil": 4591.2597,
+      "distance_from_package_pad_mil": 357.6990491139172,
+      "distance_to_copper_centroid_mil": 375.10434007796226,
+      "coordinate_status": "rf_graph_endpoint_candidate_not_phase_center"
+    },
+    {
+      "net": "RX4",
+      "candidate_kind": "farthest_rf_graph_endpoint",
+      "x_mil": 5711.5365,
+      "y_mil": 4948.7637,
+      "x_mm": 145.0730271,
+      "y_mm": 125.69859798,
+      "package_pad_x_mil": 5676.1034,
+      "package_pad_y_mil": 4591.2597,
+      "distance_from_package_pad_mil": 359.25563961002837,
+      "distance_to_copper_centroid_mil": 375.10434007796226,
+      "coordinate_status": "rf_graph_endpoint_candidate_not_phase_center"
+    },
+    {
+      "net": "TX1",
+      "candidate_kind": "farthest_rf_graph_endpoint",
+      "x_mil": 6296.8369,
+      "y_mil": 4719.3762,
+      "x_mm": 159.93965726,
+      "y_mm": 119.87215547999999,
+      "package_pad_x_mil": 5778.4656,
+      "package_pad_y_mil": 4565.6692,
+      "distance_from_package_pad_mil": 540.6798003557093,
+      "distance_to_copper_centroid_mil": 687.3551397558059,
+      "coordinate_status": "rf_graph_endpoint_candidate_not_phase_center"
+    },
+    {
+      "net": "TX2",
+      "candidate_kind": "farthest_rf_graph_endpoint",
+      "x_mil": 6132.7031,
+      "y_mil": 5080.0625,
+      "x_mm": 155.77065874,
+      "y_mm": 129.03358749999998,
+      "package_pad_x_mil": 5778.4656,
+      "package_pad_y_mil": 4514.4881,
+      "distance_from_package_pad_mil": 667.351937392565,
+      "distance_to_copper_centroid_mil": 372.2040794382594,
+      "coordinate_status": "rf_graph_endpoint_candidate_not_phase_center"
+    },
+    {
+      "net": "TX3",
+      "candidate_kind": "farthest_rf_graph_endpoint",
+      "x_mil": 6467.8622000000005,
+      "y_mil": 4808.6333,
+      "x_mm": 164.28369988,
+      "y_mm": 122.13928582000001,
+      "package_pad_x_mil": 5778.4656,
+      "package_pad_y_mil": 4463.307,
+      "distance_from_package_pad_mil": 771.0498852624586,
+      "distance_to_copper_centroid_mil": 550.5678473760369,
+      "coordinate_status": "rf_graph_endpoint_candidate_not_phase_center"
+    },
+    {
+      "net": "TX4",
+      "candidate_kind": "farthest_rf_graph_endpoint",
+      "x_mil": 6595.5377,
+      "y_mil": 4956.6373,
+      "x_mm": 167.52665757999998,
+      "y_mm": 125.89858742,
+      "package_pad_x_mil": 5778.4656,
+      "package_pad_y_mil": 4412.1259,
+      "distance_from_package_pad_mil": 981.885676302679,
+      "distance_to_copper_centroid_mil": 372.2040794382603,
+      "coordinate_status": "rf_graph_endpoint_candidate_not_phase_center"
+    }
+  ]
+}

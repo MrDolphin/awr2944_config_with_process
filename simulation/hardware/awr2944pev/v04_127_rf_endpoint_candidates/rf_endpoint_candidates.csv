@@ -1,0 +1,9 @@
+net,candidate_kind,x_mil,y_mil,x_mm,y_mm,package_pad_x_mil,package_pad_y_mil,distance_from_package_pad_mil,distance_to_copper_centroid_mil,coordinate_status
+RX1,farthest_rf_graph_endpoint,5487.127,4948.7637,139.3730258,125.69859798,5522.5601,4591.2597,359.2556396100283,375.10434007796226,rf_graph_endpoint_candidate_not_phase_center
+RX2,farthest_rf_graph_endpoint,5561.9302,4948.7637,141.27302708,125.69859798,5573.7412,4591.2597,357.6990491139173,375.10434007796226,rf_graph_endpoint_candidate_not_phase_center
+RX3,farthest_rf_graph_endpoint,5636.7333,4948.7637,143.17302582,125.69859798,5624.9223,4591.2597,357.6990491139172,375.10434007796226,rf_graph_endpoint_candidate_not_phase_center
+RX4,farthest_rf_graph_endpoint,5711.5365,4948.7637,145.0730271,125.69859798,5676.1034,4591.2597,359.25563961002837,375.10434007796226,rf_graph_endpoint_candidate_not_phase_center
+TX1,farthest_rf_graph_endpoint,6296.8369,4719.3762,159.93965726,119.87215547999999,5778.4656,4565.6692,540.6798003557093,687.3551397558059,rf_graph_endpoint_candidate_not_phase_center
+TX2,farthest_rf_graph_endpoint,6132.7031,5080.0625,155.77065874,129.03358749999998,5778.4656,4514.4881,667.351937392565,372.2040794382594,rf_graph_endpoint_candidate_not_phase_center
+TX3,farthest_rf_graph_endpoint,6467.8622000000005,4808.6333,164.28369988,122.13928582000001,5778.4656,4463.307,771.0498852624586,550.5678473760369,rf_graph_endpoint_candidate_not_phase_center
+TX4,farthest_rf_graph_endpoint,6595.5377,4956.6373,167.52665757999998,125.89858742,5778.4656,4412.1259,981.885676302679,372.2040794382603,rf_graph_endpoint_candidate_not_phase_center
