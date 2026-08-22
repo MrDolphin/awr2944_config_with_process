@@ -1,0 +1,20 @@
+{
+  "status": "completed_project_status_report",
+  "evidence": {
+    "v04_114_capture_ready": 0,
+    "v04_114_planned": 30,
+    "v04_115_iq_shape": [
+      64,
+      656,
+      4
+    ],
+    "v04_118_case_count": 5,
+    "v04_118_frame_count": 205,
+    "v04_120_row_count": 9840,
+    "v04_121_rows": 45,
+    "v04_122_rows": 88
+  },
+  "hardware_aoa_validated": false,
+  "real_dca_iq_available": false,
+  "next_gate": "collect first real DCA1000 ADC IQ in ka001-ka005 and rerun V0.114/V0.112"
+}
