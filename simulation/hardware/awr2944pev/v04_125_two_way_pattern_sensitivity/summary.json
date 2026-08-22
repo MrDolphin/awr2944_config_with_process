@@ -1,0 +1,49 @@
+{
+  "status": "completed_one_way_two_way_pattern_sensitivity",
+  "physics_source": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_120_masked_microfacet_clutter\\masked_microfacet_clutter.csv",
+  "pattern_evidence": "coarse_digitization_from_TI_EVM_user_guide_figures",
+  "case_count": 5,
+  "hardware_aoa_validated": false,
+  "summaries": [
+    {
+      "case_id": "ss0_flat",
+      "unweighted_3db_sum": 0.0,
+      "one_way_3db_sum": 0.0,
+      "two_way_3db_sum": 0.0,
+      "one_way_over_unweighted": null,
+      "two_way_over_unweighted": null
+    },
+    {
+      "case_id": "ss1_rippled",
+      "unweighted_3db_sum": 0.0,
+      "one_way_3db_sum": 0.0,
+      "two_way_3db_sum": 0.0,
+      "one_way_over_unweighted": null,
+      "two_way_over_unweighted": null
+    },
+    {
+      "case_id": "ss2_normal",
+      "unweighted_3db_sum": 0.0366202800959308,
+      "one_way_3db_sum": 0.004397312974438041,
+      "two_way_3db_sum": 0.0005478275642559054,
+      "one_way_over_unweighted": 0.12007862755060317,
+      "two_way_over_unweighted": 0.014959677064752416
+    },
+    {
+      "case_id": "ss3_nominal",
+      "unweighted_3db_sum": 0.14976361432883664,
+      "one_way_3db_sum": 0.02173667528468828,
+      "two_way_3db_sum": 0.003403353002450823,
+      "one_way_over_unweighted": 0.1451398951748117,
+      "two_way_over_unweighted": 0.02272483218105344
+    },
+    {
+      "case_id": "ss3_upper",
+      "unweighted_3db_sum": 0.1891346567474816,
+      "one_way_3db_sum": 0.029544322652979134,
+      "two_way_3db_sum": 0.005092959679018671,
+      "one_way_over_unweighted": 0.15620787412020684,
+      "two_way_over_unweighted": 0.02692769144799522
+    }
+  ]
+}
