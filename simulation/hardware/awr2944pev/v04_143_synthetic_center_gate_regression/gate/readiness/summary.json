@@ -1,0 +1,16 @@
+{
+  "status": "center_capture_ready_for_decode",
+  "case_dir": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_143_synthetic_center_gate_regression\\synthetic_center_case",
+  "manifest": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_143_synthetic_center_gate_regression\\synthetic_center_case\\manifest.json",
+  "cfg": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_143_synthetic_center_gate_regression\\synthetic_center_case\\profile_3d_3Azim_1ElevTx_awr2944P.cfg",
+  "capture": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_143_synthetic_center_gate_regression\\synthetic_center_case\\synthetic_capture.bin",
+  "cfg_sha256_expected": "d410727aea1f03c6211dcb58244386f7234bd17a5bdc23917848c5dee17135ac",
+  "cfg_sha256_actual": "d410727aea1f03c6211dcb58244386f7234bd17a5bdc23917848c5dee17135ac",
+  "capture_bytes": 671744,
+  "issues": [],
+  "ready_for_decode": true,
+  "channel_order_verified": false,
+  "ti_calibration_status": "not_measured",
+  "hardware_aoa_validated": false,
+  "next_action": "run V0.4.112 manifest IQ decode"
+}
