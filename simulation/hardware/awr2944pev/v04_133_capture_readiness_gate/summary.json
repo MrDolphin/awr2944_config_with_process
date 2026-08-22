@@ -1,0 +1,10 @@
+{
+  "status": "completed_capture_readiness_gate",
+  "root": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_113_cfg_linked_capture_scaffold",
+  "manifest_count": 30,
+  "ready_count": 0,
+  "real_dca_iq_admitted": false,
+  "channel_order_verified": false,
+  "ti_calibration_verified": false,
+  "next_action": "collect real capture.bin and complete manifest fields"
+}
