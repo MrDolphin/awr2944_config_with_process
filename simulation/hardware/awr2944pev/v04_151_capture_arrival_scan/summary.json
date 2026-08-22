@@ -1,0 +1,238 @@
+{
+  "status": "capture_arrival_scan_completed",
+  "cases_root": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch",
+  "output": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_151_capture_arrival_scan",
+  "case_count": 5,
+  "geometry_ready_count": 0,
+  "decode_requested": false,
+  "rows": [
+    {
+      "case_id": "lv001_az-30_el-10_r10",
+      "capture_present": false,
+      "geometry": {
+        "status": "raw_capture_geometry_incomplete",
+        "case_dir": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch\\lv001_az-30_el-10_r10",
+        "manifest": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch\\lv001_az-30_el-10_r10\\manifest.json",
+        "cfg": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch\\lv001_az-30_el-10_r10\\profile_3d_3Azim_1ElevTx_awr2944P.cfg",
+        "capture": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch\\lv001_az-30_el-10_r10\\capture.bin",
+        "capture_bytes": 0,
+        "expected_frame_bytes": 671744,
+        "complete_frames": 0,
+        "remainder_bytes": 0,
+        "cfg_geometry": {
+          "profile_id": 0,
+          "start_frequency_ghz": 77.0,
+          "adc_samples": 656,
+          "frame_start_chirp": 0,
+          "frame_end_chirp": 3,
+          "loops_per_frame": 16,
+          "chirps_per_frame": 64,
+          "chirp_count": 4,
+          "tx_masks": [
+            1,
+            4,
+            8,
+            2
+          ],
+          "tx_order_bit_index": [
+            0,
+            2,
+            3,
+            1
+          ],
+          "rx_count": 4,
+          "source_sha256": "d410727aea1f03c6211dcb58244386f7234bd17a5bdc23917848c5dee17135ac"
+        },
+        "issues": [
+          "capture_missing"
+        ],
+        "ready_for_decode": false,
+        "hardware_aoa_validated": false
+      },
+      "decode_started": false
+    },
+    {
+      "case_id": "lv002_az-15_el-10_r10",
+      "capture_present": false,
+      "geometry": {
+        "status": "raw_capture_geometry_incomplete",
+        "case_dir": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch\\lv002_az-15_el-10_r10",
+        "manifest": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch\\lv002_az-15_el-10_r10\\manifest.json",
+        "cfg": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch\\lv002_az-15_el-10_r10\\profile_3d_3Azim_1ElevTx_awr2944P.cfg",
+        "capture": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch\\lv002_az-15_el-10_r10\\capture.bin",
+        "capture_bytes": 0,
+        "expected_frame_bytes": 671744,
+        "complete_frames": 0,
+        "remainder_bytes": 0,
+        "cfg_geometry": {
+          "profile_id": 0,
+          "start_frequency_ghz": 77.0,
+          "adc_samples": 656,
+          "frame_start_chirp": 0,
+          "frame_end_chirp": 3,
+          "loops_per_frame": 16,
+          "chirps_per_frame": 64,
+          "chirp_count": 4,
+          "tx_masks": [
+            1,
+            4,
+            8,
+            2
+          ],
+          "tx_order_bit_index": [
+            0,
+            2,
+            3,
+            1
+          ],
+          "rx_count": 4,
+          "source_sha256": "d410727aea1f03c6211dcb58244386f7234bd17a5bdc23917848c5dee17135ac"
+        },
+        "issues": [
+          "capture_missing"
+        ],
+        "ready_for_decode": false,
+        "hardware_aoa_validated": false
+      },
+      "decode_started": false
+    },
+    {
+      "case_id": "lv003_az+00_el-10_r10",
+      "capture_present": false,
+      "geometry": {
+        "status": "raw_capture_geometry_incomplete",
+        "case_dir": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch\\lv003_az+00_el-10_r10",
+        "manifest": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch\\lv003_az+00_el-10_r10\\manifest.json",
+        "cfg": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch\\lv003_az+00_el-10_r10\\profile_3d_3Azim_1ElevTx_awr2944P.cfg",
+        "capture": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch\\lv003_az+00_el-10_r10\\capture.bin",
+        "capture_bytes": 0,
+        "expected_frame_bytes": 671744,
+        "complete_frames": 0,
+        "remainder_bytes": 0,
+        "cfg_geometry": {
+          "profile_id": 0,
+          "start_frequency_ghz": 77.0,
+          "adc_samples": 656,
+          "frame_start_chirp": 0,
+          "frame_end_chirp": 3,
+          "loops_per_frame": 16,
+          "chirps_per_frame": 64,
+          "chirp_count": 4,
+          "tx_masks": [
+            1,
+            4,
+            8,
+            2
+          ],
+          "tx_order_bit_index": [
+            0,
+            2,
+            3,
+            1
+          ],
+          "rx_count": 4,
+          "source_sha256": "d410727aea1f03c6211dcb58244386f7234bd17a5bdc23917848c5dee17135ac"
+        },
+        "issues": [
+          "capture_missing"
+        ],
+        "ready_for_decode": false,
+        "hardware_aoa_validated": false
+      },
+      "decode_started": false
+    },
+    {
+      "case_id": "lv004_az+15_el-10_r10",
+      "capture_present": false,
+      "geometry": {
+        "status": "raw_capture_geometry_incomplete",
+        "case_dir": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch\\lv004_az+15_el-10_r10",
+        "manifest": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch\\lv004_az+15_el-10_r10\\manifest.json",
+        "cfg": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch\\lv004_az+15_el-10_r10\\profile_3d_3Azim_1ElevTx_awr2944P.cfg",
+        "capture": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch\\lv004_az+15_el-10_r10\\capture.bin",
+        "capture_bytes": 0,
+        "expected_frame_bytes": 671744,
+        "complete_frames": 0,
+        "remainder_bytes": 0,
+        "cfg_geometry": {
+          "profile_id": 0,
+          "start_frequency_ghz": 77.0,
+          "adc_samples": 656,
+          "frame_start_chirp": 0,
+          "frame_end_chirp": 3,
+          "loops_per_frame": 16,
+          "chirps_per_frame": 64,
+          "chirp_count": 4,
+          "tx_masks": [
+            1,
+            4,
+            8,
+            2
+          ],
+          "tx_order_bit_index": [
+            0,
+            2,
+            3,
+            1
+          ],
+          "rx_count": 4,
+          "source_sha256": "d410727aea1f03c6211dcb58244386f7234bd17a5bdc23917848c5dee17135ac"
+        },
+        "issues": [
+          "capture_missing"
+        ],
+        "ready_for_decode": false,
+        "hardware_aoa_validated": false
+      },
+      "decode_started": false
+    },
+    {
+      "case_id": "lv005_az+30_el-10_r10",
+      "capture_present": false,
+      "geometry": {
+        "status": "raw_capture_geometry_incomplete",
+        "case_dir": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch\\lv005_az+30_el-10_r10",
+        "manifest": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch\\lv005_az+30_el-10_r10\\manifest.json",
+        "cfg": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch\\lv005_az+30_el-10_r10\\profile_3d_3Azim_1ElevTx_awr2944P.cfg",
+        "capture": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_140_lvds_candidate_manifest_batch\\lv005_az+30_el-10_r10\\capture.bin",
+        "capture_bytes": 0,
+        "expected_frame_bytes": 671744,
+        "complete_frames": 0,
+        "remainder_bytes": 0,
+        "cfg_geometry": {
+          "profile_id": 0,
+          "start_frequency_ghz": 77.0,
+          "adc_samples": 656,
+          "frame_start_chirp": 0,
+          "frame_end_chirp": 3,
+          "loops_per_frame": 16,
+          "chirps_per_frame": 64,
+          "chirp_count": 4,
+          "tx_masks": [
+            1,
+            4,
+            8,
+            2
+          ],
+          "tx_order_bit_index": [
+            0,
+            2,
+            3,
+            1
+          ],
+          "rx_count": 4,
+          "source_sha256": "d410727aea1f03c6211dcb58244386f7234bd17a5bdc23917848c5dee17135ac"
+        },
+        "issues": [
+          "capture_missing"
+        ],
+        "ready_for_decode": false,
+        "hardware_aoa_validated": false
+      },
+      "decode_started": false
+    }
+  ],
+  "hardware_commands_executed": false,
+  "hardware_aoa_validated": false,
+  "next_action": "review geometry output; add --decode-ready only after operator approval"
+}
