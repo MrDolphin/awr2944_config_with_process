@@ -1,0 +1,52 @@
+{
+  "status": "completed_sea_clutter_grid_aoa",
+  "source_rows": 9840,
+  "active_rows": 1234,
+  "model_count": 4,
+  "cache_entries": 4136,
+  "grid_step_deg": 4.0,
+  "hardware_aoa_validated": false,
+  "phase_center_ready": false,
+  "summaries": [
+    {
+      "model": "ideal_half_lambda",
+      "active_rows": 1234,
+      "unique_angle_cache_entries": 1034,
+      "azimuth_rmse_deg": 1.2551722431548673,
+      "elevation_rmse_deg": 1.1717291186374945,
+      "one_way_scatter_sum": 0.16053676155066007,
+      "two_way_scatter_sum": 0.02340209814852092,
+      "mean_estimated_pattern_gain_dBi": -9.183981631550513
+    },
+    {
+      "model": "pcb_copper_centroid",
+      "active_rows": 1234,
+      "unique_angle_cache_entries": 1034,
+      "azimuth_rmse_deg": 49.63798971539269,
+      "elevation_rmse_deg": 26.11023706816361,
+      "one_way_scatter_sum": 0.11445365181102282,
+      "two_way_scatter_sum": 0.027008654155537156,
+      "mean_estimated_pattern_gain_dBi": -12.284057266342517
+    },
+    {
+      "model": "rf_endpoint_candidate",
+      "active_rows": 1234,
+      "unique_angle_cache_entries": 1034,
+      "azimuth_rmse_deg": 53.52722723676233,
+      "elevation_rmse_deg": 24.868484603938214,
+      "one_way_scatter_sum": 0.10543062750263686,
+      "two_way_scatter_sum": 0.027728768273701694,
+      "mean_estimated_pattern_gain_dBi": -12.91048082117774
+    },
+    {
+      "model": "cfg_candidate",
+      "active_rows": 1234,
+      "unique_angle_cache_entries": 1034,
+      "azimuth_rmse_deg": 1.2547041608300993,
+      "elevation_rmse_deg": 2.001648828957097,
+      "one_way_scatter_sum": 0.15884056639068733,
+      "two_way_scatter_sum": 0.025070182558600565,
+      "mean_estimated_pattern_gain_dBi": -9.48076715289033
+    }
+  ]
+}
