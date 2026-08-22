@@ -1,0 +1,10 @@
+{
+  "status": "operator_review_package_created",
+  "candidate_cfg": "D:\\hp-laptop\\USV\\awr2944_sea_clutter_v02\\simulation\\hardware\\awr2944pev\\v04_139_lvds_candidate_cfg\\profile_3d_3Azim_1ElevTx_awr2944P.cfg",
+  "candidate_cfg_sha256": "d410727aea1f03c6211dcb58244386f7234bd17a5bdc23917848c5dee17135ac",
+  "dca_reference": "D:\\hp-laptop\\USV\\awr2944_config_and_process_with_trace\\mathlab\\PostProc\\cf.json",
+  "dca_reference_sha256": "bae8194e907550ace621428bdcaa4a99f6e3f54c95c5bd25f0ac0e74652d3019",
+  "hardware_commands_executed": false,
+  "authoritative_dca_config": false,
+  "next_action": "operator_verify_network_and_cli_help_then_capture_center_case"
+}
