@@ -1,0 +1,4 @@
+path,name,suffix,size_bytes,classification,size_multiple_of_chirp_bytes,size_multiple_of_frame_bytes,notes
+D:\hp-laptop\USV\awr2944_config_and_process_with_trace\record\record_01.bin,record_01.bin,.bin,274432,uart_point_cloud_record,False,False,legacy radar_server framed TLV; not DCA1000 ADC IQ
+D:\hp-laptop\USV\awr2944_config_and_process_with_trace\record\record_02.bin,record_02.bin,.bin,530368,uart_point_cloud_record,False,False,legacy radar_server framed TLV; not DCA1000 ADC IQ
+D:\hp-laptop\USV\awr2944_config_and_process_with_trace\record\record_03.bin,record_03.bin,.bin,25384896,uart_point_cloud_record,False,False,legacy radar_server framed TLV; not DCA1000 ADC IQ
