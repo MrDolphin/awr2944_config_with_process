@@ -6,6 +6,7 @@ record/*.bin
 record/*.dat
 record/*.jsonl
 captures/
+tools/jy931/output/
 radar_debug.log
 
 # MATLAB 自动备份
