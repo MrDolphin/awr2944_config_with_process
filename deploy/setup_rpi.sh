@@ -25,6 +25,19 @@ sed -i "s|^WorkingDirectory=.*|WorkingDirectory=${APP_DIR}|" "/etc/systemd/syste
 systemctl daemon-reload
 systemctl enable "${SERVICE_NAME}"
 
+# DCA1000 raw ADC capture service (optional; requires tools/dca1000/ synced to Pi).
+DCA_DIR="/home/pi/tools/dca1000"
+DCA_SERVICE_NAME="dca1000.service"
+if [[ -f "${DCA_DIR}/service.py" ]]; then
+  install -m 0644 "${SCRIPT_DIR}/dca1000.service" "/etc/systemd/system/${DCA_SERVICE_NAME}"
+  sed -i "s|^WorkingDirectory=.*|WorkingDirectory=${DCA_DIR}|" "/etc/systemd/system/${DCA_SERVICE_NAME}"
+  systemctl daemon-reload
+  systemctl enable "${DCA_SERVICE_NAME}"
+  echo "Installed ${DCA_SERVICE_NAME}. Start with: sudo systemctl start ${DCA_SERVICE_NAME}"
+else
+  echo "Skipping ${DCA_SERVICE_NAME}: ${DCA_DIR}/service.py not found."
+fi
+
 echo "Installed ${SERVICE_NAME}. Before starting, run:"
 echo "  cd ${APP_DIR}"
 echo "  python3 tools/deployment_preflight.py --config Config/<profile>.cfg --require-ports"
