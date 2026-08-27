@@ -1,0 +1,37 @@
+{
+  "radar": {
+    "model": "AWR2944PEVM",
+    "cfg_path": "../../Config/profile_3d_3Azim_1ElevTx_awr2944P.cfg"
+  },
+  "installation": {
+    "reference_pose": "pcb_vertical_boresight_forward_horizontal",
+    "height_m": 1.0,
+    "mounting_roll_deg": 0.0,
+    "mounting_yaw_deg": 0.0,
+    "mounting_pitch_sweep_deg": [0.0, 3.0, 5.0, 8.0, 10.0]
+  },
+  "grid": {
+    "range_min_m": 2.0,
+    "range_max_m": 100.0,
+    "range_step_m": 0.25,
+    "azimuth_min_deg": -60.0,
+    "azimuth_max_deg": 60.0,
+    "azimuth_step_deg": 1.0
+  },
+  "antenna": {
+    "source": "TI_AWR2944PEVM_approximate_3db_6db_pattern",
+    "azimuth_3db_half_width_deg": 30.0,
+    "azimuth_6db_half_width_deg": 45.0,
+    "elevation_3db_half_width_deg": 3.0,
+    "elevation_6db_half_width_deg": 5.0,
+    "gain_floor_db": -30.0
+  },
+  "power_model": {
+    "name": "unit_sigma0_pattern_r4",
+    "absolute_calibration": false
+  },
+  "output": {
+    "directory": "../stages/v01_flat_sea_geometry/results",
+    "plot_floor_db": -60.0
+  }
+}

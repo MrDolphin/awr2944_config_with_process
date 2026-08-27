@@ -1,0 +1,20 @@
+[Unit]
+Description=AWR2944 Radar WebSocket Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Keep this path identical to APP_DIR in setup_rpi.sh, or replace it during installation.
+WorkingDirectory=/home/pi/awr2944_config_with_process
+ExecStart=/usr/bin/python3 radar_server.py --ws_port 8765
+User=pi
+SupplementaryGroups=dialout
+Environment=PYTHONUNBUFFERED=1
+StandardOutput=journal
+StandardError=journal
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

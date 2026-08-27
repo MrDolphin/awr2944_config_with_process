@@ -1,3 +1,0 @@
-22-Feb-2026 10:15:20: IsFPGA:,0,0,
-22-Feb-2026 10:15:20: C:\ti\mmwave_studio_03_01_04_04\mmWaveStudio\RunTime,0,
-22-Feb-2026 10:15:21: API:select_capture_device,DCA1000,0,

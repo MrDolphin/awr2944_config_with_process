@@ -1,0 +1,25 @@
+# 雷达录制数据（二进制/大文件，不入库）
+mathlab/
+paper/
+record/
+record/*.bin
+record/*.dat
+record/*.jsonl
+captures/
+tools/jy931/output/
+radar_debug.log
+simulation/output/
+simulation/stages/*/results/**
+!simulation/stages/*/results/README.md
+
+# MATLAB 自动备份
+*.asv
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# 系统文件
+.DS_Store
+Thumbs.db
