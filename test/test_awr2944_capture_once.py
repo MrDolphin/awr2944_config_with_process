@@ -48,6 +48,18 @@ class OneClickCaptureTests(unittest.TestCase):
         self.assertIn("--no-start", configure)
         self.assertEqual(start[-1], "start")
 
+    def test_analysis_is_opt_in_and_uses_capture_directory(self):
+        args = self.module.parse_args([
+            "--cfg", str(self.cfg), "--analyze-range", "--analysis-max-range-m", "12.0",
+        ])
+        self.assertTrue(args.analyze_range)
+        command = self.module.build_range_analysis_command(args, self.root / "run" / "adc.bin")
+        self.assertIn("analyze_adc_range.py", command[1])
+        self.assertIn("--remove-mean", command)
+        self.assertIn("--max-range-m", command)
+        self.assertIn("12.0", command)
+        self.assertIn(str(self.root / "run" / "range_analysis"), command)
+
 
 if __name__ == "__main__":
     unittest.main()
