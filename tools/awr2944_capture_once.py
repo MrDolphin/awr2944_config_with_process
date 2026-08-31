@@ -46,6 +46,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--cli-delay", type=float, default=0.15)
     parser.add_argument("--dca-timeout", type=float, default=5.0)
     parser.add_argument("--listener-timeout", type=float, default=10.0)
+    parser.add_argument(
+        "--analyze-range",
+        action="store_true",
+        help="After a successful capture and safe radar/DCA shutdown, generate range-domain analysis artifacts.",
+    )
+    parser.add_argument("--analysis-max-range-m", type=float, default=15.0)
     return parser.parse_args(argv)
 
 
@@ -97,6 +103,19 @@ def build_capture_command(args: argparse.Namespace) -> list[str]:
     ]
 
 
+def build_range_analysis_command(args: argparse.Namespace, bin_path: Path) -> list[str]:
+    """Build post-capture analysis; never runs until capture cleanup completed."""
+    return [
+        sys.executable,
+        str(TOOLS_DIR / "analyze_adc_range.py"),
+        "--bin", str(bin_path),
+        "--cfg", str(args.cfg),
+        "--output-dir", str(bin_path.parent / "range_analysis"),
+        "--max-range-m", str(args.analysis_max_range_m),
+        "--remove-mean",
+    ]
+
+
 def configure_dca(args: argparse.Namespace) -> None:
     config_args = argparse.Namespace(
         dca_ip=args.dca_ip,
@@ -120,7 +139,7 @@ def run_checked(command: list[str], label: str) -> None:
         raise RuntimeError(f"{label} failed with exit code {result.returncode}")
 
 
-def start_listener(args: argparse.Namespace) -> subprocess.Popen[str]:
+def start_listener(args: argparse.Namespace) -> tuple[subprocess.Popen[str], Path]:
     command = build_capture_command(args)
     print("[CAPTURE] " + " ".join(command))
     process = subprocess.Popen(
@@ -131,13 +150,21 @@ def start_listener(args: argparse.Namespace) -> subprocess.Popen[str]:
         bufsize=1,
     )
     assert process.stdout is not None
+    bin_path: Path | None = None
     deadline = time.monotonic() + args.listener_timeout
     while time.monotonic() < deadline:
         line = process.stdout.readline()
         if line:
             print(line, end="")
+            if line.startswith("[OUT] "):
+                candidate = Path(line.removeprefix("[OUT] ").strip())
+                if candidate.suffix.lower() == ".bin":
+                    bin_path = candidate
             if "[UDP] Listening on" in line:
-                return process
+                if bin_path is None:
+                    process.terminate()
+                    raise RuntimeError("capture listener did not report its output BIN path")
+                return process, bin_path
         elif process.poll() is not None:
             raise RuntimeError(f"capture listener exited with code {process.returncode}")
     process.terminate()
@@ -162,12 +189,14 @@ def run(args: argparse.Namespace) -> int:
         raise RuntimeError("duration must be positive")
 
     listener: subprocess.Popen[str] | None = None
+    captured_bin: Path | None = None
     radar_started = False
     record_started = False
+    capture_succeeded = False
     try:
         configure_dca(args)
         run_checked(build_cli_configure_command(args), "RADAR-CONFIG")
-        listener = start_listener(args)
+        listener, captured_bin = start_listener(args)
         send_dca_command(args.dca_ip, args.config_port, DCA_CMD_RECORD_START, "record_start")
         record_started = True
         run_checked(build_cli_start_stop_command(args, "start"), "RADAR-START")
@@ -175,7 +204,7 @@ def run(args: argparse.Namespace) -> int:
         returncode = stream_capture_output(listener)
         if returncode != 0:
             raise RuntimeError(f"capture failed with exit code {returncode}")
-        return 0
+        capture_succeeded = True
     finally:
         if record_started:
             send_dca_command(args.dca_ip, args.config_port, DCA_CMD_RECORD_STOP, "record_stop")
@@ -187,6 +216,12 @@ def run(args: argparse.Namespace) -> int:
         if listener is not None and listener.poll() is None:
             listener.terminate()
             listener.wait(timeout=3)
+
+    if capture_succeeded and args.analyze_range:
+        if captured_bin is None:
+            raise RuntimeError("capture completed without a reported BIN path")
+        run_checked(build_range_analysis_command(args, captured_bin), "RANGE-ANALYSIS")
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
