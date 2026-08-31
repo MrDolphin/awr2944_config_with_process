@@ -232,9 +232,12 @@ def parse_radar_cfg(path: Optional[str]) -> Dict[str, object]:
     num_rx = int(info.get("num_rx", 4))
     num_samples = int(info.get("num_adc_samples", 256))
     num_chirps = int(info.get("num_chirps_per_frame", 0))
-    # adcCfg 2 in this project means complex samples. Each complex sample is
-    # int16 I + int16 Q = 4 bytes per RX per chirp per ADC sample.
-    bytes_per_sample_per_rx = 4
+    # AWR2944P LVDS ADC output is real-only.  In this 16-bit capture profile,
+    # one stored scalar is one int16 word (2 bytes) per RX/chirp/ADC sample.
+    # This is also validated by the real capture frame rate: 335,872 B/frame
+    # yields approximately the configured 10 Hz, whereas a 4-byte I/Q model
+    # would incorrectly predict half the frame rate.
+    bytes_per_sample_per_rx = 2
     if num_chirps:
         info["estimated_payload_bytes_per_frame"] = (
             num_samples * num_rx * num_chirps * bytes_per_sample_per_rx
