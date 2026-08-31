@@ -128,9 +128,15 @@ def analyze(bin_path: Path, cfg_path: Path, metadata_path: Path | None = None) -
     size = bin_path.stat().st_size
     return {
         "analysis_scope": "first_pass_container_and_int16_word_statistics_only",
+        "format_assessment": {
+            "device_profile": "AWR2944P real-only LVDS ADC stream",
+            "validated_storage_model": "one signed int16 word per RX/chirp/ADC sample",
+            "validated_bytes_per_frame": int(radar_cfg.get("estimated_payload_bytes_per_frame", 0) or 0),
+            "evidence": "Observed full-frame rate is compared against frameCfg; final lane/RX/TX ordering remains pending.",
+        },
         "limitations": [
-            "This report does not assert final LVDS lane order or I/Q word ordering.",
-            "Range/Doppler/AoA requires validated AWR2944P LVDS formatting and channel reordering.",
+            "This report does not assert final LVDS lane order or RX/TX word ordering.",
+            "Range/Doppler/AoA requires validated AWR2944P LVDS lane formatting and channel reordering.",
         ],
         "file": {"path": str(bin_path), "bytes": size, "trailing_odd_byte": bool(size % INT16_BYTES)},
         "metadata": metadata,
@@ -149,7 +155,7 @@ def markdown(report: dict[str, Any]) -> str:
         "",
         "## 结论边界",
         "",
-        "本报告验证原始 ADC 文件的容器完整性和 16-bit 数据字统计；尚未确认 AWR2944P 的最终 LVDS lane 顺序、RX/TX 重排与 I/Q 交织，因此不能直接将本报告当作 AoA 或点云结论。",
+        "当前 AWR2944P 配置的 LVDS ADC 流按 real-only、每个 RX/chirp/ADC sample 一个 int16 字（2 bytes）解释。尚未确认最终 LVDS lane 顺序与 RX/TX 重排，因此不能直接将本报告当作 AoA 或点云结论。",
         "",
         "## 文件与采集概况",
         "",
@@ -158,6 +164,7 @@ def markdown(report: dict[str, Any]) -> str:
         f"- 16-bit 数据字数量：`{words['count']:,}`",
         f"- 文件末尾是否有孤立字节：`{file_info['trailing_odd_byte']}`",
         f"- CFG：RX=`{radar.get('num_rx')}`，ADC samples=`{radar.get('num_adc_samples')}`，chirps/frame=`{radar.get('num_chirps_per_frame')}`，frame period=`{radar.get('frame_period_ms')}` ms。",
+        f"- 已验证的 real-only 帧长度：`{report['format_assessment']['validated_bytes_per_frame']:,}` bytes/frame。",
         "",
         "## 原始 16-bit 数据字质量",
         "",
@@ -169,7 +176,7 @@ def markdown(report: dict[str, Any]) -> str:
         "",
         "## 候选帧结构",
         "",
-        "下表比较两种每采样字节数假设。与 `frameCfg` 的帧周期最接近的候选，是下一步确认实际 LVDS 数据格式的优先对象。",
+        "下表保留两种字节数计算对照。AWR2944P 当前 real-only 配置应使用第一行；其帧率应与 `frameCfg` 的帧周期接近。",
         "",
         "| 候选解释 | 每帧字节数 | 完整帧数 | 尾部字节 | 观测帧率 |",
         "|---|---:|---:|---:|---:|",
@@ -185,7 +192,7 @@ def markdown(report: dict[str, Any]) -> str:
         "## 下一步",
         "",
         "1. 用采集元数据的完整帧计数与 `frameCfg` 对照，确认输出帧率。",
-        "2. 根据 TI AWR2944P LVDS 格式确认 lane、RX、TX 与 I/Q 的最终排序。",
+        "2. 根据 TI AWR2944P LVDS 格式确认 lane、RX 与 TX 的最终排序。",
         "3. 之后才能做每个 RX/TX 的 Range FFT、Range-Doppler 图、AoA 和海杂波统计。",
         "",
     ])

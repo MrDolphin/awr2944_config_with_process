@@ -41,6 +41,7 @@ class AnalyzeAdcCaptureTests(unittest.TestCase):
         self.assertGreater(report["int16_words"]["saturation_count"], 0)
         self.assertEqual(report["frame_candidates"][0]["bytes_per_frame"], 32)
         self.assertEqual(report["frame_candidates"][0]["full_frames"], 0)
+        self.assertEqual(report["format_assessment"]["validated_bytes_per_frame"], 32)
 
     def test_write_outputs_creates_json_and_markdown_next_to_capture(self):
         report = self.module.analyze(self.bin_path, self.cfg, self.meta_path)
