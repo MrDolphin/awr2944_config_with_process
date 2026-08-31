@@ -79,7 +79,10 @@ def build_cli_start_stop_command(args: argparse.Namespace, command: str) -> list
 def build_capture_command(args: argparse.Namespace) -> list[str]:
     """Build listener-only capture command; this launcher controls record start."""
     return [
-        sys.executable, str(TOOLS_DIR / "dca1000_capture.py"),
+        # The launcher waits for the child's "[UDP] Listening" line before
+        # sending record-start and sensorStart.  Force unbuffered output so a
+        # piped stdout cannot hide that readiness signal until process exit.
+        sys.executable, "-u", str(TOOLS_DIR / "dca1000_capture.py"),
         "--cfg", str(args.cfg), "--cf-json", "",
         "--listen-ip", args.system_ip,
         "--dca-ip", args.dca_ip,

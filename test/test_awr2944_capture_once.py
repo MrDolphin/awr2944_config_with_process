@@ -34,6 +34,7 @@ class OneClickCaptureTests(unittest.TestCase):
             "--cfg", str(self.cfg), "--duration", "60", "--output-dir", str(self.root / "out"),
         ])
         command = self.module.build_capture_command(args)
+        self.assertEqual(command[1], "-u")
         self.assertIn("--no-control", command)
         self.assertNotIn("--start-dca", command)
         self.assertIn("--listen-ip", command)
