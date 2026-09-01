@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -70,6 +71,35 @@ class OneClickCaptureTests(unittest.TestCase):
         self.assertIn(str(self.root / "run" / "adc.json"), command)
         self.assertIn(str(self.root / "run" / "range_analysis"), command)
         self.assertIn(str(self.root / "run"), command)
+
+    def test_local_defaults_supply_stable_topology_and_cli_overrides_them(self):
+        defaults = self.root / "capture_defaults.json"
+        defaults.write_text(
+            json.dumps(
+                {
+                    "cfg": str(self.cfg),
+                    "cli_port": "/dev/ttyACM0",
+                    "dca_ip": "192.168.33.180",
+                    "system_ip": "192.168.33.30",
+                    "duration": 20.0,
+                    "output_dir": "/home/pi/radar_runs/awr2944p",
+                    "post_analyze": True,
+                }
+            ),
+            encoding="utf-8",
+        )
+        args = self.module.parse_args(["--defaults", str(defaults), "--duration", "7", "--output-dir", "/tmp/run"])
+        self.assertEqual(args.cfg, str(self.cfg))
+        self.assertEqual(args.dca_ip, "192.168.33.180")
+        self.assertEqual(args.duration, 7.0)
+        self.assertEqual(args.output_dir, "/tmp/run")
+        self.assertTrue(args.post_analyze)
+
+    def test_unknown_default_setting_is_rejected(self):
+        defaults = self.root / "bad_capture_defaults.json"
+        defaults.write_text(json.dumps({"cfg": str(self.cfg), "unknown_setting": 1}), encoding="utf-8")
+        with self.assertRaises(ValueError):
+            self.module.parse_args(["--defaults", str(defaults)])
 
 
 if __name__ == "__main__":

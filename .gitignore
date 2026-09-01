@@ -19,6 +19,10 @@ __pycache__/
 *.pyc
 *.pyo
 
+# Raspberry Pi local radar-capture topology/profile.  Keep the tracked
+# awr2944_capture_defaults.example.json as the reproducible template.
+Config/awr2944_capture_defaults.json
+
 # 系统文件
 .DS_Store
 Thumbs.db

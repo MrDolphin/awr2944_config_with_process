@@ -15,6 +15,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 try:
     from tools import dca1000_configure
@@ -25,11 +26,68 @@ except ModuleNotFoundError:  # Direct ``python tools/awr2944_capture_once.py``.
 
 
 TOOLS_DIR = Path(__file__).resolve().parent
+DEFAULTS_PATH = Path("Config/awr2944_capture_defaults.json")
+
+# Keep this list explicit so a typo in the local JSON cannot silently alter a
+# hardware run.  CLI options always take precedence over these defaults.
+DEFAULT_SETTING_NAMES = {
+    "cfg",
+    "cli_port",
+    "baud",
+    "dca_ip",
+    "system_ip",
+    "dca_mac",
+    "config_port",
+    "data_port",
+    "packet_delay_us",
+    "duration",
+    "output_dir",
+    "prefix",
+    "min_free_gb",
+    "socket_buffer_mb",
+    "cli_delay",
+    "dca_timeout",
+    "listener_timeout",
+    "analyze_range",
+    "post_analyze",
+    "analysis_max_range_m",
+}
+
+
+def find_defaults_path(argv: list[str] | None) -> Path:
+    """Read only ``--defaults`` before constructing the full CLI parser."""
+    bootstrap = argparse.ArgumentParser(add_help=False)
+    bootstrap.add_argument("--defaults", default=str(DEFAULTS_PATH))
+    known, _ = bootstrap.parse_known_args(argv)
+    return Path(known.defaults)
+
+
+def load_defaults(path: Path) -> dict[str, Any]:
+    """Load one local JSON profile and reject unknown settings early."""
+    if not path.is_file():
+        return {}
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError(f"defaults file must contain a JSON object: {path}")
+    unknown = sorted(set(value) - DEFAULT_SETTING_NAMES)
+    if unknown:
+        raise ValueError(f"unknown defaults setting(s) in {path}: {', '.join(unknown)}")
+    return value
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    defaults_path = find_defaults_path(argv)
+    defaults = load_defaults(defaults_path)
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--cfg", required=True, help="Radar CFG with lvdsStreamCfg enabled.")
+    parser.add_argument(
+        "--defaults",
+        default=str(defaults_path),
+        help=(
+            "Local JSON settings file. Defaults to Config/awr2944_capture_defaults.json; "
+            "copy the tracked .example file once, then CLI arguments override it."
+        ),
+    )
+    parser.add_argument("--cfg", help="Radar CFG with lvdsStreamCfg enabled.")
     parser.add_argument("--cli-port", default="/dev/ttyACM0", help="AWR2944P CLI serial device.")
     parser.add_argument("--baud", type=int, default=115200)
     parser.add_argument("--dca-ip", default="192.168.33.180")
@@ -60,7 +118,19 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     parser.add_argument("--analysis-max-range-m", type=float, default=15.0)
-    return parser.parse_args(argv)
+    parser.add_argument("--show-effective-config", action="store_true", help="Print merged defaults and CLI options, then exit without hardware I/O.")
+    # Apply local settings after every action has declared its built-in
+    # fallback.  Command-line arguments parsed below still override these.
+    parser.set_defaults(**defaults)
+    args = parser.parse_args(argv)
+    if not args.cfg and not args.show_effective_config:
+        parser.error("--cfg is required unless it is provided by --defaults")
+    return args
+
+
+def effective_config(args: argparse.Namespace) -> dict[str, Any]:
+    """Return serializable settings actually selected for a future capture."""
+    return {name: getattr(args, name) for name in sorted(DEFAULT_SETTING_NAMES)}
 
 
 def validate_cfg(path: Path) -> list[str]:
@@ -205,6 +275,9 @@ def stream_capture_output(process: subprocess.Popen[str]) -> int:
 
 
 def run(args: argparse.Namespace) -> int:
+    if args.show_effective_config:
+        print(json.dumps(effective_config(args), ensure_ascii=False, indent=2))
+        return 0
     cfg = Path(args.cfg)
     errors = validate_cfg(cfg)
     if errors:
