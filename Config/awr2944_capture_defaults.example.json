@@ -1,0 +1,21 @@
+{
+  "cfg": "Config/test_full.cfg",
+  "cli_port": "/dev/ttyACM0",
+  "baud": 115200,
+  "dca_ip": "192.168.33.180",
+  "system_ip": "192.168.33.30",
+  "dca_mac": "12.34.56.78.90.12",
+  "config_port": 4096,
+  "data_port": 4098,
+  "packet_delay_us": 25,
+  "duration": 20.0,
+  "output_dir": "/home/pi/radar_runs/awr2944p",
+  "prefix": "adc_data",
+  "min_free_gb": 4.0,
+  "socket_buffer_mb": 64,
+  "cli_delay": 0.15,
+  "dca_timeout": 5.0,
+  "listener_timeout": 10.0,
+  "post_analyze": true,
+  "analysis_max_range_m": 15.0
+}
