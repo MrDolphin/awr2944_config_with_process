@@ -51,6 +51,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="After a successful capture and safe radar/DCA shutdown, generate range-domain analysis artifacts.",
     )
+    parser.add_argument(
+        "--post-analyze",
+        action="store_true",
+        help=(
+            "After safe shutdown, generate range artifacts and a capture-level gate report. "
+            "Unperformed absolute-range, phase, Doppler and AoA work is explicitly marked."
+        ),
+    )
     parser.add_argument("--analysis-max-range-m", type=float, default=15.0)
     return parser.parse_args(argv)
 
@@ -114,6 +122,24 @@ def build_range_analysis_command(args: argparse.Namespace, bin_path: Path) -> li
         "--max-range-m", str(args.analysis_max_range_m),
         "--remove-mean",
     ]
+
+
+def build_post_capture_analysis_command(args: argparse.Namespace, bin_path: Path) -> list[str]:
+    """Build the capture-level report after range-domain artifacts are present."""
+    return [
+        sys.executable,
+        str(TOOLS_DIR / "post_capture_analysis.py"),
+        "--bin", str(bin_path),
+        "--cfg", str(args.cfg),
+        "--metadata", str(bin_path.with_suffix(".json")),
+        "--range-analysis-dir", str(bin_path.parent / "range_analysis"),
+        "--output-dir", str(bin_path.parent),
+    ]
+
+
+def should_run_range_analysis(args: argparse.Namespace) -> bool:
+    """Post-analysis includes range analysis, so users need only one flag."""
+    return bool(args.analyze_range or args.post_analyze)
 
 
 def configure_dca(args: argparse.Namespace) -> None:
@@ -217,10 +243,14 @@ def run(args: argparse.Namespace) -> int:
             listener.terminate()
             listener.wait(timeout=3)
 
-    if capture_succeeded and args.analyze_range:
+    if capture_succeeded and should_run_range_analysis(args):
         if captured_bin is None:
             raise RuntimeError("capture completed without a reported BIN path")
         run_checked(build_range_analysis_command(args, captured_bin), "RANGE-ANALYSIS")
+    if capture_succeeded and args.post_analyze:
+        if captured_bin is None:
+            raise RuntimeError("capture completed without a reported BIN path")
+        run_checked(build_post_capture_analysis_command(args, captured_bin), "POST-ANALYSIS")
     return 0
 
 
