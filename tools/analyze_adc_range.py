@@ -110,7 +110,7 @@ def markdown_report(metadata: dict, cfg: dict) -> str:
             "",
             "- `mean_range_profile.png`：所有帧、chirp 和 RX 平均后的距离谱。靠近 0 m 的强峰可能是直流/近距离泄漏，不能直接当作目标。",
             "- `per_rx_range_profiles.png`：各 RX 独立距离谱；同一稳定反射峰在各 RX 位置一致，是后续阵列相位/AoA 处理的前提之一。幅度不同不等同于相位已校准。",
-            "- `range_time_intensity.png`：对 chirp 与 RX 平均后，各帧的距离强度。横向持续亮线表示稳定距离反射；随时间移动的亮线才可能对应距离变化目标。",
+            "- `range_time_intensity.png`：对 chirp 与 RX 平均后，各帧的距离强度。沿时间方向延伸的竖直亮带表示稳定距离反射；随时间倾斜或移动的亮带才可能对应距离变化目标。",
             "",
             "## 结论边界",
             "",

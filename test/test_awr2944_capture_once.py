@@ -60,6 +60,17 @@ class OneClickCaptureTests(unittest.TestCase):
         self.assertIn("12.0", command)
         self.assertIn(str(self.root / "run" / "range_analysis"), command)
 
+    def test_post_analysis_implies_range_analysis_and_writes_at_capture_level(self):
+        args = self.module.parse_args(["--cfg", str(self.cfg), "--post-analyze"])
+        self.assertFalse(args.analyze_range)
+        self.assertTrue(args.post_analyze)
+        self.assertTrue(self.module.should_run_range_analysis(args))
+        command = self.module.build_post_capture_analysis_command(args, self.root / "run" / "adc.bin")
+        self.assertIn("post_capture_analysis.py", command[1])
+        self.assertIn(str(self.root / "run" / "adc.json"), command)
+        self.assertIn(str(self.root / "run" / "range_analysis"), command)
+        self.assertIn(str(self.root / "run"), command)
+
 
 if __name__ == "__main__":
     unittest.main()
