@@ -75,6 +75,37 @@ class AnalyzeAdcRangeTests(unittest.TestCase):
         peaks = self.module.candidate_static_peaks(ranges, mean_power, range_time, minimum_range_m=0.3)
         self.assertEqual(peaks[0]["range_bin"], 5)
 
+    def test_diagnostic_products_use_one_tx_group_for_slow_time_fft(self):
+        cube = np.arange(2 * 8 * 2 * 8, dtype=np.int16).reshape(2, 8, 2, 8)
+        ranges = self.module.range_axis_m(8, 1000.0, 70.0)
+        products = self.module.diagnostic_products(cube, ranges, {"num_chirps_per_loop": 4, "start_freq_ghz": 77.0, "idle_time_us": 10.0, "ramp_end_time_us": 20.0})
+        self.assertEqual(products["time_domain"].shape, (8,))
+        self.assertEqual(products["single_chirp_range_power"].shape, (5,))
+        self.assertEqual(products["range_doppler_power"].shape, (2, 5))
+        self.assertEqual(products["metadata"]["slow_time_chirps"], 2)
+        self.assertEqual(products["metadata"]["chirp_indices_within_frame"], [0, 4])
+
+    def test_write_outputs_creates_wave_studio_like_diagnostic_images(self):
+        cube = np.arange(3 * 2 * 2 * 8, dtype=np.int16).reshape(3, 2, 2, 8)
+        cfg = {
+            "num_adc_samples": 8,
+            "num_rx": 2,
+            "num_chirps_per_frame": 2,
+            "sample_rate_ksps": 1000.0,
+            "freq_slope_mhz_per_us": 70.0,
+            "frame_period_ms": 100.0,
+            "num_chirps_per_loop": 1,
+            "start_freq_ghz": 77.0,
+            "idle_time_us": 10.0,
+            "ramp_end_time_us": 20.0,
+        }
+        report = self.module.write_outputs(cube, 0, cfg, self.root / "analysis", max_range_m=1.0, remove_mean=True)
+        paths = report["diagnostic_visualizations"]["paths"]
+        self.assertTrue(Path(paths["dashboard"]).is_file())
+        self.assertTrue(Path(paths["time_domain"]).is_file())
+        self.assertTrue(Path(paths["single_chirp_range"]).is_file())
+        self.assertTrue(Path(paths["range_doppler"]).is_file())
+
 
 if __name__ == "__main__":
     unittest.main()
