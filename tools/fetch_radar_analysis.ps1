@@ -1,20 +1,22 @@
 <#
 .SYNOPSIS
-  Copy the latest (or named) Raspberry Pi radar-analysis artifacts to Windows.
+  Copy Raspberry Pi radar-analysis artifacts to Windows.
 
 .DESCRIPTION
-  The script copies PNG, JSON and Markdown analysis evidence but intentionally
-  does not copy the raw ADC BIN unless -IncludeBin is supplied.  Configure SSH
-  public-key login first, so both SSH discovery and SCP transfer are passwordless.
+  With no selection switch, the script copies the latest capture's analysis.
+  Use -SyncMissing to copy every run directory present on the Pi but absent
+  beneath the local capture root. Analysis artifacts are always copied; raw
+  ADC BIN files remain opt-in through -IncludeBin to avoid accidental bulk
+  transfers of large recordings.
 
 .EXAMPLE
   .\tools\fetch_radar_analysis.ps1
 
 .EXAMPLE
-  .\tools\fetch_radar_analysis.ps1 -RunId 20260910_154213 -IncludeBin
+  .\tools\fetch_radar_analysis.ps1 -SyncMissing -IncludeBin -OpenDashboard
 
 .EXAMPLE
-  .\tools\fetch_radar_analysis.ps1 -OpenDashboard
+  .\tools\fetch_radar_analysis.ps1 -RunId 20260910_154213 -IncludeBin
 #>
 
 [CmdletBinding()]
@@ -24,6 +26,7 @@ param(
     [string]$RemoteCaptureRoot = "/home/pi/radar_runs/awr2944p",
     [string]$LocalCaptureRoot = "D:\radar_runs\awr2944p",
     [string]$RunId = "",
+    [switch]$SyncMissing,
     [switch]$IncludeBin,
     [switch]$OpenDashboard
 )
@@ -45,43 +48,84 @@ function Assert-SafeRunId([string]$Value) {
     }
 }
 
-$remoteTarget = "${PiUser}@${PiHost}"
-if (-not $RunId) {
-    $findCommand = "find '$RemoteCaptureRoot' -mindepth 1 -maxdepth 1 -type d -name '[0-9]*_[0-9]*' -printf '%f\n' | sort | tail -n 1"
-    $RunId = (Invoke-Checked "ssh" @($remoteTarget, $findCommand) | Select-Object -Last 1).Trim()
-}
-Assert-SafeRunId $RunId
-
-$remoteRun = "$RemoteCaptureRoot/$RunId"
-$localRun = Join-Path $LocalCaptureRoot $RunId
-New-Item -ItemType Directory -Force -Path $localRun | Out-Null
-
-# One recursive SCP session for all generated visual and numerical products.
-Invoke-Checked "scp" @("-r", "${remoteTarget}:$remoteRun/range_analysis", $localRun) | Out-Null
-
-# The capture-level report and metadata live next to range_analysis.
-$topLevelFiles = @("output_analysis.md", "post_capture_analysis.json")
-foreach ($name in $topLevelFiles) {
-    Invoke-Checked "scp" @("${remoteTarget}:$remoteRun/$name", $localRun) | Out-Null
+function Get-RemoteRunIds([string]$Target) {
+    $findCommand = "find '$RemoteCaptureRoot' -mindepth 1 -maxdepth 1 -type d -name '[0-9]*_[0-9]*' -printf '%f\n' | sort"
+    return @(Invoke-Checked "ssh" @($Target, $findCommand) |
+        ForEach-Object { $_.Trim() } |
+        Where-Object { $_ })
 }
 
-$metadataPath = (Invoke-Checked "ssh" @($remoteTarget, "find '$remoteRun' -maxdepth 1 -type f -name 'adc_data_*.json' -printf '%f\n' | sort | head -n 1") | Select-Object -Last 1).Trim()
-if ($metadataPath) {
-    Invoke-Checked "scp" @("${remoteTarget}:$remoteRun/$metadataPath", $localRun) | Out-Null
-}
-
-if ($IncludeBin) {
-    $binPath = (Invoke-Checked "ssh" @($remoteTarget, "find '$remoteRun' -maxdepth 1 -type f -name '*.bin' -printf '%f\n' | sort | head -n 1") | Select-Object -Last 1).Trim()
-    if (-not $binPath) {
-        throw "No raw ADC BIN found in remote run: $remoteRun"
+function Copy-RemoteFileIfPresent([string]$Target, [string]$RemoteRun, [string]$LocalRun, [string]$NamePattern) {
+    $findCommand = "find '$RemoteRun' -maxdepth 1 -type f -name '$NamePattern' -printf '%f\n' | sort | head -n 1"
+    $fileName = (Invoke-Checked "ssh" @($Target, $findCommand) | Select-Object -Last 1).Trim()
+    if ($fileName) {
+        Invoke-Checked "scp" @("${Target}:$RemoteRun/$fileName", $LocalRun) | Out-Null
     }
-    Invoke-Checked "scp" @("${remoteTarget}:$remoteRun/$binPath", $localRun) | Out-Null
+    return $fileName
 }
 
-Write-Host "[DONE] Run: $RunId" -ForegroundColor Green
-Write-Host "[DONE] Local analysis: $(Join-Path $localRun 'range_analysis')" -ForegroundColor Green
-$dashboardPath = Join-Path $localRun 'range_analysis\diagnostic_dashboard.png'
-Write-Host "[OPEN] $dashboardPath" -ForegroundColor Green
-if ($OpenDashboard -and (Test-Path -LiteralPath $dashboardPath)) {
-    Start-Process -FilePath $dashboardPath
+function Copy-OneRun([string]$Target, [string]$SelectedRunId) {
+    Assert-SafeRunId $SelectedRunId
+    $remoteRun = "$RemoteCaptureRoot/$SelectedRunId"
+    $localRun = Join-Path $LocalCaptureRoot $SelectedRunId
+    New-Item -ItemType Directory -Force -Path $localRun | Out-Null
+
+    # One recursive SCP session for all generated visual and numerical products.
+    Invoke-Checked "scp" @("-r", "${Target}:$remoteRun/range_analysis", $localRun) | Out-Null
+
+    # These top-level files can be absent in older runs, so copy them only when present.
+    Copy-RemoteFileIfPresent $Target $remoteRun $localRun "output_analysis.md" | Out-Null
+    Copy-RemoteFileIfPresent $Target $remoteRun $localRun "post_capture_analysis.json" | Out-Null
+    Copy-RemoteFileIfPresent $Target $remoteRun $localRun "adc_data_*.json" | Out-Null
+
+    if ($IncludeBin) {
+        $binPath = Copy-RemoteFileIfPresent $Target $remoteRun $localRun "adc_data_*.bin"
+        if (-not $binPath) {
+            throw "No raw ADC BIN found in remote run: $remoteRun"
+        }
+    }
+
+    $dashboardPath = Join-Path $localRun 'range_analysis\diagnostic_dashboard.png'
+    Write-Host "[DONE] Run: $SelectedRunId" -ForegroundColor Green
+    Write-Host "[DONE] Local analysis: $(Join-Path $localRun 'range_analysis')" -ForegroundColor Green
+    Write-Host "[OPEN] $dashboardPath" -ForegroundColor Green
+    return $dashboardPath
+}
+
+if ($RunId -and $SyncMissing) {
+    throw "Use either -RunId or -SyncMissing, not both."
+}
+
+$remoteTarget = "${PiUser}@${PiHost}"
+$remoteRunIds = Get-RemoteRunIds $remoteTarget
+if (-not $remoteRunIds) {
+    throw "No capture directories found below $RemoteCaptureRoot"
+}
+
+if ($RunId) {
+    Assert-SafeRunId $RunId
+    $selectedRunIds = @($RunId)
+}
+elseif ($SyncMissing) {
+    $selectedRunIds = @(
+        $remoteRunIds | Where-Object {
+            -not (Test-Path -LiteralPath (Join-Path $LocalCaptureRoot $_))
+        }
+    )
+    if (-not $selectedRunIds) {
+        Write-Host "[DONE] No Pi capture directories are missing from $LocalCaptureRoot" -ForegroundColor Green
+        exit 0
+    }
+}
+else {
+    $selectedRunIds = @($remoteRunIds | Select-Object -Last 1)
+}
+
+$lastDashboard = ""
+foreach ($selectedRunId in $selectedRunIds) {
+    $lastDashboard = Copy-OneRun $remoteTarget $selectedRunId
+}
+
+if ($OpenDashboard -and $lastDashboard -and (Test-Path -LiteralPath $lastDashboard)) {
+    Start-Process -FilePath $lastDashboard
 }
