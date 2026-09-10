@@ -272,6 +272,41 @@ du -xhd1 /home/pi | sort -h
 df -h
 ```
 
+## 树莓派管理 Wi-Fi 与现场热点切换
+
+树莓派的两个网络用途必须分开：`wlan0` 只负责 PC SSH、Git 和文件同步；
+`eth0` 固定保留给 DCA1000（`192.168.33.30/24`）。现场切换只能操作
+`wlan0`，不能把 DCA1000 接口用于普通联网。
+
+在树莓派项目目录中安装并运行网络切换工具：
+
+```bash
+chmod +x tools/pi_network_mode.sh
+
+# 只读查看当前模式、地址和 DCA1000 路由
+tools/pi_network_mode.sh status
+
+# 现场离线模式：启用已手动建立并验证过的 Pi 热点
+sudo tools/pi_network_mode.sh hotspot
+
+# 需要 Git pull 或联网时：切回已保存的实验室 Wi-Fi 或手机热点
+sudo tools/pi_network_mode.sh wifi WLAN-DHSYS
+sudo tools/pi_network_mode.sh wifi oneplus-hotspot
+```
+
+`hotspot` 和 `wifi` 都会切换 `wlan0`，所以当前 SSH 会断开。这是预期行为：
+
+- 热点模式下，将 Windows PC 连接到 `radar-pi-ap`，然后使用 `ssh pi@10.42.0.1`。
+- 切回实验室/手机 Wi-Fi 后，重新用该网络为树莓派分配的地址 SSH；此前实验室地址为 `172.20.10.10`，但应以实际 DHCP 地址为准。
+
+该脚本只使用现有 NetworkManager 保存的连接配置，不写入或显示 Wi-Fi 凭据；
+不会修改 `eth0`、DCA1000 IP、雷达 CFG 或采集状态。建议热点不要开机自动抢占
+`wlan0`：
+
+```bash
+sudo nmcli connection modify radar-pi-ap connection.autoconnect no
+```
+
 ## 开发和验证
 
 完整测试会导入 V0.1 的 NumPy、h5py 和 Matplotlib；首次运行前先安装仿真依赖：
