@@ -57,7 +57,8 @@ function Get-RemoteRunIds([string]$Target) {
 
 function Copy-RemoteFileIfPresent([string]$Target, [string]$RemoteRun, [string]$LocalRun, [string]$NamePattern) {
     $findCommand = "find '$RemoteRun' -maxdepth 1 -type f -name '$NamePattern' -printf '%f\n' | sort | head -n 1"
-    $fileName = (Invoke-Checked "ssh" @($Target, $findCommand) | Select-Object -Last 1).Trim()
+    $fileProbe = @(Invoke-Checked "ssh" @($Target, $findCommand))
+    $fileName = if ($fileProbe) { $fileProbe[-1].Trim() } else { "" }
     if ($fileName) {
         Invoke-Checked "scp" @("${Target}:$RemoteRun/$fileName", $LocalRun) | Out-Null
     }
@@ -70,8 +71,18 @@ function Copy-OneRun([string]$Target, [string]$SelectedRunId) {
     $localRun = Join-Path $LocalCaptureRoot $SelectedRunId
     New-Item -ItemType Directory -Force -Path $localRun | Out-Null
 
-    # One recursive SCP session for all generated visual and numerical products.
-    Invoke-Checked "scp" @("-r", "${Target}:$remoteRun/range_analysis", $localRun) | Out-Null
+    # Older captures can predate the analysis pipeline. They remain usable as
+    # raw-data/metadata archives, so do not abort a batch when this directory
+    # is absent.
+    $remoteAnalysis = "$remoteRun/range_analysis"
+    $rangeAnalysisProbe = @(Invoke-Checked "ssh" @($Target, "if [ -d '$remoteAnalysis' ]; then printf yes; fi"))
+    $hasRangeAnalysis = if ($rangeAnalysisProbe) { $rangeAnalysisProbe[-1].Trim() } else { "" }
+    if ($hasRangeAnalysis -eq "yes") {
+        Invoke-Checked "scp" @("-r", "${Target}:$remoteAnalysis", $localRun) | Out-Null
+    }
+    else {
+        Write-Host "[SKIP] No range_analysis directory for old run: $SelectedRunId" -ForegroundColor Yellow
+    }
 
     # These top-level files can be absent in older runs, so copy them only when present.
     Copy-RemoteFileIfPresent $Target $remoteRun $localRun "output_analysis.md" | Out-Null
