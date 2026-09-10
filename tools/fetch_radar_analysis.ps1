@@ -7,7 +7,9 @@
   Use -SyncMissing to copy every run directory present on the Pi but absent
   beneath the local capture root. Analysis artifacts are always copied; raw
   ADC BIN files remain opt-in through -IncludeBin to avoid accidental bulk
-  transfers of large recordings.
+  transfers of large recordings. Use -Hotspot when the Windows PC is connected
+  to the Raspberry Pi's radar-pi-ap Wi-Fi hotspot; it selects the hotspot
+  address 10.42.0.1 for both SSH and SCP.
 
 .EXAMPLE
   .\tools\fetch_radar_analysis.ps1
@@ -17,6 +19,9 @@
 
 .EXAMPLE
   .\tools\fetch_radar_analysis.ps1 -RunId 20260910_154213 -IncludeBin
+
+.EXAMPLE
+  .\tools\fetch_radar_analysis.ps1 -Hotspot -SyncMissing -OpenDashboard
 #>
 
 [CmdletBinding()]
@@ -26,6 +31,7 @@ param(
     [string]$RemoteCaptureRoot = "/home/pi/radar_runs/awr2944p",
     [string]$LocalCaptureRoot = "D:\radar_runs\awr2944p",
     [string]$RunId = "",
+    [switch]$Hotspot,
     [switch]$SyncMissing,
     [switch]$IncludeBin,
     [switch]$OpenDashboard
@@ -107,7 +113,15 @@ if ($RunId -and $SyncMissing) {
     throw "Use either -RunId or -SyncMissing, not both."
 }
 
-$remoteTarget = "${PiUser}@${PiHost}"
+$effectivePiHost = if ($Hotspot) { "10.42.0.1" } else { $PiHost }
+if ($Hotspot) {
+    Write-Host "[MODE] Hotspot: using Raspberry Pi address $effectivePiHost" -ForegroundColor Yellow
+}
+else {
+    Write-Host "[MODE] Wi-Fi/client: using Raspberry Pi address $effectivePiHost" -ForegroundColor Cyan
+}
+
+$remoteTarget = "${PiUser}@${effectivePiHost}"
 $remoteRunIds = Get-RemoteRunIds $remoteTarget
 if (-not $remoteRunIds) {
     throw "No capture directories found below $RemoteCaptureRoot"
