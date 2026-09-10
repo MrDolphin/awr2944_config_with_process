@@ -20,6 +20,12 @@ class FetchRadarAnalysisScriptTests(unittest.TestCase):
         self.assertIn("No Pi capture directories are missing", script)
         self.assertIn("Join-Path $LocalCaptureRoot $_", script)
 
+    def test_missing_analysis_directory_is_skipped_without_stopping_batch_sync(self):
+        script = (ROOT / "tools" / "fetch_radar_analysis.ps1").read_text(encoding="utf-8")
+        self.assertIn("if [ -d '$remoteAnalysis' ]; then printf yes; fi", script)
+        self.assertIn("[SKIP] No range_analysis directory", script)
+        self.assertIn("$fileName = if ($fileProbe)", script)
+
 
 if __name__ == "__main__":
     unittest.main()
