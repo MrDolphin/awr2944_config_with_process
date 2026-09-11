@@ -23,6 +23,9 @@
 
 .EXAMPLE
   .\tools\fetch_radar_analysis.ps1 -NetworkMode phone -IncludeBin
+
+.EXAMPLE
+  .\tools\fetch_radar_analysis.ps1 -NetworkMode phone -AnalyzeOnPc
 #>
 
 [CmdletBinding()]
@@ -37,6 +40,7 @@ param(
     # Retained as a no-op compatibility switch; incremental sync is now the default.
     [switch]$SyncMissing,
     [switch]$IncludeBin,
+    [switch]$AnalyzeOnPc,
     [switch]$OpenDashboard
 )
 
@@ -181,7 +185,7 @@ function Copy-OneRun([string]$Target, [string]$SelectedRunId) {
         Copy-LegacyCaptureCfg $Target $remoteRun $localRun
     }
 
-    if ($IncludeBin) {
+    if ($IncludeBin -or $AnalyzeOnPc) {
         $binPath = Copy-RemoteFileIfMissing $Target $remoteRun $localRun "adc_data_*.bin"
         if (-not $binPath) {
             throw "No raw ADC BIN found in remote run: $remoteRun"
@@ -222,6 +226,26 @@ else {
 $lastDashboard = ""
 foreach ($selectedRunId in $selectedRunIds) {
     $lastDashboard = Copy-OneRun $remoteTarget $selectedRunId
+}
+
+if ($AnalyzeOnPc) {
+    $pcAnalysisScript = Join-Path $PSScriptRoot "analyze_radar_captures.ps1"
+    $pcAnalysisArguments = @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $pcAnalysisScript,
+        "-CaptureRoot", $LocalCaptureRoot
+    )
+    if ($RunId) {
+        $pcAnalysisArguments += @("-RunId", $RunId)
+    }
+    Write-Host "[RUN] powershell $($pcAnalysisArguments -join ' ')" -ForegroundColor Cyan
+    & powershell @pcAnalysisArguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "PC analysis failed with exit code ${LASTEXITCODE}"
+    }
+    $lastAnalyzedRun = $selectedRunIds[-1]
+    $lastDashboard = Join-Path $LocalCaptureRoot "$lastAnalyzedRun\pc_analysis\range_analysis\diagnostic_dashboard.png"
 }
 
 if ($OpenDashboard -and $lastDashboard -and (Test-Path -LiteralPath $lastDashboard)) {

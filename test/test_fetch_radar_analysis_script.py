@@ -64,6 +64,13 @@ class FetchRadarAnalysisScriptTests(unittest.TestCase):
         self.assertIn("capture_config_recovered.cfg", script)
         self.assertIn("[WARN] Recovered current Pi CFG for legacy run", script)
 
+    def test_pc_analysis_option_downloads_bin_and_invokes_auto_discovery_script(self):
+        script = (ROOT / "tools" / "fetch_radar_analysis.ps1").read_text(encoding="utf-8")
+        self.assertIn("[switch]$AnalyzeOnPc", script)
+        self.assertIn("$IncludeBin -or $AnalyzeOnPc", script)
+        self.assertIn("analyze_radar_captures.ps1", script)
+        self.assertIn('"-CaptureRoot", $LocalCaptureRoot', script)
+
 
 if __name__ == "__main__":
     unittest.main()
