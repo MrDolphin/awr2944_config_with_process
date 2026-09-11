@@ -174,6 +174,33 @@ class ShoreSea400mCfgTests(unittest.TestCase):
         theoretical_limit_m = 299_792_458 * sample_rate_hz / (4 * slope_hz_per_s)
         self.assertGreater(theoretical_limit_m, 300)
 
+    def test_v4_halves_only_the_v0_slope_for_a_bandwidth_ab(self):
+        """V4 isolates sweep-bandwidth/slope from the V0 sample-load factors."""
+        path = (
+            Path(__file__).resolve().parents[1]
+            / "Config"
+            / "shore_sea_400m_v4_half_bandwidth_raw_adc.cfg"
+        )
+        lines = {
+            line.strip()
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("%")
+        }
+        self.assertIn("channelCfg 15 1 0 0 0", lines)
+        self.assertIn("adcCfg 2 0", lines)
+        self.assertIn("profileCfg 0 77 220 6 132 0 0 2 1 3072 25000 0 0 158", lines)
+        self.assertIn("frameCfg 0 0 128 0 3072 500 1 0", lines)
+        self.assertIn("lvdsStreamCfg -1 0 1 0", lines)
+        self.assertIn("cfarFovCfg -1 0 0 450", lines)
+
+        # Holding sample rate and acquisition time constant halves FMCW
+        # bandwidth, doubles Rmax, and doubles range-bin spacing versus V0.
+        sample_rate_hz = 25_000_000
+        slope_hz_per_s = 2_000_000_000_000
+        theoretical_limit_m = 299_792_458 * sample_rate_hz / (4 * slope_hz_per_s)
+        self.assertGreater(theoretical_limit_m, 900)
+        self.assertLess(400, theoretical_limit_m)
+
     def test_is_a_complete_mmw_demo_configuration_before_sensor_start(self):
         required_prefixes = (
             "dfeDataOutputMode ",
