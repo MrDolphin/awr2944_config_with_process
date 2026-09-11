@@ -1,0 +1,59 @@
+"""Static contract checks for the AWR2944P long-range raw-ADC candidate."""
+
+from pathlib import Path
+import unittest
+
+
+class ShoreSea400mCfgTests(unittest.TestCase):
+    def setUp(self):
+        self.lines = [
+            line.strip()
+            for line in (
+                Path(__file__).resolve().parents[1]
+                / "Config"
+                / "shore_sea_400m_v0_raw_adc.cfg"
+            ).read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("%")
+        ]
+
+    def test_keeps_the_long_range_real_adc_waveform(self):
+        self.assertIn("channelCfg 15 1 0 0 0", self.lines)
+        self.assertIn("adcCfg 2 0", self.lines)
+        self.assertIn("profileCfg 0 77 50 6 132 0 0 4 1 3072 25000 0 0 158", self.lines)
+        self.assertIn("frameCfg 0 0 128 0 3072 500 1 0", self.lines)
+        self.assertIn("lvdsStreamCfg -1 0 1 0", self.lines)
+
+    def test_is_a_complete_mmw_demo_configuration_before_sensor_start(self):
+        required_prefixes = (
+            "dfeDataOutputMode ",
+            "channelCfg ",
+            "adcCfg ",
+            "adcbufCfg ",
+            "profileCfg ",
+            "chirpCfg ",
+            "frameCfg ",
+            "guiMonitor ",
+            "lvdsStreamCfg ",
+            "cfarCfg ",
+            "multiObjBeamForming ",
+            "calibDcRangeSig ",
+            "clutterRemoval ",
+            "antGeometryCfg ",
+            "compRangeBiasAndRxChanPhase ",
+            "measureRangeBiasAndRxChanPhase ",
+            "aoaFovCfg ",
+            "cfarFovCfg ",
+            "extendedMaxVelocity ",
+            "calibData ",
+        )
+        sensor_start = self.lines.index("sensorStart")
+        configured_lines = self.lines[:sensor_start]
+        for prefix in required_prefixes:
+            self.assertTrue(
+                any(line.startswith(prefix) for line in configured_lines),
+                msg=f"missing required pre-start command: {prefix}",
+            )
+
+
+if __name__ == "__main__":
+    unittest.main()
