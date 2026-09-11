@@ -22,6 +22,7 @@ class ShoreSea400mCfgTests(unittest.TestCase):
         self.assertIn("profileCfg 0 77 220 6 132 0 0 4 1 3072 25000 0 0 158", self.lines)
         self.assertIn("frameCfg 0 0 128 0 3072 500 1 0", self.lines)
         self.assertIn("lvdsStreamCfg -1 0 1 0", self.lines)
+        self.assertIn("cfarFovCfg -1 1 -2.77 2.77", self.lines)
 
     def test_has_two_lane_lvds_chirp_transport_margin(self):
         """Keep the profile inside the TI demo's per-chirp LVDS timing rule.
