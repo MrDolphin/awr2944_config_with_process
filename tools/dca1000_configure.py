@@ -12,6 +12,7 @@ import argparse
 import json
 import socket
 from pathlib import Path
+from typing import Any
 
 try:
     from tools.dca1000_protocol import (
@@ -41,8 +42,79 @@ except ModuleNotFoundError:  # direct ``python tools/dca1000_configure.py``
     )
 
 
-def args() -> argparse.Namespace:
+DEFAULTS_PATH = Path("Config/awr2944_capture_defaults.json")
+
+# This is intentionally compatible with the one-command capture launcher's
+# local profile.  Settings unrelated to configuring the DCA1000 are accepted
+# but ignored here, so one profile can remain the single source of stable Pi
+# topology settings.
+CAPTURE_DEFAULT_SETTING_NAMES = {
+    "cfg",
+    "cli_port",
+    "baud",
+    "dca_ip",
+    "system_ip",
+    "dca_mac",
+    "config_port",
+    "data_port",
+    "packet_delay_us",
+    "dca_lvds_mode",
+    "duration",
+    "output_dir",
+    "prefix",
+    "min_free_gb",
+    "socket_buffer_mb",
+    "cli_delay",
+    "dca_timeout",
+    "listener_timeout",
+    "analyze_range",
+    "post_analyze",
+    "analysis_max_range_m",
+}
+
+
+def find_defaults_path(argv: list[str] | None) -> Path:
+    """Read just ``--defaults`` before the main parser is constructed."""
+    bootstrap = argparse.ArgumentParser(add_help=False)
+    bootstrap.add_argument("--defaults", default=str(DEFAULTS_PATH))
+    known, _ = bootstrap.parse_known_args(argv)
+    return Path(known.defaults)
+
+
+def load_defaults(path: Path) -> dict[str, Any]:
+    """Load the shared local capture profile and map DCA-specific names."""
+    if not path.is_file():
+        return {}
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError(f"defaults file must contain a JSON object: {path}")
+    unknown = sorted(set(value) - CAPTURE_DEFAULT_SETTING_NAMES)
+    if unknown:
+        raise ValueError(f"unknown defaults setting(s) in {path}: {', '.join(unknown)}")
+    name_map = {
+        "dca_ip": "dca_ip",
+        "system_ip": "system_ip",
+        "dca_mac": "mac",
+        "config_port": "config_port",
+        "packet_delay_us": "packet_delay_us",
+        "dca_lvds_mode": "lvds_mode",
+        "dca_timeout": "timeout",
+    }
+    return {target: value[source] for source, target in name_map.items() if source in value}
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    defaults_path = find_defaults_path(argv)
+    defaults = load_defaults(defaults_path)
     p = argparse.ArgumentParser(description="Configure DCA1000 over UDP 4096.")
+    p.add_argument(
+        "--defaults",
+        default=str(defaults_path),
+        help=(
+            "Shared local capture JSON. Defaults to Config/awr2944_capture_defaults.json; "
+            "CLI options override it."
+        ),
+    )
     p.add_argument("--dca-ip", default="192.168.33.180")
     p.add_argument("--system-ip", default="192.168.33.30")
     p.add_argument("--mac", default="12.34.56.78.90.12")
@@ -58,7 +130,8 @@ def args() -> argparse.Namespace:
     p.add_argument("--timeout", type=float, default=1.0)
     p.add_argument("--apply", action="store_true", help="Send commands; otherwise print a dry-run plan.")
     p.add_argument("--write-eeprom", action="store_true", help="Also persist IP/MAC settings (requires --apply).")
-    return p.parse_args()
+    p.set_defaults(**defaults)
+    return p.parse_args(argv)
 
 
 def plan(ns: argparse.Namespace) -> list[tuple[str, int, bytes]]:
@@ -101,7 +174,7 @@ def send(ns: argparse.Namespace, name: str, command: int, payload: bytes) -> dic
 
 
 def main() -> int:
-    ns = args()
+    ns = parse_args()
     commands = plan(ns)
     print(json.dumps({"apply": ns.apply, "dca_ip": ns.dca_ip, "config_port": ns.config_port, "commands": [{"name": n, "command": c, "payload_hex": p.hex(" "), "packet_hex": build_command(c, p).hex(" ")} for n, c, p in commands]}, indent=2))
     if not ns.apply:
