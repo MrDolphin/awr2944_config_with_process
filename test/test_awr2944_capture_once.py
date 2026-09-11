@@ -95,6 +95,13 @@ class OneClickCaptureTests(unittest.TestCase):
         self.assertEqual(args.output_dir, "/tmp/run")
         self.assertTrue(args.post_analyze)
 
+    def test_dca_lvds_mode_defaults_to_two_lane_and_can_request_four_lane(self):
+        two_lane = self.module.parse_args(["--cfg", str(self.cfg)])
+        four_lane = self.module.parse_args(["--cfg", str(self.cfg), "--dca-lvds-mode", "1"])
+        self.assertEqual(two_lane.dca_lvds_mode, 2)
+        self.assertEqual(four_lane.dca_lvds_mode, 1)
+        self.assertEqual(self.module.effective_config(four_lane)["dca_lvds_mode"], 1)
+
     def test_unknown_default_setting_is_rejected(self):
         defaults = self.root / "bad_capture_defaults.json"
         defaults.write_text(json.dumps({"cfg": str(self.cfg), "unknown_setting": 1}), encoding="utf-8")

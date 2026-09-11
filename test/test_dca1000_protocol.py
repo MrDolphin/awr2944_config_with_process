@@ -23,6 +23,12 @@ class Dca1000ProtocolTests(unittest.TestCase):
             "5a a5 03 00 06 00 01 02 01 02 03 1e aa ee",
         )
 
+    def test_four_lane_fpga_payload_uses_lvds_mode_one(self):
+        self.assertEqual(
+            build_config_fpga_payload(lvds_mode=1).hex(" "),
+            "01 01 01 02 03 1e",
+        )
+
     def test_packet_delay_encoding_matches_25_50_and_75_us_captures(self):
         for delay, expected in ((25, "be 05 35 0c 00 00"), (50, "be 05 6a 18 00 00"), (75, "be 05 9f 24 00 00")):
             self.assertEqual(build_packet_data_payload(delay).hex(" "), expected)

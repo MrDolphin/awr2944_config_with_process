@@ -48,6 +48,13 @@ def args() -> argparse.Namespace:
     p.add_argument("--mac", default="12.34.56.78.90.12")
     p.add_argument("--config-port", type=int, default=4096)
     p.add_argument("--packet-delay-us", type=int, default=25)
+    p.add_argument(
+        "--lvds-mode",
+        type=int,
+        choices=(1, 2),
+        default=2,
+        help="DCA1000 LVDS mode: 1 = 4 lane, 2 = 2 lane (must match SW2.3).",
+    )
     p.add_argument("--timeout", type=float, default=1.0)
     p.add_argument("--apply", action="store_true", help="Send commands; otherwise print a dry-run plan.")
     p.add_argument("--write-eeprom", action="store_true", help="Also persist IP/MAC settings (requires --apply).")
@@ -62,7 +69,7 @@ def plan(ns: argparse.Namespace) -> list[tuple[str, int, bytes]]:
         commands.append(("configure_eeprom", CMD_CONFIG_EEPROM, build_config_eeprom_payload(ns.system_ip, ns.dca_ip, ns.mac)))
     commands.extend(
         [
-            ("configure_fpga", CMD_CONFIG_FPGA, build_config_fpga_payload()),
+            ("configure_fpga", CMD_CONFIG_FPGA, build_config_fpga_payload(lvds_mode=ns.lvds_mode)),
             ("configure_packet_data", CMD_CONFIG_PACKET_DATA, build_packet_data_payload(ns.packet_delay_us)),
             ("read_fpga_version", CMD_READ_FPGA_VERSION, b""),
         ]
