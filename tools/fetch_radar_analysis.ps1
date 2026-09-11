@@ -3,35 +3,37 @@
   Copy Raspberry Pi radar-analysis artifacts to Windows.
 
 .DESCRIPTION
-  With no selection switch, the script copies the latest capture's analysis.
-  Use -SyncMissing to copy every run directory present on the Pi but absent
-  beneath the local capture root. Analysis artifacts are always copied; raw
-  ADC BIN files remain opt-in through -IncludeBin to avoid accidental bulk
-  transfers of large recordings. Use -Hotspot when the Windows PC is connected
-  to the Raspberry Pi's radar-pi-ap Wi-Fi hotspot; it selects the hotspot
-  address 10.42.0.1 for both SSH and SCP.
+  By default, scan every capture on the Pi and copy only files/directories that
+  do not already exist below the local capture root. Analysis artifacts are
+  included; raw ADC BIN files remain opt-in through -IncludeBin to avoid
+  accidental bulk transfers of large recordings. Select a remembered network
+  name with -NetworkMode instead of entering Raspberry Pi IP addresses.
 
 .EXAMPLE
   .\tools\fetch_radar_analysis.ps1
 
 .EXAMPLE
-  .\tools\fetch_radar_analysis.ps1 -SyncMissing -IncludeBin -OpenDashboard
+  .\tools\fetch_radar_analysis.ps1 -NetworkMode lab -IncludeBin -OpenDashboard
 
 .EXAMPLE
   .\tools\fetch_radar_analysis.ps1 -RunId 20260910_154213 -IncludeBin
 
 .EXAMPLE
-  .\tools\fetch_radar_analysis.ps1 -Hotspot -SyncMissing -OpenDashboard
+  .\tools\fetch_radar_analysis.ps1 -NetworkMode hotspot -IncludeBin
+
+.EXAMPLE
+  .\tools\fetch_radar_analysis.ps1 -NetworkMode phone -IncludeBin
 #>
 
 [CmdletBinding()]
 param(
-    [string]$PiHost = "172.20.10.10",
+    [ValidateSet("lab", "hotspot", "phone")]
+    [string]$NetworkMode = "lab",
     [string]$PiUser = "pi",
     [string]$RemoteCaptureRoot = "/home/pi/radar_runs/awr2944p",
     [string]$LocalCaptureRoot = "D:\radar_runs\awr2944p",
     [string]$RunId = "",
-    [switch]$Hotspot,
+    # Retained as a no-op compatibility switch; incremental sync is now the default.
     [switch]$SyncMissing,
     [switch]$IncludeBin,
     [switch]$OpenDashboard
@@ -54,6 +56,14 @@ function Assert-SafeRunId([string]$Value) {
     }
 }
 
+function Assert-SafeRelativePath([string]$Value) {
+    if ([string]::IsNullOrWhiteSpace($Value) -or
+        [System.IO.Path]::IsPathRooted($Value) -or
+        $Value -match '(^|[\\/])\.\.([\\/]|$)') {
+        throw "Unsafe relative path returned by remote host: $Value"
+    }
+}
+
 function Get-RemoteRunIds([string]$Target) {
     $findCommand = "find '$RemoteCaptureRoot' -mindepth 1 -maxdepth 1 -type d -name '[0-9]*_[0-9]*' -printf '%f\n' | sort"
     return @(Invoke-Checked "ssh" @($Target, $findCommand) |
@@ -61,14 +71,40 @@ function Get-RemoteRunIds([string]$Target) {
         Where-Object { $_ })
 }
 
-function Copy-RemoteFileIfPresent([string]$Target, [string]$RemoteRun, [string]$LocalRun, [string]$NamePattern) {
+function Copy-RemoteFileIfMissing([string]$Target, [string]$RemoteRun, [string]$LocalRun, [string]$NamePattern) {
     $findCommand = "find '$RemoteRun' -maxdepth 1 -type f -name '$NamePattern' -printf '%f\n' | sort | head -n 1"
     $fileProbe = @(Invoke-Checked "ssh" @($Target, $findCommand))
     $fileName = if ($fileProbe) { $fileProbe[-1].Trim() } else { "" }
     if ($fileName) {
-        Invoke-Checked "scp" @("${Target}:$RemoteRun/$fileName", $LocalRun) | Out-Null
+        $localPath = Join-Path $LocalRun $fileName
+        if (Test-Path -LiteralPath $localPath) {
+            Write-Host "[SKIP] Already exists: $localPath" -ForegroundColor DarkGray
+        }
+        else {
+            Invoke-Checked "scp" @("${Target}:$RemoteRun/$fileName", $LocalRun) | Out-Null
+        }
     }
     return $fileName
+}
+
+function Copy-RemoteTreeMissing([string]$Target, [string]$RemoteRoot, [string]$LocalRoot) {
+    New-Item -ItemType Directory -Force -Path $LocalRoot | Out-Null
+    $findCommand = "find '$RemoteRoot' -type f -printf '%P\n' | sort"
+    $relativePaths = @(Invoke-Checked "ssh" @($Target, $findCommand) |
+        ForEach-Object { $_.Trim() } |
+        Where-Object { $_ })
+    foreach ($relativePath in $relativePaths) {
+        Assert-SafeRelativePath $relativePath
+        $windowsRelativePath = $relativePath.Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+        $localPath = Join-Path $LocalRoot $windowsRelativePath
+        if (Test-Path -LiteralPath $localPath) {
+            Write-Host "[SKIP] Already exists: $localPath" -ForegroundColor DarkGray
+            continue
+        }
+        $localParent = Split-Path -Parent $localPath
+        New-Item -ItemType Directory -Force -Path $localParent | Out-Null
+        Invoke-Checked "scp" @("${Target}:$RemoteRoot/$relativePath", $localPath) | Out-Null
+    }
 }
 
 function Copy-OneRun([string]$Target, [string]$SelectedRunId) {
@@ -84,19 +120,20 @@ function Copy-OneRun([string]$Target, [string]$SelectedRunId) {
     $rangeAnalysisProbe = @(Invoke-Checked "ssh" @($Target, "if [ -d '$remoteAnalysis' ]; then printf yes; fi"))
     $hasRangeAnalysis = if ($rangeAnalysisProbe) { $rangeAnalysisProbe[-1].Trim() } else { "" }
     if ($hasRangeAnalysis -eq "yes") {
-        Invoke-Checked "scp" @("-r", "${Target}:$remoteAnalysis", $localRun) | Out-Null
+        $localAnalysis = Join-Path $localRun "range_analysis"
+        Copy-RemoteTreeMissing $Target $remoteAnalysis $localAnalysis
     }
     else {
         Write-Host "[SKIP] No range_analysis directory for old run: $SelectedRunId" -ForegroundColor Yellow
     }
 
     # These top-level files can be absent in older runs, so copy them only when present.
-    Copy-RemoteFileIfPresent $Target $remoteRun $localRun "output_analysis.md" | Out-Null
-    Copy-RemoteFileIfPresent $Target $remoteRun $localRun "post_capture_analysis.json" | Out-Null
-    Copy-RemoteFileIfPresent $Target $remoteRun $localRun "adc_data_*.json" | Out-Null
+    Copy-RemoteFileIfMissing $Target $remoteRun $localRun "output_analysis.md" | Out-Null
+    Copy-RemoteFileIfMissing $Target $remoteRun $localRun "post_capture_analysis.json" | Out-Null
+    Copy-RemoteFileIfMissing $Target $remoteRun $localRun "adc_data_*.json" | Out-Null
 
     if ($IncludeBin) {
-        $binPath = Copy-RemoteFileIfPresent $Target $remoteRun $localRun "adc_data_*.bin"
+        $binPath = Copy-RemoteFileIfMissing $Target $remoteRun $localRun "adc_data_*.bin"
         if (-not $binPath) {
             throw "No raw ADC BIN found in remote run: $remoteRun"
         }
@@ -109,17 +146,13 @@ function Copy-OneRun([string]$Target, [string]$SelectedRunId) {
     return $dashboardPath
 }
 
-if ($RunId -and $SyncMissing) {
-    throw "Use either -RunId or -SyncMissing, not both."
+$networkAddresses = @{
+    lab = "172.20.10.10"
+    hotspot = "10.42.0.1"
+    phone = "192.168.43.36"
 }
-
-$effectivePiHost = if ($Hotspot) { "10.42.0.1" } else { $PiHost }
-if ($Hotspot) {
-    Write-Host "[MODE] Hotspot: using Raspberry Pi address $effectivePiHost" -ForegroundColor Yellow
-}
-else {
-    Write-Host "[MODE] Wi-Fi/client: using Raspberry Pi address $effectivePiHost" -ForegroundColor Cyan
-}
+$effectivePiHost = $networkAddresses[$NetworkMode]
+Write-Host "[MODE] ${NetworkMode}: using saved Raspberry Pi address $effectivePiHost" -ForegroundColor Cyan
 
 $remoteTarget = "${PiUser}@${effectivePiHost}"
 $remoteRunIds = Get-RemoteRunIds $remoteTarget
@@ -131,19 +164,10 @@ if ($RunId) {
     Assert-SafeRunId $RunId
     $selectedRunIds = @($RunId)
 }
-elseif ($SyncMissing) {
-    $selectedRunIds = @(
-        $remoteRunIds | Where-Object {
-            -not (Test-Path -LiteralPath (Join-Path $LocalCaptureRoot $_))
-        }
-    )
-    if (-not $selectedRunIds) {
-        Write-Host "[DONE] No Pi capture directories are missing from $LocalCaptureRoot" -ForegroundColor Green
-        exit 0
-    }
-}
 else {
-    $selectedRunIds = @($remoteRunIds | Select-Object -Last 1)
+    # Incremental synchronization is the default. Copy-OneRun performs
+    # file-level existence checks, so a partially downloaded run can resume.
+    $selectedRunIds = @($remoteRunIds)
 }
 
 $lastDashboard = ""

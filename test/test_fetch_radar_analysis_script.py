@@ -6,10 +6,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class FetchRadarAnalysisScriptTests(unittest.TestCase):
-    def test_fetch_script_supports_missing_run_sync_and_keeps_bin_opt_in(self):
+    def test_fetch_script_defaults_to_incremental_sync_and_keeps_bin_opt_in(self):
         script = (ROOT / "tools" / "fetch_radar_analysis.ps1").read_text(encoding="utf-8")
-        self.assertIn("[switch]$Hotspot", script)
-        self.assertIn("[switch]$SyncMissing", script)
         self.assertIn("[switch]$IncludeBin", script)
         self.assertIn("[switch]$OpenDashboard", script)
         self.assertIn("Assert-SafeRunId", script)
@@ -18,21 +16,35 @@ class FetchRadarAnalysisScriptTests(unittest.TestCase):
         self.assertIn("Invoke-Checked \"scp\"", script)
         self.assertIn("diagnostic_dashboard.png", script)
         self.assertIn("adc_data_*.json", script)
-        self.assertIn("No Pi capture directories are missing", script)
-        self.assertIn("Join-Path $LocalCaptureRoot $_", script)
+        self.assertIn("Copy-RemoteFileIfMissing", script)
+        self.assertIn("[SKIP] Already exists", script)
+        self.assertIn("$selectedRunIds = @($remoteRunIds)", script)
+        self.assertNotIn("Select-Object -Last 1", script)
 
-    def test_hotspot_mode_uses_the_pi_hotspot_address_for_ssh_and_scp(self):
+    def test_network_mode_uses_memorable_names_instead_of_ip_parameters(self):
         script = (ROOT / "tools" / "fetch_radar_analysis.ps1").read_text(encoding="utf-8")
+        self.assertIn('[ValidateSet("lab", "hotspot", "phone")]', script)
+        self.assertIn('[string]$NetworkMode = "lab"', script)
+        self.assertIn('lab = "172.20.10.10"', script)
         self.assertIn('"10.42.0.1"', script)
-        self.assertIn("$effectivePiHost = if ($Hotspot)", script)
+        self.assertIn('phone = "192.168.43.36"', script)
+        self.assertNotIn("[string]$PiHost", script)
+        self.assertNotIn("[switch]$Hotspot", script)
         self.assertIn("$remoteTarget = \"${PiUser}@${effectivePiHost}\"", script)
-        self.assertIn("[MODE] Hotspot", script)
+        self.assertIn("[MODE] ${NetworkMode}", script)
 
     def test_missing_analysis_directory_is_skipped_without_stopping_batch_sync(self):
         script = (ROOT / "tools" / "fetch_radar_analysis.ps1").read_text(encoding="utf-8")
         self.assertIn("if [ -d '$remoteAnalysis' ]; then printf yes; fi", script)
         self.assertIn("[SKIP] No range_analysis directory", script)
         self.assertIn("$fileName = if ($fileProbe)", script)
+
+    def test_partially_downloaded_analysis_directory_is_resumed_per_file(self):
+        script = (ROOT / "tools" / "fetch_radar_analysis.ps1").read_text(encoding="utf-8")
+        self.assertIn("Copy-RemoteTreeMissing", script)
+        self.assertIn("-type f -printf '%P\\n' | sort", script)
+        self.assertIn("Assert-SafeRelativePath", script)
+        self.assertIn("New-Item -ItemType Directory -Force -Path $localParent", script)
 
 
 if __name__ == "__main__":
