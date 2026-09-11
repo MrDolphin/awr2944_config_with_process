@@ -86,6 +86,37 @@ class ShoreSea400mCfgTests(unittest.TestCase):
         self.assertEqual(required_bytes, 33024)
         self.assertGreaterEqual(available_bytes, required_bytes)
 
+    def test_v3_reduces_only_total_chirps_to_the_known_good_baseline_count(self):
+        """V3 keeps V2's long-range waveform but cuts 128 chirps to 64.
+
+        The V2 start attempt had no LVDS data even after a 12-second serial
+        observation.  This A/B check reduces radar-cube/slow-time pressure
+        while holding the 2048 real samples, 4-TX topology, slope and sample
+        rate fixed.  Four chirp types multiplied by 16 loops gives 64 total
+        chirps, matching the known-good near-range baseline's frame count.
+        """
+        path = (
+            Path(__file__).resolve().parents[1]
+            / "Config"
+            / "shore_sea_400m_v3_raw_adc_2048_4tx_64chirps.cfg"
+        )
+        lines = {
+            line.strip()
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("%")
+        }
+        self.assertIn("channelCfg 15 15 0 0 0", lines)
+        self.assertIn("profileCfg 0 77 220 6 132 0 0 4 1 2048 25000 0 0 158", lines)
+        self.assertIn("frameCfg 0 3 16 0 2048 500 1 0", lines)
+        self.assertIn("lvdsStreamCfg -1 0 1 0", lines)
+        self.assertIn("sensorStart", lines)
+
+        chirps_per_frame = 4 * 16
+        tx_count = 4
+        self.assertEqual(chirps_per_frame, 64)
+        self.assertEqual(chirps_per_frame % tx_count, 0)
+        self.assertEqual((chirps_per_frame // tx_count) % 2, 0)
+
     def test_is_a_complete_mmw_demo_configuration_before_sensor_start(self):
         required_prefixes = (
             "dfeDataOutputMode ",
