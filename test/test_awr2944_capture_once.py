@@ -47,6 +47,8 @@ class OneClickCaptureTests(unittest.TestCase):
         start = self.module.build_cli_start_stop_command(args, "start")
         self.assertIn("configure", configure)
         self.assertIn("--no-start", configure)
+        self.assertIn("--delay", start)
+        self.assertIn(str(args.cli_delay), start)
         self.assertEqual(start[-1], "start")
 
     def test_analysis_is_opt_in_and_uses_capture_directory(self):

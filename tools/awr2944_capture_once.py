@@ -164,7 +164,7 @@ def build_cli_start_stop_command(args: argparse.Namespace, command: str) -> list
         raise ValueError("command must be start or stop")
     return [
         sys.executable, str(TOOLS_DIR / "awr2944_cli_control.py"),
-        "--port", args.cli_port, "--baud", str(args.baud), command,
+        "--port", args.cli_port, "--baud", str(args.baud), "--delay", str(args.cli_delay), command,
     ]
 
 

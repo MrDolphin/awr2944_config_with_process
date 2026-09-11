@@ -36,6 +36,38 @@ def send_line(cli: serial.Serial, line: str, delay: float) -> None:
     time.sleep(delay)
 
 
+def read_response(cli: serial.Serial, timeout: float = 1.0) -> str:
+    """Collect the immediate CLI reply without waiting forever for a prompt.
+
+    ``sensorStart`` may leave the radar running without returning a prompt, but
+    configuration rejection and firmware assertions are emitted immediately.
+    Read until a short quiet period so those errors remain visible to the
+    non-interactive capture launcher.
+    """
+    chunks: list[bytes] = []
+    deadline = time.monotonic() + timeout
+    quiet_deadline: float | None = None
+    while time.monotonic() < deadline:
+        waiting = cli.in_waiting
+        if waiting:
+            chunks.append(cli.read(waiting))
+            quiet_deadline = time.monotonic() + 0.10
+            continue
+        if quiet_deadline is not None and time.monotonic() >= quiet_deadline:
+            break
+        time.sleep(0.02)
+    return b"".join(chunks).decode("utf-8", errors="ignore").strip()
+
+
+def print_and_validate_response(command: str, response: str) -> int:
+    if response:
+        print(f"[RADAR-CLI-RESPONSE] {response}")
+    if "exception:" in response.lower() or "error" in response.lower():
+        print(f"radar rejected {command}: {response}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def iter_cfg_commands(cfg_path: Path):
     for raw in cfg_path.read_text(encoding="utf-8", errors="ignore").splitlines():
         line = raw.strip()
@@ -71,14 +103,16 @@ def configure(args: argparse.Namespace) -> int:
 
 def start(args: argparse.Namespace) -> int:
     with open_serial(args.port, args.baud) as cli:
-        send_line(cli, "sensorStart 0" if args.resume else "sensorStart", args.delay)
-    return 0
+        command = "sensorStart 0" if args.resume else "sensorStart"
+        send_line(cli, command, args.delay)
+        return print_and_validate_response(command, read_response(cli))
 
 
 def stop(args: argparse.Namespace) -> int:
     with open_serial(args.port, args.baud) as cli:
-        send_line(cli, "sensorStop", args.delay)
-    return 0
+        command = "sensorStop"
+        send_line(cli, command, args.delay)
+        return print_and_validate_response(command, read_response(cli))
 
 
 def build_parser() -> argparse.ArgumentParser:
