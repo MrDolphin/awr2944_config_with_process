@@ -75,13 +75,15 @@ function Analyze-OneRun([System.IO.DirectoryInfo]$RunDirectory) {
 
     $outputRoot = Join-Path $RunDirectory.FullName "pc_analysis"
     $rangeOutput = Join-Path $outputRoot "range_analysis"
+    $reportOutput = Join-Path $outputRoot "quality_report"
     $dashboard = Join-Path $rangeOutput "diagnostic_dashboard.png"
-    $postReport = Join-Path $outputRoot "post_capture_analysis.json"
+    $postReport = Join-Path $reportOutput "post_capture_analysis.json"
 
     Write-Host "[PLAN] BIN: $($binFile.FullName)" -ForegroundColor Cyan
     Write-Host "[PLAN] metadata: $($metadataFile.FullName)" -ForegroundColor Cyan
     Write-Host "[PLAN] CFG: $($cfgFile.FullName)" -ForegroundColor Cyan
     Write-Host "[PLAN] output: $outputRoot" -ForegroundColor Cyan
+    Write-Host "[PLAN] quality report output: $reportOutput" -ForegroundColor Cyan
 
     if ($DryRun) {
         return
@@ -106,7 +108,7 @@ function Analyze-OneRun([System.IO.DirectoryInfo]$RunDirectory) {
         "--cfg", $cfgFile.FullName,
         "--metadata", $metadataFile.FullName,
         "--range-analysis-dir", $rangeOutput,
-        "--output-dir", $outputRoot
+        "--output-dir", $reportOutput
     )
     Write-Host "[DONE] PC analysis: $outputRoot" -ForegroundColor Green
 }

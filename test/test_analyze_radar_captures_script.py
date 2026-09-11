@@ -41,6 +41,7 @@ class AnalyzeRadarCapturesScriptTests(unittest.TestCase):
             self.assertIn("adc_data_20260911_113827.json", result.stdout)
             self.assertIn("capture_config.cfg", result.stdout)
             self.assertIn("pc_analysis", result.stdout)
+            self.assertIn("quality_report", result.stdout)
 
     def test_dry_run_uses_recovered_cfg_for_legacy_capture(self):
         with tempfile.TemporaryDirectory() as temp_dir:
