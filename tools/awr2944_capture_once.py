@@ -40,6 +40,7 @@ DEFAULT_SETTING_NAMES = {
     "config_port",
     "data_port",
     "packet_delay_us",
+    "dca_lvds_mode",
     "duration",
     "output_dir",
     "prefix",
@@ -96,6 +97,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--config-port", type=int, default=4096)
     parser.add_argument("--data-port", type=int, default=4098)
     parser.add_argument("--packet-delay-us", type=int, default=25)
+    parser.add_argument(
+        "--dca-lvds-mode",
+        type=int,
+        choices=(1, 2),
+        default=2,
+        help="DCA1000 LVDS mode: 1 = 4 lane, 2 = 2 lane; must match physical SW2.3.",
+    )
     parser.add_argument("--duration", type=float, default=60.0, help="Capture duration in seconds.")
     parser.add_argument("--output-dir", default="/home/pi/radar_runs/awr2944p")
     parser.add_argument("--prefix", default="adc_data")
@@ -219,6 +227,7 @@ def configure_dca(args: argparse.Namespace) -> None:
         mac=args.dca_mac,
         config_port=args.config_port,
         packet_delay_us=args.packet_delay_us,
+        lvds_mode=args.dca_lvds_mode,
         timeout=args.dca_timeout,
         apply=True,
         write_eeprom=False,

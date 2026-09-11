@@ -43,7 +43,14 @@ def build_config_fpga_payload(
     data_format_mode: int = 3,
     timeout_s: int = 30,
 ) -> bytes:
-    """Build the six-byte CONFIG_FPGA payload used by AWR2944P capture."""
+    """Build the six-byte CONFIG_FPGA payload used by AWR2944P capture.
+
+    DCA1000 defines ``lvds_mode=1`` as four lanes and ``lvds_mode=2`` as two
+    lanes.  This function deliberately leaves the existing two-lane default
+    unchanged; callers must opt in to four-lane mode after changing SW2.3.
+    """
+    if lvds_mode not in (1, 2):
+        raise ValueError("lvds_mode must be 1 (4 lane) or 2 (2 lane)")
     values = (logging_mode, lvds_mode, transfer_mode, capture_mode, data_format_mode, timeout_s)
     if any(not 0 <= value <= 0xFF for value in values):
         raise ValueError("CONFIG_FPGA fields must fit uint8")

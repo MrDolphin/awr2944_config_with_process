@@ -8,6 +8,7 @@
   "config_port": 4096,
   "data_port": 4098,
   "packet_delay_us": 25,
+  "dca_lvds_mode": 2,
   "duration": 20.0,
   "output_dir": "/home/pi/radar_runs/awr2944p",
   "prefix": "adc_data",
