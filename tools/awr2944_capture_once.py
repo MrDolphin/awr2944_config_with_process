@@ -49,6 +49,7 @@ DEFAULT_SETTING_NAMES = {
     "cli_delay",
     "dca_timeout",
     "listener_timeout",
+    "startup_observe_seconds",
     "analyze_range",
     "post_analyze",
     "analysis_max_range_m",
@@ -113,6 +114,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--dca-timeout", type=float, default=5.0)
     parser.add_argument("--listener-timeout", type=float, default=10.0)
     parser.add_argument(
+        "--startup-observe-seconds",
+        type=float,
+        default=0.0,
+        help=(
+            "Diagnostic only: keep the radar CLI open after sensorStart for this many seconds "
+            "to capture delayed firmware output. Increase --duration accordingly."
+        ),
+    )
+    parser.add_argument(
         "--analyze-range",
         action="store_true",
         help="After a successful capture and safe radar/DCA shutdown, generate range-domain analysis artifacts.",
@@ -162,10 +172,13 @@ def build_cli_configure_command(args: argparse.Namespace) -> list[str]:
 def build_cli_start_stop_command(args: argparse.Namespace, command: str) -> list[str]:
     if command not in {"start", "stop"}:
         raise ValueError("command must be start or stop")
-    return [
+    result = [
         sys.executable, str(TOOLS_DIR / "awr2944_cli_control.py"),
         "--port", args.cli_port, "--baud", str(args.baud), "--delay", str(args.cli_delay), command,
     ]
+    if command == "start" and args.startup_observe_seconds > 0:
+        result.extend(["--observe-seconds", str(args.startup_observe_seconds)])
+    return result
 
 
 def build_capture_command(args: argparse.Namespace) -> list[str]:

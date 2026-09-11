@@ -36,13 +36,18 @@ def send_line(cli: serial.Serial, line: str, delay: float) -> None:
     time.sleep(delay)
 
 
-def read_response(cli: serial.Serial, timeout: float = 1.0) -> str:
+def read_response(
+    cli: serial.Serial,
+    timeout: float = 1.0,
+    quiet_period: float | None = 0.10,
+) -> str:
     """Collect the immediate CLI reply without waiting forever for a prompt.
 
     ``sensorStart`` may leave the radar running without returning a prompt, but
     configuration rejection and firmware assertions are emitted immediately.
     Read until a short quiet period so those errors remain visible to the
-    non-interactive capture launcher.
+    non-interactive capture launcher.  A caller diagnosing a delayed startup
+    failure may pass ``quiet_period=None`` to observe the full time window.
     """
     chunks: list[bytes] = []
     deadline = time.monotonic() + timeout
@@ -51,9 +56,14 @@ def read_response(cli: serial.Serial, timeout: float = 1.0) -> str:
         waiting = cli.in_waiting
         if waiting:
             chunks.append(cli.read(waiting))
-            quiet_deadline = time.monotonic() + 0.10
+            if quiet_period is not None:
+                quiet_deadline = time.monotonic() + quiet_period
             continue
-        if quiet_deadline is not None and time.monotonic() >= quiet_deadline:
+        if (
+            quiet_period is not None
+            and quiet_deadline is not None
+            and time.monotonic() >= quiet_deadline
+        ):
             break
         time.sleep(0.02)
     return b"".join(chunks).decode("utf-8", errors="ignore").strip()
@@ -106,9 +116,19 @@ def start(args: argparse.Namespace) -> int:
         command = "sensorStart 0" if args.resume else "sensorStart"
         send_line(cli, command, args.delay)
         # The RF-calibration/startup path can print a diagnostic after the
-        # immediate command echo. Keep listening long enough to surface it to
-        # the capture launcher instead of reporting only "no UDP data".
-        return print_and_validate_response(command, read_response(cli, timeout=5.0))
+        # immediate command echo.  The ordinary capture path exits after a
+        # short quiet period; an explicit diagnostic observation window keeps
+        # the serial port open to expose a delayed firmware assertion.
+        if args.observe_seconds > 0:
+            print(f"[DEBUG-awr2944-start] observing serial output for {args.observe_seconds:.1f}s")
+            response = read_response(
+                cli,
+                timeout=args.observe_seconds,
+                quiet_period=None,
+            )
+        else:
+            response = read_response(cli, timeout=5.0)
+        return print_and_validate_response(command, response)
 
 
 def stop(args: argparse.Namespace) -> int:
@@ -135,6 +155,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_start = sub.add_parser("start", help="Send sensorStart.")
     p_start.add_argument("--resume", action="store_true", help="Use sensorStart 0.")
+    p_start.add_argument(
+        "--observe-seconds",
+        type=float,
+        default=0.0,
+        help="Keep the CLI port open after sensorStart for delayed diagnostics.",
+    )
     p_start.set_defaults(func=start)
 
     p_stop = sub.add_parser("stop", help="Send sensorStop.")

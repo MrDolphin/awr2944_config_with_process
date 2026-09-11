@@ -51,6 +51,16 @@ class OneClickCaptureTests(unittest.TestCase):
         self.assertIn(str(args.cli_delay), start)
         self.assertEqual(start[-1], "start")
 
+    def test_start_observe_window_is_forwarded_only_to_sensor_start(self):
+        args = self.module.parse_args(
+            ["--cfg", str(self.cfg), "--startup-observe-seconds", "8"]
+        )
+        start = self.module.build_cli_start_stop_command(args, "start")
+        stop = self.module.build_cli_start_stop_command(args, "stop")
+        self.assertIn("--observe-seconds", start)
+        self.assertIn("8.0", start)
+        self.assertNotIn("--observe-seconds", stop)
+
     def test_analysis_is_opt_in_and_uses_capture_directory(self):
         args = self.module.parse_args([
             "--cfg", str(self.cfg), "--analyze-range", "--analysis-max-range-m", "12.0",
