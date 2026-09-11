@@ -46,6 +46,24 @@ class FetchRadarAnalysisScriptTests(unittest.TestCase):
         self.assertIn("Assert-SafeRelativePath", script)
         self.assertIn("New-Item -ItemType Directory -Force -Path $localParent", script)
 
+    def test_capture_cfg_snapshot_is_downloaded_with_each_run(self):
+        script = (ROOT / "tools" / "fetch_radar_analysis.ps1").read_text(encoding="utf-8")
+        self.assertIn(
+            'Copy-RemoteFileIfMissing $Target $remoteRun $localRun "capture_config.cfg"',
+            script,
+        )
+
+    def test_legacy_run_recovers_cfg_from_pi_project_and_labels_it_recovered(self):
+        script = (ROOT / "tools" / "fetch_radar_analysis.ps1").read_text(encoding="utf-8")
+        self.assertIn(
+            '[string]$RemoteProjectRoot = "/home/pi/awr2944_config_with_process_github"',
+            script,
+        )
+        self.assertIn("Copy-LegacyCaptureCfg", script)
+        self.assertIn("radar_cfg.cfg_path", script)
+        self.assertIn("capture_config_recovered.cfg", script)
+        self.assertIn("[WARN] Recovered current Pi CFG for legacy run", script)
+
 
 if __name__ == "__main__":
     unittest.main()

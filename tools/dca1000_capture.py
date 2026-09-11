@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import datetime as _dt
 import glob
+import hashlib
 import json
 import os
 import shutil
@@ -284,6 +285,24 @@ def make_capture_paths(base_dir: Path, prefix: str) -> Tuple[Path, Path]:
     return session_dir / f"{prefix}_{stamp}.bin", session_dir / f"{prefix}_{stamp}.json"
 
 
+def snapshot_radar_cfg(cfg_path: Optional[str], session_dir: Path) -> Dict[str, object]:
+    """Copy the exact capture CFG beside the BIN and record its content hash."""
+    if not cfg_path:
+        return {}
+    source = Path(cfg_path)
+    if not source.is_file():
+        return {"source_path": str(source), "error": "cfg file not found"}
+    destination = session_dir / "capture_config.cfg"
+    if source.resolve() != destination.resolve():
+        shutil.copyfile(source, destination)
+    digest = hashlib.sha256(destination.read_bytes()).hexdigest()
+    return {
+        "source_path": str(source),
+        "snapshot_file": destination.name,
+        "sha256": digest,
+    }
+
+
 def dca_command_packet(command: int, payload: bytes = b"") -> bytes:
     return struct.pack("<HHH", DCA_CMD_HEADER, command, len(payload)) + payload + struct.pack(
         "<H", DCA_CMD_FOOTER
@@ -361,8 +380,11 @@ def capture(args: argparse.Namespace) -> int:
 
     out_base = choose_output_dir(args.output_dir, args.min_free_gb)
     bin_path, meta_path = make_capture_paths(out_base, args.prefix)
+    cfg_snapshot = snapshot_radar_cfg(args.cfg, bin_path.parent)
     free_gb = shutil.disk_usage(bin_path.parent).free / 1024**3
     print(f"[OUT] {bin_path}")
+    if cfg_snapshot.get("snapshot_file"):
+        print(f"[OUT] CFG snapshot: {bin_path.parent / str(cfg_snapshot['snapshot_file'])}")
     print(f"[OUT] Free space: {free_gb:.1f} GB")
 
     estimated_frame_bytes = int(radar_cfg.get("estimated_payload_bytes_per_frame", 0) or 0)
@@ -477,6 +499,7 @@ def capture(args: argparse.Namespace) -> int:
         "total_saved_bytes": total_payload_bytes,
         "average_saved_mb_s": total_payload_bytes / 1024 / 1024 / elapsed,
         "radar_cfg": radar_cfg,
+        "radar_cfg_snapshot": cfg_snapshot,
         "dca_cf_json": str(args.cf_json) if args.cf_json else None,
     }
     meta_path.write_text(json.dumps(metadata, indent=2, ensure_ascii=False), encoding="utf-8")

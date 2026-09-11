@@ -31,6 +31,7 @@ param(
     [string]$NetworkMode = "lab",
     [string]$PiUser = "pi",
     [string]$RemoteCaptureRoot = "/home/pi/radar_runs/awr2944p",
+    [string]$RemoteProjectRoot = "/home/pi/awr2944_config_with_process_github",
     [string]$LocalCaptureRoot = "D:\radar_runs\awr2944p",
     [string]$RunId = "",
     # Retained as a no-op compatibility switch; incremental sync is now the default.
@@ -59,7 +60,8 @@ function Assert-SafeRunId([string]$Value) {
 function Assert-SafeRelativePath([string]$Value) {
     if ([string]::IsNullOrWhiteSpace($Value) -or
         [System.IO.Path]::IsPathRooted($Value) -or
-        $Value -match '(^|[\\/])\.\.([\\/]|$)') {
+        $Value -match '(^|[\\/])\.\.([\\/]|$)' -or
+        $Value -notmatch '^[A-Za-z0-9._/-]+$') {
         throw "Unsafe relative path returned by remote host: $Value"
     }
 }
@@ -107,6 +109,49 @@ function Copy-RemoteTreeMissing([string]$Target, [string]$RemoteRoot, [string]$L
     }
 }
 
+function Copy-LegacyCaptureCfg([string]$Target, [string]$RemoteRun, [string]$LocalRun) {
+    $destination = Join-Path $LocalRun "capture_config_recovered.cfg"
+    if (Test-Path -LiteralPath $destination) {
+        Write-Host "[SKIP] Already exists: $destination" -ForegroundColor DarkGray
+        return
+    }
+
+    $metadataFile = Get-ChildItem -LiteralPath $LocalRun -Filter "adc_data_*.json" -File |
+        Sort-Object Name |
+        Select-Object -First 1
+    if (-not $metadataFile) {
+        Write-Host "[SKIP] Cannot recover CFG for legacy run without metadata: $RemoteRun" -ForegroundColor Yellow
+        return
+    }
+
+    try {
+        $metadata = Get-Content -LiteralPath $metadataFile.FullName -Raw | ConvertFrom-Json
+    }
+    catch {
+        Write-Host "[SKIP] Cannot parse legacy metadata: $($metadataFile.FullName)" -ForegroundColor Yellow
+        return
+    }
+
+    $cfgReference = $metadata.radar_cfg.cfg_path
+    if ([string]::IsNullOrWhiteSpace($cfgReference)) {
+        Write-Host "[SKIP] Legacy metadata has no radar_cfg.cfg_path: $($metadataFile.FullName)" -ForegroundColor Yellow
+        return
+    }
+    Assert-SafeRelativePath $cfgReference
+
+    $remoteCfg = "$RemoteProjectRoot/$cfgReference"
+    $cfgProbe = @(Invoke-Checked "ssh" @($Target, "if [ -f '$remoteCfg' ]; then printf yes; fi"))
+    $hasCfg = if ($cfgProbe) { $cfgProbe[-1].Trim() } else { "" }
+    if ($hasCfg -ne "yes") {
+        Write-Host "[SKIP] Current Pi CFG no longer exists: $remoteCfg" -ForegroundColor Yellow
+        return
+    }
+
+    Invoke-Checked "scp" @("${Target}:$remoteCfg", $destination) | Out-Null
+    Write-Host "[WARN] Recovered current Pi CFG for legacy run: $destination" -ForegroundColor Yellow
+    Write-Host "[WARN] No capture-time CFG hash exists; this is not an exact historical snapshot." -ForegroundColor Yellow
+}
+
 function Copy-OneRun([string]$Target, [string]$SelectedRunId) {
     Assert-SafeRunId $SelectedRunId
     $remoteRun = "$RemoteCaptureRoot/$SelectedRunId"
@@ -131,6 +176,10 @@ function Copy-OneRun([string]$Target, [string]$SelectedRunId) {
     Copy-RemoteFileIfMissing $Target $remoteRun $localRun "output_analysis.md" | Out-Null
     Copy-RemoteFileIfMissing $Target $remoteRun $localRun "post_capture_analysis.json" | Out-Null
     Copy-RemoteFileIfMissing $Target $remoteRun $localRun "adc_data_*.json" | Out-Null
+    $cfgSnapshot = Copy-RemoteFileIfMissing $Target $remoteRun $localRun "capture_config.cfg"
+    if (-not $cfgSnapshot) {
+        Copy-LegacyCaptureCfg $Target $remoteRun $localRun
+    }
 
     if ($IncludeBin) {
         $binPath = Copy-RemoteFileIfMissing $Target $remoteRun $localRun "adc_data_*.bin"
