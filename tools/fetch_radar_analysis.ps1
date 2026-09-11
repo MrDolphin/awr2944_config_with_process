@@ -26,6 +26,12 @@
 
 .EXAMPLE
   .\tools\fetch_radar_analysis.ps1 -NetworkMode phone -AnalyzeOnPc
+
+.EXAMPLE
+  .\tools\fetch_radar_analysis.ps1 -NetworkMode lab `
+    -RemoteCaptureRoot /home/pi/radar_runs/awr2944p_shore200m_v0 `
+    -LocalCaptureRoot D:\radar_runs\awr2944p_shore200m_v0 `
+    -AnalyzeOnPc -MaxRangeM 180
 #>
 
 [CmdletBinding()]
@@ -41,6 +47,8 @@ param(
     [switch]$SyncMissing,
     [switch]$IncludeBin,
     [switch]$AnalyzeOnPc,
+    [ValidateRange(0.001, 10000.0)]
+    [double]$MaxRangeM = 15.0,
     [switch]$OpenDashboard
 )
 
@@ -234,7 +242,8 @@ if ($AnalyzeOnPc) {
         "-NoProfile",
         "-ExecutionPolicy", "Bypass",
         "-File", $pcAnalysisScript,
-        "-CaptureRoot", $LocalCaptureRoot
+        "-CaptureRoot", $LocalCaptureRoot,
+        "-MaxRangeM", ([string]::Format([Globalization.CultureInfo]::InvariantCulture, "{0}", $MaxRangeM))
     )
     if ($RunId) {
         $pcAnalysisArguments += @("-RunId", $RunId)

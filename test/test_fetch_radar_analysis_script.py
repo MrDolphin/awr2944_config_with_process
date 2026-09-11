@@ -71,6 +71,12 @@ class FetchRadarAnalysisScriptTests(unittest.TestCase):
         self.assertIn("analyze_radar_captures.ps1", script)
         self.assertIn('"-CaptureRoot", $LocalCaptureRoot', script)
 
+    def test_pc_analysis_max_range_is_configurable_from_the_fetch_entrypoint(self):
+        script = (ROOT / "tools" / "fetch_radar_analysis.ps1").read_text(encoding="utf-8")
+        self.assertIn("[double]$MaxRangeM = 15.0", script)
+        self.assertIn('"-MaxRangeM",', script)
+        self.assertIn("$MaxRangeM", script)
+
 
 if __name__ == "__main__":
     unittest.main()
