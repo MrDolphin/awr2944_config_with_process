@@ -105,7 +105,10 @@ def start(args: argparse.Namespace) -> int:
     with open_serial(args.port, args.baud) as cli:
         command = "sensorStart 0" if args.resume else "sensorStart"
         send_line(cli, command, args.delay)
-        return print_and_validate_response(command, read_response(cli))
+        # The RF-calibration/startup path can print a diagnostic after the
+        # immediate command echo. Keep listening long enough to surface it to
+        # the capture launcher instead of reporting only "no UDP data".
+        return print_and_validate_response(command, read_response(cli, timeout=5.0))
 
 
 def stop(args: argparse.Namespace) -> int:
