@@ -146,6 +146,34 @@ class ShoreSea400mCfgTests(unittest.TestCase):
         self.assertGreater(theoretical_limit_m, 200)
         self.assertLess(180, theoretical_limit_m)
 
+    def test_300m_v0_retains_the_200m_baseline_except_for_slope_and_range_fov(self):
+        """The 300-m class profile preserves the now-proven 200-m data path."""
+        path = (
+            Path(__file__).resolve().parents[1]
+            / "Config"
+            / "shore_sea_300m_v0_from_test_full.cfg"
+        )
+        lines = {
+            line.strip()
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("%")
+        }
+        self.assertIn("channelCfg 15 15 0 0 0", lines)
+        self.assertIn("adcCfg 2 0", lines)
+        self.assertIn("profileCfg 0 77 186 7 57.14 0 0 3 1 656 13349 0 0 158", lines)
+        self.assertIn("frameCfg 0 3 16 0 656 100 1 0", lines)
+        self.assertIn("guiMonitor -1 2 1 0 0 0 1", lines)
+        self.assertIn("lvdsStreamCfg -1 0 1 0", lines)
+        self.assertIn("cfarFovCfg -1 0 0 300", lines)
+        self.assertIn("cfarFovCfg -1 1 -1 1.00", lines)
+
+        # At 300 m, the real-ADC beat frequency is 6 MHz, below the
+        # 6.6745-MHz Nyquist frequency of this 13.349-MSps baseline path.
+        sample_rate_hz = 13_349_000
+        slope_hz_per_s = 3_000_000_000_000
+        theoretical_limit_m = 299_792_458 * sample_rate_hz / (4 * slope_hz_per_s)
+        self.assertGreater(theoretical_limit_m, 300)
+
     def test_is_a_complete_mmw_demo_configuration_before_sensor_start(self):
         required_prefixes = (
             "dfeDataOutputMode ",
