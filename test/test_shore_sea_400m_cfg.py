@@ -59,6 +59,33 @@ class ShoreSea400mCfgTests(unittest.TestCase):
         self.assertEqual(required_bytes, 33024)
         self.assertGreaterEqual(available_bytes, required_bytes)
 
+    def test_v2_changes_only_to_known_good_four_tx_tdm_topology(self):
+        path = (
+            Path(__file__).resolve().parents[1]
+            / "Config"
+            / "shore_sea_400m_v2_raw_adc_2048_4tx.cfg"
+        )
+        lines = {
+            line.strip()
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("%")
+        }
+        self.assertIn("channelCfg 15 15 0 0 0", lines)
+        self.assertIn("profileCfg 0 77 220 6 132 0 0 4 1 2048 25000 0 0 158", lines)
+        self.assertIn("frameCfg 0 3 32 0 2048 500 1 0", lines)
+        self.assertIn("lvdsStreamCfg -1 0 1 0", lines)
+        self.assertTrue({
+            "chirpCfg 0 0 0 0 0 0 0 1",
+            "chirpCfg 1 1 0 0 0 0 0 4",
+            "chirpCfg 2 2 0 0 0 0 0 8",
+            "chirpCfg 3 3 0 0 0 0 0 2",
+        }.issubset(lines))
+
+        required_bytes = ((2048 * 4 * 4 + 52 + 255) // 256) * 256
+        available_bytes = 352 * 2 * 600 // 8
+        self.assertEqual(required_bytes, 33024)
+        self.assertGreaterEqual(available_bytes, required_bytes)
+
     def test_is_a_complete_mmw_demo_configuration_before_sensor_start(self):
         required_prefixes = (
             "dfeDataOutputMode ",
