@@ -23,6 +23,24 @@ class ShoreSeaOilFilmConfigTests(unittest.TestCase):
         self.assertGreater(axis[-1], 400.0)
         self.assertAlmostEqual(axis[1] - axis[0], 0.75, delta=0.02)
 
+    def test_800m_candidate_halves_slope_but_preserves_capture_transport_load(self):
+        cfg_path = Path("Config/shore_sea_800m_oilfilm_v1_longchirp.cfg")
+        cfg = parse_radar_cfg(str(cfg_path))
+
+        self.assertEqual(cfg["num_rx"], 4)
+        self.assertEqual(cfg["num_adc_samples"], 1336)
+        self.assertEqual(cfg["num_chirps_per_frame"], 64)
+        self.assertEqual(cfg["frame_period_ms"], 100.0)
+        self.assertEqual(cfg["sample_rate_ksps"], 13349.0)
+        self.assertEqual(cfg["freq_slope_mhz_per_us"], 1.0)
+
+        axis = range_axis_m(
+            cfg["num_adc_samples"], cfg["sample_rate_ksps"], cfg["freq_slope_mhz_per_us"]
+        )
+        self.assertGreater(axis[-1], 800.0)
+        self.assertAlmostEqual(axis[1] - axis[0], 1.5, delta=0.03)
+        self.assertIn("cfarFovCfg -1 0 0 800", cfg_path.read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()
