@@ -107,7 +107,7 @@ function Get-LocalRunPathSet([string]$Root, [bool]$AllFamilies) {
         return $paths
     }
 
-    $resolvedRoot = (Resolve-Path -LiteralPath $Root).Path.TrimEnd('\\', '/')
+    $resolvedRoot = (Resolve-Path -LiteralPath $Root).Path.TrimEnd('\', '/')
     $directories = if ($AllFamilies) {
         @(Get-ChildItem -LiteralPath $resolvedRoot -Directory -Recurse |
             Where-Object { $_.Name -match '^\d{8}_\d{6}$' })
@@ -118,9 +118,9 @@ function Get-LocalRunPathSet([string]$Root, [bool]$AllFamilies) {
     }
 
     foreach ($directory in $directories) {
-        $relativePath = $directory.FullName.Substring($resolvedRoot.Length).TrimStart('\\', '/')
+        $relativePath = $directory.FullName.Substring($resolvedRoot.Length).TrimStart('\', '/')
         if (-not [string]::IsNullOrWhiteSpace($relativePath)) {
-            $paths[$relativePath.Replace('\\', '/')] = $true
+            $paths[$relativePath.Replace('\', '/')] = $true
         }
     }
     return $paths
