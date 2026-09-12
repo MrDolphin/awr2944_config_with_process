@@ -3,12 +3,14 @@
   Copy Raspberry Pi radar-analysis artifacts to Windows.
 
 .DESCRIPTION
-  By default, scan every timestamped capture below /home/pi/radar_runs across
-  all capture families (for example awr2944p_shore350m_v0), and copy only
-  missing local files. Analysis artifacts are included; raw ADC BIN files
-  remain opt-in through -IncludeBin to avoid accidental bulk transfers of
-  large recordings. Select a remembered network name with -NetworkMode instead
-  of entering Raspberry Pi IP addresses.
+  By default, inventory timestamped captures below /home/pi/radar_runs across
+  all capture families (for example awr2944p_shore350m_v0), newest first.
+  A capture is transferred only when its complete relative run directory does
+  not yet exist locally. Existing local run directories are not probed again.
+  Analysis artifacts are included; raw ADC BIN files remain opt-in through
+  -IncludeBin to avoid accidental bulk transfers of large recordings. Select a
+  remembered network name with -NetworkMode instead of entering Raspberry Pi
+  IP addresses.
 
 .EXAMPLE
   .\tools\fetch_radar_analysis.ps1
@@ -86,14 +88,39 @@ function Assert-SafeRelativePath([string]$Value) {
 
 function Get-RemoteRunPaths([string]$Target, [string]$Root, [bool]$AllFamilies) {
     $findCommand = if ($AllFamilies) {
-        "find '$Root' -mindepth 2 -maxdepth 2 -type d -name '[0-9]*_[0-9]*' -printf '%P\n' | sort"
+        "find '$Root' -mindepth 2 -maxdepth 2 -type d -name '[0-9]*_[0-9]*' -printf '%P\n' | sort -r"
     }
     else {
-        "find '$Root' -mindepth 1 -maxdepth 1 -type d -name '[0-9]*_[0-9]*' -printf '%f\n' | sort"
+        "find '$Root' -mindepth 1 -maxdepth 1 -type d -name '[0-9]*_[0-9]*' -printf '%f\n' | sort -r"
     }
     return @(Invoke-Checked "ssh" @($Target, $findCommand) |
         ForEach-Object { $_.Trim() } |
         Where-Object { $_ })
+}
+
+function Get-LocalRunPathSet([string]$Root, [bool]$AllFamilies) {
+    $paths = @{}
+    if (-not (Test-Path -LiteralPath $Root -PathType Container)) {
+        return $paths
+    }
+
+    $resolvedRoot = (Resolve-Path -LiteralPath $Root).Path.TrimEnd('\\', '/')
+    $directories = if ($AllFamilies) {
+        @(Get-ChildItem -LiteralPath $resolvedRoot -Directory -Recurse |
+            Where-Object { $_.Name -match '^\d{8}_\d{6}$' })
+    }
+    else {
+        @(Get-ChildItem -LiteralPath $resolvedRoot -Directory |
+            Where-Object { $_.Name -match '^\d{8}_\d{6}$' })
+    }
+
+    foreach ($directory in $directories) {
+        $relativePath = $directory.FullName.Substring($resolvedRoot.Length).TrimStart('\\', '/')
+        if (-not [string]::IsNullOrWhiteSpace($relativePath)) {
+            $paths[$relativePath.Replace('\\', '/')] = $true
+        }
+    }
+    return $paths
 }
 
 function Copy-RemoteFileIfMissing([string]$Target, [string]$RemoteRun, [string]$LocalRun, [string]$NamePattern) {
@@ -252,6 +279,8 @@ $remoteRunPaths = Get-RemoteRunPaths $remoteTarget $effectiveRemoteRoot $allFami
 if (-not $remoteRunPaths) {
     throw "No capture directories found below $effectiveRemoteRoot"
 }
+$localRunPathSet = Get-LocalRunPathSet $effectiveLocalRoot $allFamilies
+Write-Host "[INVENTORY] Pi timestamped runs: $($remoteRunPaths.Count); local run directories: $($localRunPathSet.Count)" -ForegroundColor Cyan
 
 if ($RunId) {
     Assert-SafeRunId $RunId
@@ -261,9 +290,25 @@ if ($RunId) {
     }
 }
 else {
-    # Incremental synchronization is the default. Copy-OneRun performs
-    # file-level existence checks, so a partially downloaded run can resume.
-    $selectedRunPaths = @($remoteRunPaths)
+    # Default policy intentionally uses run-directory existence rather than
+    # repeated per-file probes. A local timestamped run is treated as archived
+    # and will not be queried on the Pi again; only wholly new Pi runs transfer.
+    $selectedRunPaths = @($remoteRunPaths | Where-Object {
+        if ($localRunPathSet.ContainsKey($_)) {
+            Write-Host "[SKIP] Local run already exists: $_" -ForegroundColor DarkGray
+            $false
+        }
+        else {
+            $true
+        }
+    })
+}
+
+if ($selectedRunPaths.Count -eq 0) {
+    Write-Host "[SKIP] No Pi capture directories are missing locally." -ForegroundColor Green
+}
+else {
+    Write-Host "[PLAN] New Pi runs to transfer (newest first): $($selectedRunPaths -join ', ')" -ForegroundColor Cyan
 }
 
 $lastDashboard = ""
@@ -273,26 +318,23 @@ foreach ($selectedRunPath in $selectedRunPaths) {
 
 if ($AnalyzeOnPc) {
     $pcAnalysisScript = Join-Path $PSScriptRoot "analyze_radar_captures.ps1"
-    $pcAnalysisArguments = @(
-        "-NoProfile",
-        "-ExecutionPolicy", "Bypass",
-        "-File", $pcAnalysisScript,
-        "-CaptureRoot", $effectiveLocalRoot,
-        "-MaxRangeM", ([string]::Format([Globalization.CultureInfo]::InvariantCulture, "{0}", $MaxRangeM))
-    )
-    if ($RunId) {
-        $pcAnalysisArguments += @("-RunId", $RunId)
+    foreach ($selectedRunPath in $selectedRunPaths) {
+        $windowsRelativePath = $selectedRunPath.Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+        $localRunPath = Join-Path $effectiveLocalRoot $windowsRelativePath
+        $pcAnalysisArguments = @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $pcAnalysisScript,
+            "-RunFolder", $localRunPath,
+            "-MaxRangeM", ([string]::Format([Globalization.CultureInfo]::InvariantCulture, "{0}", $MaxRangeM))
+        )
+        Write-Host "[RUN] powershell $($pcAnalysisArguments -join ' ')" -ForegroundColor Cyan
+        & powershell @pcAnalysisArguments
+        if ($LASTEXITCODE -ne 0) {
+            throw "PC analysis failed for $selectedRunPath with exit code ${LASTEXITCODE}"
+        }
+        $lastDashboard = Join-Path $localRunPath "pc_analysis\range_analysis\diagnostic_dashboard.png"
     }
-    if ($allFamilies) {
-        $pcAnalysisArguments += "-Recursive"
-    }
-    Write-Host "[RUN] powershell $($pcAnalysisArguments -join ' ')" -ForegroundColor Cyan
-    & powershell @pcAnalysisArguments
-    if ($LASTEXITCODE -ne 0) {
-        throw "PC analysis failed with exit code ${LASTEXITCODE}"
-    }
-    $lastAnalyzedRun = $selectedRunPaths[-1].Replace('/', [System.IO.Path]::DirectorySeparatorChar)
-    $lastDashboard = Join-Path $effectiveLocalRoot "$lastAnalyzedRun\pc_analysis\range_analysis\diagnostic_dashboard.png"
 }
 
 if ($OpenDashboard -and $lastDashboard -and (Test-Path -LiteralPath $lastDashboard)) {

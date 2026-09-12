@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class FetchRadarAnalysisScriptTests(unittest.TestCase):
-    def test_fetch_script_defaults_to_incremental_sync_and_keeps_bin_opt_in(self):
+    def test_fetch_script_defaults_to_new_run_sync_and_keeps_bin_opt_in(self):
         script = (ROOT / "tools" / "fetch_radar_analysis.ps1").read_text(encoding="utf-8")
         self.assertIn("[switch]$IncludeBin", script)
         self.assertIn("[switch]$OpenDashboard", script)
@@ -20,13 +20,17 @@ class FetchRadarAnalysisScriptTests(unittest.TestCase):
         self.assertIn("[SKIP] Already exists", script)
         self.assertIn('$RemoteRunsRoot = "/home/pi/radar_runs"', script)
         self.assertIn('$LocalRunsRoot = "D:\\radar_runs"', script)
-        self.assertIn("$selectedRunPaths = @($remoteRunPaths)", script)
+        self.assertIn("Get-LocalRunPathSet", script)
+        self.assertIn("$localRunPathSet.ContainsKey($_)", script)
+        self.assertIn("[SKIP] Local run already exists", script)
+        self.assertIn("[PLAN] New Pi runs to transfer (newest first)", script)
         self.assertNotIn("Select-Object -Last 1", script)
 
     def test_default_sync_scans_every_capture_family_but_keeps_explicit_root_mode(self):
         script = (ROOT / "tools" / "fetch_radar_analysis.ps1").read_text(encoding="utf-8")
         self.assertIn("-mindepth 2 -maxdepth 2", script)
         self.assertIn("-printf '%P\\n'", script)
+        self.assertIn("| sort -r", script)
         self.assertIn("Specify both RemoteCaptureRoot and LocalCaptureRoot", script)
         self.assertIn("Copy-OneRun $remoteTarget $selectedRunPath $effectiveRemoteRoot $effectiveLocalRoot", script)
 
@@ -73,13 +77,14 @@ class FetchRadarAnalysisScriptTests(unittest.TestCase):
         self.assertIn("capture_config_recovered.cfg", script)
         self.assertIn("[WARN] Recovered current Pi CFG for legacy run", script)
 
-    def test_pc_analysis_option_downloads_bin_and_invokes_auto_discovery_script(self):
+    def test_pc_analysis_option_analyzes_only_the_newly_transferred_runs(self):
         script = (ROOT / "tools" / "fetch_radar_analysis.ps1").read_text(encoding="utf-8")
         self.assertIn("[switch]$AnalyzeOnPc", script)
         self.assertIn("$IncludeBin -or $AnalyzeOnPc", script)
         self.assertIn("analyze_radar_captures.ps1", script)
-        self.assertIn('"-CaptureRoot", $effectiveLocalRoot', script)
-        self.assertIn('$pcAnalysisArguments += "-Recursive"', script)
+        self.assertIn('"-RunFolder", $localRunPath', script)
+        self.assertIn("PC analysis failed for $selectedRunPath", script)
+        self.assertNotIn('$pcAnalysisArguments += "-Recursive"', script)
 
     def test_pc_analysis_max_range_is_configurable_from_the_fetch_entrypoint(self):
         script = (ROOT / "tools" / "fetch_radar_analysis.ps1").read_text(encoding="utf-8")
