@@ -52,8 +52,9 @@ param(
     [switch]$SyncMissing,
     [switch]$IncludeBin,
     [switch]$AnalyzeOnPc,
-    [ValidateRange(0.001, 10000.0)]
-    [double]$MaxRangeM = 15.0,
+    # Zero defers to each capture's exact CFG range CFAR FOV on the PC.
+    [ValidateRange(0.0, 10000.0)]
+    [double]$MaxRangeM = 0.0,
     [switch]$OpenDashboard
 )
 

@@ -16,7 +16,7 @@ class AnalyzeRadarCapturesScriptTests(unittest.TestCase):
             run_dir.mkdir()
             (run_dir / "adc_data_20260911_113827.bin").write_bytes(b"adc")
             (run_dir / "adc_data_20260911_113827.json").write_text("{}", encoding="utf-8")
-            (run_dir / "capture_config.cfg").write_text("sensorStop\n", encoding="utf-8")
+            (run_dir / "capture_config.cfg").write_text("sensorStop\ncfarFovCfg -1 0 0 400\n", encoding="utf-8")
 
             result = subprocess.run(
                 [
@@ -40,6 +40,7 @@ class AnalyzeRadarCapturesScriptTests(unittest.TestCase):
             self.assertIn("adc_data_20260911_113827.bin", result.stdout)
             self.assertIn("adc_data_20260911_113827.json", result.stdout)
             self.assertIn("capture_config.cfg", result.stdout)
+            self.assertIn("analysis max range: 400 m", result.stdout)
             self.assertIn("pc_analysis", result.stdout)
             self.assertIn("quality_report", result.stdout)
 
@@ -94,6 +95,26 @@ class AnalyzeRadarCapturesScriptTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("adc_data_20260912_133429.bin", result.stdout)
+
+    def test_run_folder_uses_short_path_below_runs_root(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            runs_root = Path(temp_dir)
+            run_dir = runs_root / "awr2944p_shore400m_v0" / "20260912_133429"
+            run_dir.mkdir(parents=True)
+            (run_dir / "adc_data_20260912_133429.bin").write_bytes(b"adc")
+            (run_dir / "adc_data_20260912_133429.json").write_text("{}", encoding="utf-8")
+            (run_dir / "capture_config.cfg").write_text("cfarFovCfg -1 0 0 400\n", encoding="utf-8")
+
+            result = subprocess.run(
+                [
+                    "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(SCRIPT),
+                    "-RunsRoot", str(runs_root), "-RunFolder", "awr2944p_shore400m_v0/20260912_133429", "-DryRun",
+                ],
+                capture_output=True, text=True, encoding="utf-8", errors="replace",
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("analysis max range: 400 m", result.stdout)
 
 
 if __name__ == "__main__":

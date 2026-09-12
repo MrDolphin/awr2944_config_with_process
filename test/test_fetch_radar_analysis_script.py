@@ -83,7 +83,7 @@ class FetchRadarAnalysisScriptTests(unittest.TestCase):
 
     def test_pc_analysis_max_range_is_configurable_from_the_fetch_entrypoint(self):
         script = (ROOT / "tools" / "fetch_radar_analysis.ps1").read_text(encoding="utf-8")
-        self.assertIn("[double]$MaxRangeM = 15.0", script)
+        self.assertIn("[double]$MaxRangeM = 0.0", script)
         self.assertIn('"-MaxRangeM",', script)
         self.assertIn("$MaxRangeM", script)
 
