@@ -88,17 +88,17 @@ function Assert-SafeRelativePath([string]$Value) {
 
 function Get-RemoteRunPaths([string]$Target, [string]$Root, [bool]$AllFamilies) {
     $findCommand = if ($AllFamilies) {
-        # Sort across every capture family using the timestamp directory, not
-        # the family prefix. The timestamp key is removed before PowerShell
-        # receives the safe family/timestamp relative path.
-        "find '$Root' -mindepth 2 -maxdepth 2 -type d -name '[0-9]*_[0-9]*' -printf '%P\n' | awk -F/ '{print `$NF `"/`" `$0}' | sort -r | cut -d/ -f2-"
+        "find '$Root' -mindepth 2 -maxdepth 2 -type d -name '[0-9]*_[0-9]*' -printf '%P\n'"
     }
     else {
-        "find '$Root' -mindepth 1 -maxdepth 1 -type d -name '[0-9]*_[0-9]*' -printf '%f\n' | sort -r"
+        "find '$Root' -mindepth 1 -maxdepth 1 -type d -name '[0-9]*_[0-9]*' -printf '%f\n'"
     }
-    return @(Invoke-Checked "ssh" @($Target, $findCommand) |
+    $paths = @(Invoke-Checked "ssh" @($Target, $findCommand) |
         ForEach-Object { $_.Trim() } |
         Where-Object { $_ })
+    # Sort on Windows by the final YYYYMMDD_HHMMSS component. Keeping this
+    # operation local avoids remote shell/awk quoting ambiguity across SSH.
+    return @($paths | Sort-Object { ($_ -split '/')[-1] } -Descending)
 }
 
 function Get-LocalRunPathSet([string]$Root, [bool]$AllFamilies) {

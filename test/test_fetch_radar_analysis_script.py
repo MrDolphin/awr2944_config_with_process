@@ -34,7 +34,8 @@ class FetchRadarAnalysisScriptTests(unittest.TestCase):
         script = (ROOT / "tools" / "fetch_radar_analysis.ps1").read_text(encoding="utf-8")
         self.assertIn("-mindepth 2 -maxdepth 2", script)
         self.assertIn("-printf '%P\\n'", script)
-        self.assertIn("| sort -r", script)
+        self.assertIn("Sort-Object { ($_ -split '/')[-1] } -Descending", script)
+        self.assertNotIn("awk -F/", script)
         self.assertIn("Specify both RemoteCaptureRoot and LocalCaptureRoot", script)
         self.assertIn("Copy-OneRun $remoteTarget $selectedRunPath $effectiveRemoteRoot $effectiveLocalRoot", script)
 
