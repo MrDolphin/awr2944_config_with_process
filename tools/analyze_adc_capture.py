@@ -9,9 +9,10 @@ machine-readable JSON report plus ``output_analysis.md`` next to the capture.
 from __future__ import annotations
 
 import argparse
+from array import array
 import json
 import math
-import struct
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -56,16 +57,21 @@ def _word_statistics(path: Path) -> dict[str, Any]:
             usable = len(chunk) - (len(chunk) % INT16_BYTES)
             if not usable:
                 continue
-            values = struct.unpack(f"<{usable // INT16_BYTES}h", chunk[:usable])
-            # The word index is not part of any calculation.  Iterating values
-            # directly also avoids an unnecessary tuple-unpack dependency in
-            # post-capture analysis runs.
+            # Avoid struct.unpack with a 500k-element format string. On Windows
+            # CPython 3.12 that allocation can terminate the process with an
+            # access violation on ordinary multi-megabyte ADC captures.
+            values = array("h")
+            values.frombytes(chunk[:usable])
+            if sys.byteorder != "little":
+                values.byteswap()
             for value in values:
                 count += 1
                 total += value
                 total_sq += value * value
-                minimum = value if minimum is None else min(minimum, value)
-                maximum = value if maximum is None else max(maximum, value)
+                if minimum is None or value < minimum:
+                    minimum = value
+                if maximum is None or value > maximum:
+                    maximum = value
                 saturation_count += int(abs(value) >= SATURATION_ABS)
                 if (count - 1) % 2 == 0:
                     even_count += 1

@@ -62,6 +62,18 @@ class AnalyzeAdcCaptureTests(unittest.TestCase):
         self.assertEqual(stats["minimum"], -32768)
         self.assertEqual(stats["maximum"], 32767)
 
+    def test_word_statistics_streams_a_chunk_larger_than_half_a_million_words(self):
+        """Regression for Windows access violations from huge struct.unpack tuples."""
+        pattern = struct.pack("<4h", -2, 0, 2, 32767)
+        self.bin_path.write_bytes(pattern * (1024 * 1024 // len(pattern) + 1))
+
+        stats = self.module._word_statistics(self.bin_path)
+
+        self.assertGreater(stats["count"], 512000)
+        self.assertEqual(stats["minimum"], -2)
+        self.assertEqual(stats["maximum"], 32767)
+        self.assertGreater(stats["saturation_count"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()
