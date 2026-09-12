@@ -174,6 +174,35 @@ class ShoreSea400mCfgTests(unittest.TestCase):
         theoretical_limit_m = 299_792_458 * sample_rate_hz / (4 * slope_hz_per_s)
         self.assertGreater(theoretical_limit_m, 300)
 
+    def test_350m_v0_retains_the_300m_baseline_with_frequency_margin(self):
+        """The 350-m candidate changes only slope and range FOV from 300-m V0."""
+        path = (
+            Path(__file__).resolve().parents[1]
+            / "Config"
+            / "shore_sea_350m_v0_from_test_full.cfg"
+        )
+        lines = {
+            line.strip()
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("%")
+        }
+        self.assertIn("channelCfg 15 15 0 0 0", lines)
+        self.assertIn("adcCfg 2 0", lines)
+        self.assertIn("profileCfg 0 77 186 7 57.14 0 0 2.5 1 656 13349 0 0 158", lines)
+        self.assertIn("frameCfg 0 3 16 0 656 100 1 0", lines)
+        self.assertIn("guiMonitor -1 2 1 0 0 0 1", lines)
+        self.assertIn("lvdsStreamCfg -1 0 1 0", lines)
+        self.assertIn("cfarFovCfg -1 0 0 350", lines)
+        self.assertIn("cfarFovCfg -1 1 -1 1.00", lines)
+
+        # The 2.5-MHz/us slope gives roughly 400 m real-ADC headroom,
+        # preserving margin above the requested 350-m processing region.
+        sample_rate_hz = 13_349_000
+        slope_hz_per_s = 2_500_000_000_000
+        theoretical_limit_m = 299_792_458 * sample_rate_hz / (4 * slope_hz_per_s)
+        self.assertGreater(theoretical_limit_m, 400)
+        self.assertLess(350, theoretical_limit_m)
+
     def test_v4_halves_only_the_v0_slope_for_a_bandwidth_ab(self):
         """V4 isolates sweep-bandwidth/slope from the V0 sample-load factors."""
         path = (
