@@ -88,7 +88,10 @@ function Assert-SafeRelativePath([string]$Value) {
 
 function Get-RemoteRunPaths([string]$Target, [string]$Root, [bool]$AllFamilies) {
     $findCommand = if ($AllFamilies) {
-        "find '$Root' -mindepth 2 -maxdepth 2 -type d -name '[0-9]*_[0-9]*' -printf '%P\n' | sort -r"
+        # Sort across every capture family using the timestamp directory, not
+        # the family prefix. The timestamp key is removed before PowerShell
+        # receives the safe family/timestamp relative path.
+        "find '$Root' -mindepth 2 -maxdepth 2 -type d -name '[0-9]*_[0-9]*' -printf '%P\n' | awk -F/ '{print `$NF `"/`" `$0}' | sort -r | cut -d/ -f2-"
     }
     else {
         "find '$Root' -mindepth 1 -maxdepth 1 -type d -name '[0-9]*_[0-9]*' -printf '%f\n' | sort -r"
