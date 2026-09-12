@@ -75,6 +75,26 @@ class AnalyzeRadarCapturesScriptTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("capture_config_recovered.cfg", result.stdout)
 
+    def test_recursive_dry_run_discovers_capture_families(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            capture_root = Path(temp_dir)
+            run_dir = capture_root / "awr2944p_shore350m_v0" / "20260912_133429"
+            run_dir.mkdir(parents=True)
+            (run_dir / "adc_data_20260912_133429.bin").write_bytes(b"adc")
+            (run_dir / "adc_data_20260912_133429.json").write_text("{}", encoding="utf-8")
+            (run_dir / "capture_config.cfg").write_text("sensorStop\n", encoding="utf-8")
+
+            result = subprocess.run(
+                [
+                    "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(SCRIPT),
+                    "-CaptureRoot", str(capture_root), "-Recursive", "-DryRun",
+                ],
+                capture_output=True, text=True, encoding="utf-8", errors="replace",
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("adc_data_20260912_133429.bin", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

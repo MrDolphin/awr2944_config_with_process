@@ -3,11 +3,12 @@
   Copy Raspberry Pi radar-analysis artifacts to Windows.
 
 .DESCRIPTION
-  By default, scan every capture on the Pi and copy only files/directories that
-  do not already exist below the local capture root. Analysis artifacts are
-  included; raw ADC BIN files remain opt-in through -IncludeBin to avoid
-  accidental bulk transfers of large recordings. Select a remembered network
-  name with -NetworkMode instead of entering Raspberry Pi IP addresses.
+  By default, scan every timestamped capture below /home/pi/radar_runs across
+  all capture families (for example awr2944p_shore350m_v0), and copy only
+  missing local files. Analysis artifacts are included; raw ADC BIN files
+  remain opt-in through -IncludeBin to avoid accidental bulk transfers of
+  large recordings. Select a remembered network name with -NetworkMode instead
+  of entering Raspberry Pi IP addresses.
 
 .EXAMPLE
   .\tools\fetch_radar_analysis.ps1
@@ -16,7 +17,7 @@
   .\tools\fetch_radar_analysis.ps1 -NetworkMode lab -IncludeBin -OpenDashboard
 
 .EXAMPLE
-  .\tools\fetch_radar_analysis.ps1 -RunId 20260910_154213 -IncludeBin
+  .\tools\fetch_radar_analysis.ps1 -IncludeBin
 
 .EXAMPLE
   .\tools\fetch_radar_analysis.ps1 -NetworkMode hotspot -IncludeBin
@@ -39,9 +40,13 @@ param(
     [ValidateSet("lab", "hotspot", "phone")]
     [string]$NetworkMode = "lab",
     [string]$PiUser = "pi",
-    [string]$RemoteCaptureRoot = "/home/pi/radar_runs/awr2944p",
+    # Leave both CaptureRoot arguments empty for the default all-family sync.
+    # Specify both to retain the former one-capture-family behavior.
+    [string]$RemoteCaptureRoot = "",
     [string]$RemoteProjectRoot = "/home/pi/awr2944_config_with_process_github",
-    [string]$LocalCaptureRoot = "D:\radar_runs\awr2944p",
+    [string]$LocalCaptureRoot = "",
+    [string]$RemoteRunsRoot = "/home/pi/radar_runs",
+    [string]$LocalRunsRoot = "D:\radar_runs",
     [string]$RunId = "",
     # Retained as a no-op compatibility switch; incremental sync is now the default.
     [switch]$SyncMissing,
@@ -78,8 +83,13 @@ function Assert-SafeRelativePath([string]$Value) {
     }
 }
 
-function Get-RemoteRunIds([string]$Target) {
-    $findCommand = "find '$RemoteCaptureRoot' -mindepth 1 -maxdepth 1 -type d -name '[0-9]*_[0-9]*' -printf '%f\n' | sort"
+function Get-RemoteRunPaths([string]$Target, [string]$Root, [bool]$AllFamilies) {
+    $findCommand = if ($AllFamilies) {
+        "find '$Root' -mindepth 2 -maxdepth 2 -type d -name '[0-9]*_[0-9]*' -printf '%P\n' | sort"
+    }
+    else {
+        "find '$Root' -mindepth 1 -maxdepth 1 -type d -name '[0-9]*_[0-9]*' -printf '%f\n' | sort"
+    }
     return @(Invoke-Checked "ssh" @($Target, $findCommand) |
         ForEach-Object { $_.Trim() } |
         Where-Object { $_ })
@@ -164,10 +174,13 @@ function Copy-LegacyCaptureCfg([string]$Target, [string]$RemoteRun, [string]$Loc
     Write-Host "[WARN] No capture-time CFG hash exists; this is not an exact historical snapshot." -ForegroundColor Yellow
 }
 
-function Copy-OneRun([string]$Target, [string]$SelectedRunId) {
-    Assert-SafeRunId $SelectedRunId
-    $remoteRun = "$RemoteCaptureRoot/$SelectedRunId"
-    $localRun = Join-Path $LocalCaptureRoot $SelectedRunId
+function Copy-OneRun([string]$Target, [string]$SelectedRunPath, [string]$RemoteBase, [string]$LocalBase) {
+    Assert-SafeRelativePath $SelectedRunPath
+    $selectedRunId = Split-Path -Leaf $SelectedRunPath
+    Assert-SafeRunId $selectedRunId
+    $remoteRun = "$RemoteBase/$SelectedRunPath"
+    $windowsRelativePath = $SelectedRunPath.Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+    $localRun = Join-Path $LocalBase $windowsRelativePath
     New-Item -ItemType Directory -Force -Path $localRun | Out-Null
 
     # Older captures can predate the analysis pipeline. They remain usable as
@@ -181,7 +194,7 @@ function Copy-OneRun([string]$Target, [string]$SelectedRunId) {
         Copy-RemoteTreeMissing $Target $remoteAnalysis $localAnalysis
     }
     else {
-        Write-Host "[SKIP] No range_analysis directory for old run: $SelectedRunId" -ForegroundColor Yellow
+        Write-Host "[SKIP] No range_analysis directory for old run: $SelectedRunPath" -ForegroundColor Yellow
     }
 
     # These top-level files can be absent in older runs, so copy them only when present.
@@ -201,7 +214,7 @@ function Copy-OneRun([string]$Target, [string]$SelectedRunId) {
     }
 
     $dashboardPath = Join-Path $localRun 'range_analysis\diagnostic_dashboard.png'
-    Write-Host "[DONE] Run: $SelectedRunId" -ForegroundColor Green
+    Write-Host "[DONE] Run: $SelectedRunPath" -ForegroundColor Green
     Write-Host "[DONE] Local analysis: $(Join-Path $localRun 'range_analysis')" -ForegroundColor Green
     Write-Host "[OPEN] $dashboardPath" -ForegroundColor Green
     return $dashboardPath
@@ -216,24 +229,45 @@ $effectivePiHost = $networkAddresses[$NetworkMode]
 Write-Host "[MODE] ${NetworkMode}: using saved Raspberry Pi address $effectivePiHost" -ForegroundColor Cyan
 
 $remoteTarget = "${PiUser}@${effectivePiHost}"
-$remoteRunIds = Get-RemoteRunIds $remoteTarget
-if (-not $remoteRunIds) {
-    throw "No capture directories found below $RemoteCaptureRoot"
+$hasRemoteCaptureRoot = -not [string]::IsNullOrWhiteSpace($RemoteCaptureRoot)
+$hasLocalCaptureRoot = -not [string]::IsNullOrWhiteSpace($LocalCaptureRoot)
+if ($hasRemoteCaptureRoot -ne $hasLocalCaptureRoot) {
+    throw "Specify both RemoteCaptureRoot and LocalCaptureRoot, or neither for all-family sync."
+}
+if ($hasRemoteCaptureRoot) {
+    $effectiveRemoteRoot = $RemoteCaptureRoot
+    $effectiveLocalRoot = $LocalCaptureRoot
+    $allFamilies = $false
+}
+else {
+    $effectiveRemoteRoot = $RemoteRunsRoot
+    $effectiveLocalRoot = $LocalRunsRoot
+    $allFamilies = $true
+}
+Write-Host "[ROOT] Remote: $effectiveRemoteRoot" -ForegroundColor Cyan
+Write-Host "[ROOT] Local:  $effectiveLocalRoot" -ForegroundColor Cyan
+
+$remoteRunPaths = Get-RemoteRunPaths $remoteTarget $effectiveRemoteRoot $allFamilies
+if (-not $remoteRunPaths) {
+    throw "No capture directories found below $effectiveRemoteRoot"
 }
 
 if ($RunId) {
     Assert-SafeRunId $RunId
-    $selectedRunIds = @($RunId)
+    $selectedRunPaths = @($remoteRunPaths | Where-Object { (Split-Path -Leaf $_) -eq $RunId })
+    if ($selectedRunPaths.Count -eq 0) {
+        throw "RunId not found below ${effectiveRemoteRoot}: $RunId"
+    }
 }
 else {
     # Incremental synchronization is the default. Copy-OneRun performs
     # file-level existence checks, so a partially downloaded run can resume.
-    $selectedRunIds = @($remoteRunIds)
+    $selectedRunPaths = @($remoteRunPaths)
 }
 
 $lastDashboard = ""
-foreach ($selectedRunId in $selectedRunIds) {
-    $lastDashboard = Copy-OneRun $remoteTarget $selectedRunId
+foreach ($selectedRunPath in $selectedRunPaths) {
+    $lastDashboard = Copy-OneRun $remoteTarget $selectedRunPath $effectiveRemoteRoot $effectiveLocalRoot
 }
 
 if ($AnalyzeOnPc) {
@@ -242,19 +276,22 @@ if ($AnalyzeOnPc) {
         "-NoProfile",
         "-ExecutionPolicy", "Bypass",
         "-File", $pcAnalysisScript,
-        "-CaptureRoot", $LocalCaptureRoot,
+        "-CaptureRoot", $effectiveLocalRoot,
         "-MaxRangeM", ([string]::Format([Globalization.CultureInfo]::InvariantCulture, "{0}", $MaxRangeM))
     )
     if ($RunId) {
         $pcAnalysisArguments += @("-RunId", $RunId)
+    }
+    if ($allFamilies) {
+        $pcAnalysisArguments += "-Recursive"
     }
     Write-Host "[RUN] powershell $($pcAnalysisArguments -join ' ')" -ForegroundColor Cyan
     & powershell @pcAnalysisArguments
     if ($LASTEXITCODE -ne 0) {
         throw "PC analysis failed with exit code ${LASTEXITCODE}"
     }
-    $lastAnalyzedRun = $selectedRunIds[-1]
-    $lastDashboard = Join-Path $LocalCaptureRoot "$lastAnalyzedRun\pc_analysis\range_analysis\diagnostic_dashboard.png"
+    $lastAnalyzedRun = $selectedRunPaths[-1].Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+    $lastDashboard = Join-Path $effectiveLocalRoot "$lastAnalyzedRun\pc_analysis\range_analysis\diagnostic_dashboard.png"
 }
 
 if ($OpenDashboard -and $lastDashboard -and (Test-Path -LiteralPath $lastDashboard)) {

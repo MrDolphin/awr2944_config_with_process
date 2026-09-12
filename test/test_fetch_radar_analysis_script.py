@@ -18,8 +18,17 @@ class FetchRadarAnalysisScriptTests(unittest.TestCase):
         self.assertIn("adc_data_*.json", script)
         self.assertIn("Copy-RemoteFileIfMissing", script)
         self.assertIn("[SKIP] Already exists", script)
-        self.assertIn("$selectedRunIds = @($remoteRunIds)", script)
+        self.assertIn('$RemoteRunsRoot = "/home/pi/radar_runs"', script)
+        self.assertIn('$LocalRunsRoot = "D:\\radar_runs"', script)
+        self.assertIn("$selectedRunPaths = @($remoteRunPaths)", script)
         self.assertNotIn("Select-Object -Last 1", script)
+
+    def test_default_sync_scans_every_capture_family_but_keeps_explicit_root_mode(self):
+        script = (ROOT / "tools" / "fetch_radar_analysis.ps1").read_text(encoding="utf-8")
+        self.assertIn("-mindepth 2 -maxdepth 2", script)
+        self.assertIn("-printf '%P\\n'", script)
+        self.assertIn("Specify both RemoteCaptureRoot and LocalCaptureRoot", script)
+        self.assertIn("Copy-OneRun $remoteTarget $selectedRunPath $effectiveRemoteRoot $effectiveLocalRoot", script)
 
     def test_network_mode_uses_memorable_names_instead_of_ip_parameters(self):
         script = (ROOT / "tools" / "fetch_radar_analysis.ps1").read_text(encoding="utf-8")
@@ -69,7 +78,8 @@ class FetchRadarAnalysisScriptTests(unittest.TestCase):
         self.assertIn("[switch]$AnalyzeOnPc", script)
         self.assertIn("$IncludeBin -or $AnalyzeOnPc", script)
         self.assertIn("analyze_radar_captures.ps1", script)
-        self.assertIn('"-CaptureRoot", $LocalCaptureRoot', script)
+        self.assertIn('"-CaptureRoot", $effectiveLocalRoot', script)
+        self.assertIn('$pcAnalysisArguments += "-Recursive"', script)
 
     def test_pc_analysis_max_range_is_configurable_from_the_fetch_entrypoint(self):
         script = (ROOT / "tools" / "fetch_radar_analysis.ps1").read_text(encoding="utf-8")

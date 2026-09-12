@@ -12,7 +12,7 @@
   .\tools\analyze_radar_captures.ps1
 
 .EXAMPLE
-  .\tools\analyze_radar_captures.ps1 -CaptureRoot D:\radar_runs\awr2944p_lane4_ab
+  .\tools\analyze_radar_captures.ps1 -CaptureRoot D:\radar_runs -Recursive
 #>
 
 [CmdletBinding()]
@@ -21,6 +21,7 @@ param(
     [string]$RunId = "",
     [double]$MaxRangeM = 15.0,
     [string]$PythonCommand = "python",
+    [switch]$Recursive,
     [switch]$Force,
     [switch]$DryRun
 )
@@ -117,14 +118,23 @@ if (-not (Test-Path -LiteralPath $CaptureRoot -PathType Container)) {
     throw "Capture root not found: $CaptureRoot"
 }
 
-if ($RunId) {
-    Assert-SafeRunId $RunId
-    $selectedRuns = @(Get-Item -LiteralPath (Join-Path $CaptureRoot $RunId))
+if ($Recursive) {
+    $captureDirectories = @(Get-ChildItem -LiteralPath $CaptureRoot -Directory -Recurse |
+        Where-Object { $_.Name -match '^\d{8}_\d{6}$' } |
+        Sort-Object FullName)
 }
 else {
-    $selectedRuns = @(Get-ChildItem -LiteralPath $CaptureRoot -Directory |
+    $captureDirectories = @(Get-ChildItem -LiteralPath $CaptureRoot -Directory |
         Where-Object { $_.Name -match '^\d{8}_\d{6}$' } |
         Sort-Object Name)
+}
+
+if ($RunId) {
+    Assert-SafeRunId $RunId
+    $selectedRuns = @($captureDirectories | Where-Object { $_.Name -eq $RunId })
+}
+else {
+    $selectedRuns = $captureDirectories
 }
 
 if ($selectedRuns.Count -eq 0) {
