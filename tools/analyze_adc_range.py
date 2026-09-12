@@ -108,10 +108,10 @@ def markdown_report(metadata: dict, cfg: dict) -> str:
             "",
             "## 图像如何阅读",
             "",
-            "- `mean_range_profile.png`：所有帧、chirp 和 RX 平均后的距离谱。靠近 0 m 的强峰可能是直流/近距离泄漏，不能直接当作目标。",
+            "- `mean_range_profile.png`：所有帧、chirp 和 RX 平均后的距离谱。红点仅标记 0.3 m 以外、按平均功率排序的局部候选稳定峰；标签为距离和相对功率，不是检测结果。靠近 0 m 的强峰仍可能是直流/近距离泄漏。",
             "- `per_rx_range_profiles.png`：各 RX 独立距离谱；同一稳定反射峰在各 RX 位置一致，是后续阵列相位/AoA 处理的前提之一。幅度不同不等同于相位已校准。",
-            "- `range_time_intensity.png`：对 chirp 与 RX 平均后，各帧的距离强度。沿时间方向延伸的竖直亮带表示稳定距离反射；随时间倾斜或移动的亮带才可能对应距离变化目标。",
-            "- `diagnostic_dashboard.png`：单 chirp 时域、单 chirp 1D 距离 FFT、单 TX 组诊断性 2D Range-Doppler、Range-Time 的总览。它用于快速判断原始数据是否具有合理结构，不能当作已校准速度、AoA 或点云。",
+            "- `range_time_intensity.png`：对 chirp 与 RX 平均后，各帧的距离强度。白色虚线复用平均谱中排名靠前的候选峰距离，方便与上图逐一对应；沿时间方向延伸的亮带表示稳定距离反射，随时间倾斜或移动的亮带才可能对应距离变化目标。",
+            "- `diagnostic_dashboard.png`：单 chirp 时域、带候选峰标签的平均 1D 距离谱、单 TX 组诊断性 2D Range-Doppler、带相同距离参考线的 Range-Time 总览。它用于快速判断原始数据是否具有合理结构，不能当作已校准速度、AoA 或点云。",
             "- `range_doppler_diagnostic_frame0_txgroup0_rx0.png`：只选 frame 0、RX 0 和一个 TX chirp 组做慢时间 FFT，避免把相邻 TDM-MIMO chirp 混成伪 Doppler；速度轴仍只是依据 CFG 时序推算的诊断坐标。",
             "",
             "## 结论边界",
@@ -142,6 +142,61 @@ def candidate_static_peaks(
             }
         )
     return records
+
+
+def annotate_candidate_peaks(axis, candidates: list[dict], *, maximum: int = 6) -> None:
+    """Mark the strongest stable range candidates without calling them detections."""
+    for ordinal, candidate in enumerate(candidates[:maximum]):
+        range_m = candidate["range_m"]
+        relative_power_db = candidate["relative_power_db"]
+        axis.plot(range_m, relative_power_db, marker="o", color="crimson", markersize=4, zorder=4)
+        axis.annotate(
+            f"P{ordinal + 1}",
+            xy=(range_m, relative_power_db),
+            xytext=(2, 5),
+            textcoords="offset points",
+            ha="left",
+            va="bottom",
+            fontsize=6.5,
+            color="crimson",
+        )
+
+
+def candidate_peak_table(candidates: list[dict], *, maximum: int = 6) -> str:
+    """Return a compact legend that remains readable when close peaks cluster."""
+    rows = ["Candidate stable peaks (>=0.3 m)", "ID   range     power     frame std"]
+    for ordinal, candidate in enumerate(candidates[:maximum]):
+        rows.append(
+            f"P{ordinal + 1:<2}  {candidate['range_m']:>6.1f} m  {candidate['relative_power_db']:>6.1f} dB  "
+            f"{candidate['temporal_std_db']:>5.2f} dB"
+        )
+    return "\n".join(rows)
+
+
+def draw_candidate_peak_table(axis, candidates: list[dict], *, maximum: int = 6) -> None:
+    if not candidates:
+        return
+    axis.text(
+        0.98,
+        0.97,
+        candidate_peak_table(candidates, maximum=maximum),
+        transform=axis.transAxes,
+        ha="right",
+        va="top",
+        fontsize=6.5,
+        family="monospace",
+        color="black",
+        bbox={"boxstyle": "round,pad=0.35", "facecolor": "white", "edgecolor": "crimson", "alpha": 0.88},
+        zorder=5,
+    )
+
+
+def annotate_range_time_candidates(axis, candidates: list[dict], *, maximum: int = 6) -> None:
+    """Use the same peak positions as the mean spectrum for cross-panel reading."""
+    for candidate in candidates[:maximum]:
+        range_m = candidate["range_m"]
+        axis.axvline(range_m, color="white", linewidth=0.7, linestyle="--", alpha=0.7)
+    draw_candidate_peak_table(axis, candidates, maximum=maximum)
 
 
 def diagnostic_products(cube: np.ndarray, ranges: np.ndarray, cfg: dict) -> dict:
@@ -195,19 +250,31 @@ def diagnostic_products(cube: np.ndarray, ranges: np.ndarray, cfg: dict) -> dict
 
 
 def write_diagnostic_plots(
-    products: dict, ranges: np.ndarray, range_time_power: np.ndarray, time_s: np.ndarray, output_dir: Path
+    products: dict,
+    ranges: np.ndarray,
+    range_time_power: np.ndarray,
+    time_s: np.ndarray,
+    output_dir: Path,
+    *,
+    mean_range_power: np.ndarray | None = None,
+    candidate_peaks: list[dict] | None = None,
 ) -> dict:
-    """Write a compact four-panel visual overview and its individual panels."""
+    """Write a compact four-panel overview with consistent stable-peak labels."""
+    output_dir.mkdir(parents=True, exist_ok=True)
     time_domain = products["time_domain"]
     single_chirp_power = products["single_chirp_range_power"]
     range_doppler_power = products["range_doppler_power"]
     velocity_mps = products["velocity_mps"]
     rx_index = products["metadata"]["rx_index"]
     chirp_index = products["metadata"]["chirp_indices_within_frame"][0]
+    candidates = candidate_peaks or []
+    if mean_range_power is None:
+        mean_range_power = single_chirp_power
 
     paths = {
         "time_domain": output_dir / "time_domain_frame0_chirp0_rx0.png",
         "single_chirp_range": output_dir / "single_chirp_range_profile_frame0_chirp0_rx0.png",
+        "mean_range_annotated": output_dir / "mean_range_profile.png",
         "range_doppler": output_dir / "range_doppler_diagnostic_frame0_txgroup0_rx0.png",
         "dashboard": output_dir / "diagnostic_dashboard.png",
     }
@@ -226,6 +293,17 @@ def write_diagnostic_plots(
         axis.set_ylabel("Relative power (dB)")
         axis.grid(True, alpha=0.3)
 
+    def draw_mean_range(axis):
+        axis.plot(ranges, db(mean_range_power), linewidth=0.9, label="Mean across all frames/chirps/RX")
+        annotate_candidate_peaks(axis, candidates)
+        draw_candidate_peak_table(axis, candidates)
+        axis.set_title("Mean 1D range spectrum: candidate stable peaks (not detections)")
+        axis.set_xlabel("Range (m)")
+        axis.set_ylabel("Relative power (dB)")
+        axis.grid(True, alpha=0.3)
+        if candidates:
+            axis.legend(loc="lower right", fontsize=7)
+
     def draw_range_doppler(axis):
         image = db(range_doppler_power).T
         extent = [float(velocity_mps[0]), float(velocity_mps[-1]), float(ranges[-1]), float(ranges[0])]
@@ -242,6 +320,7 @@ def write_diagnostic_plots(
         axis.set_title("Range-Time: mean across chirps and RX")
         axis.set_xlabel("Range (m)")
         axis.set_ylabel("Frame time (s)")
+        annotate_range_time_candidates(axis, candidates)
         return result
 
     for name, draw in (("time_domain", draw_time_domain), ("single_chirp_range", draw_single_chirp_range)):
@@ -250,6 +329,12 @@ def write_diagnostic_plots(
         figure.tight_layout()
         figure.savefig(paths[name], dpi=160)
         plt.close(figure)
+
+    figure, axis = plt.subplots(figsize=(12, 6))
+    draw_mean_range(axis)
+    figure.tight_layout()
+    figure.savefig(paths["mean_range_annotated"], dpi=160)
+    plt.close(figure)
 
     figure, axis = plt.subplots(figsize=(10, 6))
     image = draw_range_doppler(axis)
@@ -260,7 +345,7 @@ def write_diagnostic_plots(
 
     figure, axes = plt.subplots(2, 2, figsize=(16, 10))
     draw_time_domain(axes[0, 0])
-    draw_single_chirp_range(axes[0, 1])
+    draw_mean_range(axes[0, 1])
     range_doppler_image = draw_range_doppler(axes[1, 0])
     range_time_image = draw_range_time(axes[1, 1])
     figure.colorbar(range_doppler_image, ax=axes[1, 0], label="Relative power (dB)")
@@ -294,7 +379,15 @@ def write_outputs(cube: np.ndarray, trailing_bytes: int, cfg: dict, output_dir: 
     }
     candidates = candidate_static_peaks(ranges, mean_range_power, range_time_power)
     diagnostics = diagnostic_products(cube, ranges, cfg)
-    diagnostic_paths = write_diagnostic_plots(diagnostics, ranges, range_time_power, time_s, output_dir)
+    diagnostic_paths = write_diagnostic_plots(
+        diagnostics,
+        ranges,
+        range_time_power,
+        time_s,
+        output_dir,
+        mean_range_power=mean_range_power,
+        candidate_peaks=candidates,
+    )
     metadata = {
         "input_format": "AWR2944P real-only, non-interleaved [frame, chirp, rx, sample], int16",
         "full_frames": int(cube.shape[0]),
@@ -327,16 +420,6 @@ def write_outputs(cube: np.ndarray, trailing_bytes: int, cfg: dict, output_dir: 
     )
     (output_dir / "range_fft_analysis.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
     (output_dir / "output_analysis.md").write_text(markdown_report(metadata, cfg), encoding="utf-8")
-
-    plt.figure(figsize=(10, 5))
-    plt.plot(ranges, db(mean_range_power))
-    plt.xlabel("Range (m)")
-    plt.ylabel("Relative power (dB)")
-    plt.title("AWR2944P mean range spectrum (all frames/chirps/RX)")
-    plt.grid(True, alpha=0.3)
-    plt.tight_layout()
-    plt.savefig(output_dir / "mean_range_profile.png", dpi=160)
-    plt.close()
 
     plt.figure(figsize=(10, 6))
     for rx_index, values in enumerate(rx_range_power):

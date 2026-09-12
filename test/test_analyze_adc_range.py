@@ -75,6 +75,28 @@ class AnalyzeAdcRangeTests(unittest.TestCase):
         peaks = self.module.candidate_static_peaks(ranges, mean_power, range_time, minimum_range_m=0.3)
         self.assertEqual(peaks[0]["range_bin"], 5)
 
+    def test_diagnostic_plots_render_candidate_peak_annotations(self):
+        products = {
+            "time_domain": np.arange(8, dtype=float),
+            "single_chirp_range_power": np.array([1, 2, 8, 2, 1], dtype=float),
+            "range_doppler_power": np.ones((2, 5), dtype=float),
+            "velocity_mps": np.array([-1.0, 1.0]),
+            "metadata": {"rx_index": 0, "chirp_indices_within_frame": [0]},
+        }
+        ranges = np.arange(5, dtype=float)
+        candidates = [{"range_bin": 2, "range_m": 2.0, "relative_power_db": -3.0, "temporal_std_db": 0.1}]
+        paths = self.module.write_diagnostic_plots(
+            products,
+            ranges,
+            np.ones((3, 5), dtype=float),
+            np.arange(3, dtype=float),
+            self.root / "diagnostics",
+            mean_range_power=np.array([1, 2, 8, 2, 1], dtype=float),
+            candidate_peaks=candidates,
+        )
+        self.assertTrue(Path(paths["dashboard"]).is_file())
+        self.assertTrue(Path(paths["mean_range_annotated"]).is_file())
+
     def test_diagnostic_products_use_one_tx_group_for_slow_time_fft(self):
         cube = np.arange(2 * 8 * 2 * 8, dtype=np.int16).reshape(2, 8, 2, 8)
         ranges = self.module.range_axis_m(8, 1000.0, 70.0)
