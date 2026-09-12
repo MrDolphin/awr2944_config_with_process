@@ -75,6 +75,16 @@ class AnalyzeAdcRangeTests(unittest.TestCase):
         peaks = self.module.candidate_static_peaks(ranges, mean_power, range_time, minimum_range_m=0.3)
         self.assertEqual(peaks[0]["range_bin"], 5)
 
+    def test_range_band_statistics_are_linear_domain_then_reported_in_db(self):
+        ranges = np.array([0.0, 10.0, 20.0, 40.0, 80.0, 150.0], dtype=float)
+        mean_power = np.array([100.0, 50.0, 20.0, 10.0, 5.0, 2.0], dtype=float)
+        range_time = np.tile(mean_power, (4, 1))
+        bands = self.module.range_band_statistics(ranges, mean_power, range_time)
+        self.assertEqual([band["label"] for band in bands], ["0.3-30 m", "30-100 m", "100-150 m"])
+        self.assertEqual(bands[0]["bins"], 2)
+        self.assertAlmostEqual(bands[0]["median_relative_power_db"], 10.0 * np.log10(35.0 / 100.0), places=6)
+        self.assertAlmostEqual(bands[0]["temporal_std_db"], 0.0, places=6)
+
     def test_diagnostic_plots_render_candidate_peak_annotations(self):
         products = {
             "time_domain": np.arange(8, dtype=float),
@@ -129,6 +139,8 @@ class AnalyzeAdcRangeTests(unittest.TestCase):
         self.assertTrue(Path(paths["time_domain"]).is_file())
         self.assertTrue(Path(paths["single_chirp_range"]).is_file())
         self.assertTrue(Path(paths["range_doppler"]).is_file())
+        self.assertTrue((self.root / "analysis" / "range_band_summary.csv").is_file())
+        self.assertIn("range_band_summary", report)
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ does not attempt TDM-MIMO AoA; it generates traceable range-domain evidence.
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 from pathlib import Path
 
@@ -106,6 +107,19 @@ def markdown_report(metadata: dict, cfg: dict) -> str:
                 for candidate in metadata["candidate_static_peaks"]
             ],
             "",
+            "### 分距离段背景统计",
+            "",
+            "统计量先在线性功率域汇总，再换算为相对 dB；它描述背景趋势，不是检测概率或绝对 RCS。",
+            "",
+            "| 距离段 | bins | 中位相对功率 (dB) | P10-P90 (dB) | 时间波动标准差 (dB) |",
+            "|---|---:|---:|---:|---:|",
+            *[
+                f"| {band['label']} | {band['bins']} | {band['median_relative_power_db']:.2f} | "
+                f"{band['p10_relative_power_db']:.2f} to {band['p90_relative_power_db']:.2f} | "
+                f"{band['temporal_std_db']:.2f} |"
+                for band in metadata.get("range_band_summary", [])
+            ],
+            "",
             "## 图像如何阅读",
             "",
             "- `mean_range_profile.png`：所有帧、chirp 和 RX 平均后的距离谱。红点仅标记 0.3 m 以外、按平均功率排序的局部候选稳定峰；标签为距离和相对功率，不是检测结果。靠近 0 m 的强峰仍可能是直流/近距离泄漏。",
@@ -138,6 +152,45 @@ def candidate_static_peaks(
                 "range_bin": int(index),
                 "range_m": float(ranges[index]),
                 "relative_power_db": float(10.0 * np.log10(mean_range_power[index] / reference)),
+                "temporal_std_db": float(np.std(temporal_db)),
+            }
+        )
+    return records
+
+
+def _range_label(value_m: float) -> str:
+    return f"{value_m:.1f}" if value_m < 1.0 else f"{value_m:.0f}"
+
+
+def range_band_statistics(ranges: np.ndarray, mean_range_power: np.ndarray, range_time_power: np.ndarray) -> list[dict]:
+    """Summarize background energy by range band without declaring detections.
+
+    Band means and temporal traces remain in the linear-power domain until
+    the final relative-dB conversion, preventing an invalid average of dB.
+    """
+    if not len(ranges) or float(ranges[-1]) <= 0.3:
+        return []
+    maximum_range_m = float(ranges[-1])
+    boundaries = [0.3, *[edge for edge in (30.0, 100.0, 200.0) if edge < maximum_range_m], maximum_range_m]
+    reference = float(np.max(mean_range_power))
+    records = []
+    for index, (start_m, end_m) in enumerate(zip(boundaries, boundaries[1:])):
+        is_last = index == len(boundaries) - 2
+        selected = (ranges >= start_m) & ((ranges <= end_m) if is_last else (ranges < end_m))
+        if not np.any(selected):
+            continue
+        band_mean_power = mean_range_power[selected]
+        temporal_linear_power = range_time_power[:, selected].mean(axis=1)
+        temporal_db = 10.0 * np.log10(np.maximum(temporal_linear_power, np.finfo(float).tiny) / reference)
+        records.append(
+            {
+                "label": f"{_range_label(start_m)}-{_range_label(end_m)} m",
+                "start_m": float(start_m),
+                "end_m": float(end_m),
+                "bins": int(np.count_nonzero(selected)),
+                "median_relative_power_db": float(10.0 * np.log10(np.median(band_mean_power) / reference)),
+                "p10_relative_power_db": float(10.0 * np.log10(np.percentile(band_mean_power, 10) / reference)),
+                "p90_relative_power_db": float(10.0 * np.log10(np.percentile(band_mean_power, 90) / reference)),
                 "temporal_std_db": float(np.std(temporal_db)),
             }
         )
@@ -187,6 +240,31 @@ def draw_candidate_peak_table(axis, candidates: list[dict], *, maximum: int = 6)
         family="monospace",
         color="black",
         bbox={"boxstyle": "round,pad=0.35", "facecolor": "white", "edgecolor": "crimson", "alpha": 0.88},
+        zorder=5,
+    )
+
+
+def draw_capture_overview_table(axis, overview: dict) -> None:
+    """Keep high-level context on the mean spectrum without replacing the curve."""
+    rows = [
+        "Capture / range overview",
+        f"frames      {overview['full_frames']}",
+        f"duration    {overview['capture_duration_s']:.1f} s",
+        f"bin spacing {overview['range_bin_spacing_m']:.3f} m",
+        f"view        0-{overview['max_range_plotted_m']:.0f} m",
+        f"strongest   {overview['strongest_range_m']:.1f} m",
+    ]
+    axis.text(
+        0.98,
+        0.05,
+        "\n".join(rows),
+        transform=axis.transAxes,
+        ha="right",
+        va="bottom",
+        fontsize=6.5,
+        family="monospace",
+        color="black",
+        bbox={"boxstyle": "round,pad=0.35", "facecolor": "white", "edgecolor": "steelblue", "alpha": 0.88},
         zorder=5,
     )
 
@@ -252,6 +330,7 @@ def write_diagnostic_plots(
     *,
     mean_range_power: np.ndarray | None = None,
     candidate_peaks: list[dict] | None = None,
+    overview: dict | None = None,
 ) -> dict:
     """Write a compact four-panel overview with consistent stable-peak labels."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -291,12 +370,12 @@ def write_diagnostic_plots(
         axis.plot(ranges, db(mean_range_power), linewidth=0.9, label="Mean across all frames/chirps/RX")
         annotate_candidate_peaks(axis, candidates)
         draw_candidate_peak_table(axis, candidates)
+        if overview is not None:
+            draw_capture_overview_table(axis, overview)
         axis.set_title("Mean 1D range spectrum: candidate stable peaks (not detections)")
         axis.set_xlabel("Range (m)")
         axis.set_ylabel("Relative power (dB)")
         axis.grid(True, alpha=0.3)
-        if candidates:
-            axis.legend(loc="lower right", fontsize=7)
 
     def draw_range_doppler(axis):
         image = db(range_doppler_power).T
@@ -371,6 +450,14 @@ def write_outputs(cube: np.ndarray, trailing_bytes: int, cfg: dict, output_dir: 
         "relative_power_db": 0.0,
     }
     candidates = candidate_static_peaks(ranges, mean_range_power, range_time_power)
+    band_summary = range_band_statistics(ranges, mean_range_power, range_time_power)
+    overview = {
+        "full_frames": int(cube.shape[0]),
+        "capture_duration_s": float(cube.shape[0]) * frame_period_s,
+        "range_bin_spacing_m": float(ranges[1] - ranges[0]) if len(ranges) > 1 else 0.0,
+        "max_range_plotted_m": float(ranges[-1]),
+        "strongest_range_m": float(ranges[strongest_bin]),
+    }
     diagnostics = diagnostic_products(cube, ranges, cfg)
     diagnostic_paths = write_diagnostic_plots(
         diagnostics,
@@ -380,6 +467,7 @@ def write_outputs(cube: np.ndarray, trailing_bytes: int, cfg: dict, output_dir: 
         output_dir,
         mean_range_power=mean_range_power,
         candidate_peaks=candidates,
+        overview=overview,
     )
     metadata = {
         "input_format": "AWR2944P real-only, non-interleaved [frame, chirp, rx, sample], int16",
@@ -391,6 +479,8 @@ def write_outputs(cube: np.ndarray, trailing_bytes: int, cfg: dict, output_dir: 
         "remove_time_domain_mean": bool(remove_mean),
         "strongest_mean_range_peak": strongest,
         "candidate_static_peaks": candidates,
+        "range_band_summary": band_summary,
+        "range_band_summary_csv": str(output_dir / "range_band_summary.csv"),
         "diagnostic_visualizations": {
             **diagnostics["metadata"],
             "paths": diagnostic_paths,
@@ -413,6 +503,20 @@ def write_outputs(cube: np.ndarray, trailing_bytes: int, cfg: dict, output_dir: 
     )
     (output_dir / "range_fft_analysis.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
     (output_dir / "output_analysis.md").write_text(markdown_report(metadata, cfg), encoding="utf-8")
+    band_summary_path = output_dir / "range_band_summary.csv"
+    with band_summary_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=[
+            "label",
+            "start_m",
+            "end_m",
+            "bins",
+            "median_relative_power_db",
+            "p10_relative_power_db",
+            "p90_relative_power_db",
+            "temporal_std_db",
+        ])
+        writer.writeheader()
+        writer.writerows(band_summary)
 
     plt.figure(figsize=(10, 6))
     for rx_index, values in enumerate(rx_range_power):
