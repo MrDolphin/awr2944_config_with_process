@@ -50,6 +50,18 @@ class AnalyzeAdcCaptureTests(unittest.TestCase):
         self.assertTrue(markdown_path.is_file())
         self.assertIn("初步原始 ADC 采集分析", markdown_path.read_text(encoding="utf-8"))
 
+    def test_word_statistics_does_not_depend_on_a_global_enumerate_binding(self):
+        """Only values are needed; an index must not be unpacked or retained."""
+        self.module.enumerate = lambda values: values
+        try:
+            stats = self.module._word_statistics(self.bin_path)
+        finally:
+            del self.module.enumerate
+
+        self.assertEqual(stats["count"], 8)
+        self.assertEqual(stats["minimum"], -32768)
+        self.assertEqual(stats["maximum"], 32767)
+
 
 if __name__ == "__main__":
     unittest.main()

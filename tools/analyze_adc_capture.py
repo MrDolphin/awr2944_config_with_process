@@ -57,7 +57,10 @@ def _word_statistics(path: Path) -> dict[str, Any]:
             if not usable:
                 continue
             values = struct.unpack(f"<{usable // INT16_BYTES}h", chunk[:usable])
-            for offset, value in enumerate(values):
+            # The word index is not part of any calculation.  Iterating values
+            # directly also avoids an unnecessary tuple-unpack dependency in
+            # post-capture analysis runs.
+            for value in values:
                 count += 1
                 total += value
                 total_sq += value * value
