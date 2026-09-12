@@ -122,7 +122,7 @@ def markdown_report(metadata: dict, cfg: dict) -> str:
             "",
             "## 图像如何阅读",
             "",
-            "- `mean_range_profile.png`：所有帧、chirp 和 RX 平均后的距离谱。红点仅标记 0.3 m 以外、按平均功率排序的局部候选稳定峰；标签为距离和相对功率，不是检测结果。靠近 0 m 的强峰仍可能是直流/近距离泄漏。",
+            "- `mean_range_profile.png`：四图快速判读板。左上为所有帧、chirp 和 RX 平均后的距离谱；红点仅标记 0.3 m 以外、按平均功率排序的局部候选稳定峰。右上为 Range-Time，左下为候选 bin 的逐帧相对波动，右下为各距离段的背景功率区间。所有候选和统计都不是检测结果；靠近 0 m 的强峰仍可能是直流/近距离泄漏。",
             "- `per_rx_range_profiles.png`：各 RX 独立距离谱；同一稳定反射峰在各 RX 位置一致，是后续阵列相位/AoA 处理的前提之一。幅度不同不等同于相位已校准。",
             "- `range_time_intensity.png`：对 chirp 与 RX 平均后，各帧的距离强度。图中不叠加候选峰标签，以免遮挡时间稳定性；沿时间方向延伸的亮带表示稳定距离反射，随时间倾斜或移动的亮带才可能对应距离变化目标。",
             "- `diagnostic_dashboard.png`：单 chirp 时域、原始定义的单 chirp 1D 距离 FFT、单 TX 组诊断性 2D Range-Doppler、未叠加标签的 Range-Time 总览。它用于快速判断原始数据是否具有合理结构，不能当作已校准速度、AoA 或点云。",
@@ -226,47 +226,78 @@ def candidate_peak_table(candidates: list[dict], *, maximum: int = 6) -> str:
     return "\n".join(rows)
 
 
-def draw_candidate_peak_table(axis, candidates: list[dict], *, maximum: int = 6) -> None:
-    if not candidates:
+def draw_mean_range_summary(axis, candidates: list[dict], overview: dict | None, *, maximum: int = 6) -> None:
+    """Put compact metadata at upper right, away from the near-range evidence."""
+    rows = []
+    if candidates:
+        rows.append(candidate_peak_table(candidates, maximum=maximum))
+    if overview is not None:
+        rows.extend(
+            [
+                "",
+                "Capture / range overview",
+                f"frames      {overview['full_frames']}",
+                f"duration    {overview['capture_duration_s']:.1f} s",
+                f"bin spacing {overview['range_bin_spacing_m']:.3f} m",
+                f"view        0-{overview['max_range_plotted_m']:.0f} m",
+                f"strongest   {overview['strongest_range_m']:.1f} m",
+            ]
+        )
+    if not rows:
         return
     axis.text(
         0.98,
         0.97,
-        candidate_peak_table(candidates, maximum=maximum),
+        "\n".join(rows),
         transform=axis.transAxes,
         ha="right",
         va="top",
         fontsize=6.5,
         family="monospace",
         color="black",
-        bbox={"boxstyle": "round,pad=0.35", "facecolor": "white", "edgecolor": "crimson", "alpha": 0.88},
+        bbox={"boxstyle": "round,pad=0.35", "facecolor": "white", "edgecolor": "crimson", "alpha": 0.9},
         zorder=5,
     )
 
 
-def draw_capture_overview_table(axis, overview: dict) -> None:
-    """Keep high-level context on the mean spectrum without replacing the curve."""
-    rows = [
-        "Capture / range overview",
-        f"frames      {overview['full_frames']}",
-        f"duration    {overview['capture_duration_s']:.1f} s",
-        f"bin spacing {overview['range_bin_spacing_m']:.3f} m",
-        f"view        0-{overview['max_range_plotted_m']:.0f} m",
-        f"strongest   {overview['strongest_range_m']:.1f} m",
-    ]
-    axis.text(
-        0.98,
-        0.05,
-        "\n".join(rows),
-        transform=axis.transAxes,
-        ha="right",
-        va="bottom",
-        fontsize=6.5,
-        family="monospace",
-        color="black",
-        bbox={"boxstyle": "round,pad=0.35", "facecolor": "white", "edgecolor": "steelblue", "alpha": 0.88},
-        zorder=5,
-    )
+def draw_candidate_peak_traces(axis, candidates: list[dict], range_time_power: np.ndarray, time_s: np.ndarray) -> None:
+    """Show whether the selected range-bin energies remain stable over frames."""
+    if not candidates:
+        axis.text(0.5, 0.5, "No stable peak candidates outside 0.3 m", ha="center", va="center", transform=axis.transAxes)
+        axis.set_axis_off()
+        return
+    for ordinal, candidate in enumerate(candidates[:6]):
+        bin_index = candidate["range_bin"]
+        baseline = max(float(np.mean(range_time_power[:, bin_index])), np.finfo(float).tiny)
+        relative_db = 10.0 * np.log10(np.maximum(range_time_power[:, bin_index], np.finfo(float).tiny) / baseline)
+        axis.plot(time_s, relative_db, linewidth=0.9, label=f"P{ordinal + 1}: {candidate['range_m']:.1f} m")
+    axis.axhline(0.0, color="black", linewidth=0.6, alpha=0.4)
+    axis.set_title("Candidate-bin temporal stability (each trace normalized to its own mean)")
+    axis.set_xlabel("Frame time (s)")
+    axis.set_ylabel("Power relative to own mean (dB)")
+    axis.grid(True, alpha=0.3)
+    axis.legend(loc="best", fontsize=7, ncol=2)
+
+
+def draw_range_band_summary(axis, band_summary: list[dict]) -> None:
+    """Visualize per-band background distributions without treating them as detections."""
+    if not band_summary:
+        axis.text(0.5, 0.5, "No valid range-band summary", ha="center", va="center", transform=axis.transAxes)
+        axis.set_axis_off()
+        return
+    positions = np.arange(len(band_summary))
+    median = np.array([band["median_relative_power_db"] for band in band_summary])
+    p10 = np.array([band["p10_relative_power_db"] for band in band_summary])
+    p90 = np.array([band["p90_relative_power_db"] for band in band_summary])
+    axis.hlines(positions, p10, p90, color="steelblue", linewidth=3, alpha=0.75, label="P10-P90")
+    axis.plot(median, positions, "o", color="crimson", markersize=5, label="Median")
+    axis.set_yticks(positions, [band["label"] for band in band_summary])
+    axis.invert_yaxis()
+    axis.set_title("Range-band background summary (not detections)")
+    axis.set_xlabel("Relative power (dB)")
+    axis.set_ylabel("Range band")
+    axis.grid(True, axis="x", alpha=0.3)
+    axis.legend(loc="lower left", fontsize=7)
 
 
 def diagnostic_products(cube: np.ndarray, ranges: np.ndarray, cfg: dict) -> dict:
@@ -331,8 +362,9 @@ def write_diagnostic_plots(
     mean_range_power: np.ndarray | None = None,
     candidate_peaks: list[dict] | None = None,
     overview: dict | None = None,
+    band_summary: list[dict] | None = None,
 ) -> dict:
-    """Write a compact four-panel overview with consistent stable-peak labels."""
+    """Write diagnostic images and a four-panel mean-range evidence overview."""
     output_dir.mkdir(parents=True, exist_ok=True)
     time_domain = products["time_domain"]
     single_chirp_power = products["single_chirp_range_power"]
@@ -341,6 +373,7 @@ def write_diagnostic_plots(
     rx_index = products["metadata"]["rx_index"]
     chirp_index = products["metadata"]["chirp_indices_within_frame"][0]
     candidates = candidate_peaks or []
+    bands = band_summary or []
     if mean_range_power is None:
         mean_range_power = single_chirp_power
 
@@ -369,9 +402,7 @@ def write_diagnostic_plots(
     def draw_mean_range(axis):
         axis.plot(ranges, db(mean_range_power), linewidth=0.9, label="Mean across all frames/chirps/RX")
         annotate_candidate_peaks(axis, candidates)
-        draw_candidate_peak_table(axis, candidates)
-        if overview is not None:
-            draw_capture_overview_table(axis, overview)
+        draw_mean_range_summary(axis, candidates, overview)
         axis.set_title("Mean 1D range spectrum: candidate stable peaks (not detections)")
         axis.set_xlabel("Range (m)")
         axis.set_ylabel("Relative power (dB)")
@@ -402,8 +433,13 @@ def write_diagnostic_plots(
         figure.savefig(paths[name], dpi=160)
         plt.close(figure)
 
-    figure, axis = plt.subplots(figsize=(12, 6))
-    draw_mean_range(axis)
+    figure, axes = plt.subplots(2, 2, figsize=(16, 10))
+    draw_mean_range(axes[0, 0])
+    range_time_image = draw_range_time(axes[0, 1])
+    draw_candidate_peak_traces(axes[1, 0], candidates, range_time_power, time_s)
+    draw_range_band_summary(axes[1, 1], bands)
+    figure.colorbar(range_time_image, ax=axes[0, 1], label="Relative power (dB)")
+    figure.suptitle("AWR2944P mean-range evidence overview (not detections / calibrated range)", fontsize=14)
     figure.tight_layout()
     figure.savefig(paths["mean_range_annotated"], dpi=160)
     plt.close(figure)
@@ -468,6 +504,7 @@ def write_outputs(cube: np.ndarray, trailing_bytes: int, cfg: dict, output_dir: 
         mean_range_power=mean_range_power,
         candidate_peaks=candidates,
         overview=overview,
+        band_summary=band_summary,
     )
     metadata = {
         "input_format": "AWR2944P real-only, non-interleaved [frame, chirp, rx, sample], int16",
