@@ -106,6 +106,8 @@ class AnalyzeAdcRangeTests(unittest.TestCase):
         self.assertEqual(products["range_doppler_power"].shape, (2, 5))
         self.assertEqual(products["metadata"]["slow_time_chirps"], 2)
         self.assertEqual(products["metadata"]["chirp_indices_within_frame"], [0, 4])
+        self.assertEqual(products["metadata"]["dashboard_1d_range_source"], "frame 0, chirp 0, RX 0")
+        self.assertEqual(products["metadata"]["candidate_peak_annotations_location"], "mean_range_profile.png only")
 
     def test_write_outputs_creates_wave_studio_like_diagnostic_images(self):
         cube = np.arange(3 * 2 * 2 * 8, dtype=np.int16).reshape(3, 2, 2, 8)

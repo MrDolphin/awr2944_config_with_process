@@ -110,8 +110,8 @@ def markdown_report(metadata: dict, cfg: dict) -> str:
             "",
             "- `mean_range_profile.png`：所有帧、chirp 和 RX 平均后的距离谱。红点仅标记 0.3 m 以外、按平均功率排序的局部候选稳定峰；标签为距离和相对功率，不是检测结果。靠近 0 m 的强峰仍可能是直流/近距离泄漏。",
             "- `per_rx_range_profiles.png`：各 RX 独立距离谱；同一稳定反射峰在各 RX 位置一致，是后续阵列相位/AoA 处理的前提之一。幅度不同不等同于相位已校准。",
-            "- `range_time_intensity.png`：对 chirp 与 RX 平均后，各帧的距离强度。白色虚线复用平均谱中排名靠前的候选峰距离，方便与上图逐一对应；沿时间方向延伸的亮带表示稳定距离反射，随时间倾斜或移动的亮带才可能对应距离变化目标。",
-            "- `diagnostic_dashboard.png`：单 chirp 时域、带候选峰标签的平均 1D 距离谱、单 TX 组诊断性 2D Range-Doppler、带相同距离参考线的 Range-Time 总览。它用于快速判断原始数据是否具有合理结构，不能当作已校准速度、AoA 或点云。",
+            "- `range_time_intensity.png`：对 chirp 与 RX 平均后，各帧的距离强度。图中不叠加候选峰标签，以免遮挡时间稳定性；沿时间方向延伸的亮带表示稳定距离反射，随时间倾斜或移动的亮带才可能对应距离变化目标。",
+            "- `diagnostic_dashboard.png`：单 chirp 时域、原始定义的单 chirp 1D 距离 FFT、单 TX 组诊断性 2D Range-Doppler、未叠加标签的 Range-Time 总览。它用于快速判断原始数据是否具有合理结构，不能当作已校准速度、AoA 或点云。",
             "- `range_doppler_diagnostic_frame0_txgroup0_rx0.png`：只选 frame 0、RX 0 和一个 TX chirp 组做慢时间 FFT，避免把相邻 TDM-MIMO chirp 混成伪 Doppler；速度轴仍只是依据 CFG 时序推算的诊断坐标。",
             "",
             "## 结论边界",
@@ -191,14 +191,6 @@ def draw_candidate_peak_table(axis, candidates: list[dict], *, maximum: int = 6)
     )
 
 
-def annotate_range_time_candidates(axis, candidates: list[dict], *, maximum: int = 6) -> None:
-    """Use the same peak positions as the mean spectrum for cross-panel reading."""
-    for candidate in candidates[:maximum]:
-        range_m = candidate["range_m"]
-        axis.axvline(range_m, color="white", linewidth=0.7, linestyle="--", alpha=0.7)
-    draw_candidate_peak_table(axis, candidates, maximum=maximum)
-
-
 def diagnostic_products(cube: np.ndarray, ranges: np.ndarray, cfg: dict) -> dict:
     """Create WaveStudio-like diagnostic views without claiming calibrated Doppler.
 
@@ -245,6 +237,8 @@ def diagnostic_products(cube: np.ndarray, ranges: np.ndarray, cfg: dict) -> dict
             "nominal_slow_time_period_s": slow_time_period_s if slow_time_period_s > 0 else None,
             "velocity_axis_is_diagnostic_only": True,
             "velocity_axis_reason": "Uses profileCfg timing and one TX chirp group; final TDM ordering and Doppler calibration are not validated.",
+            "dashboard_1d_range_source": "frame 0, chirp 0, RX 0",
+            "candidate_peak_annotations_location": "mean_range_profile.png only",
         },
     }
 
@@ -320,7 +314,6 @@ def write_diagnostic_plots(
         axis.set_title("Range-Time: mean across chirps and RX")
         axis.set_xlabel("Range (m)")
         axis.set_ylabel("Frame time (s)")
-        annotate_range_time_candidates(axis, candidates)
         return result
 
     for name, draw in (("time_domain", draw_time_domain), ("single_chirp_range", draw_single_chirp_range)):
@@ -345,7 +338,7 @@ def write_diagnostic_plots(
 
     figure, axes = plt.subplots(2, 2, figsize=(16, 10))
     draw_time_domain(axes[0, 0])
-    draw_mean_range(axes[0, 1])
+    draw_single_chirp_range(axes[0, 1])
     range_doppler_image = draw_range_doppler(axes[1, 0])
     range_time_image = draw_range_time(axes[1, 1])
     figure.colorbar(range_doppler_image, ax=axes[1, 0], label="Relative power (dB)")
