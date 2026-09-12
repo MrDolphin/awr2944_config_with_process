@@ -203,6 +203,35 @@ class ShoreSea400mCfgTests(unittest.TestCase):
         self.assertGreater(theoretical_limit_m, 400)
         self.assertLess(350, theoretical_limit_m)
 
+    def test_400m_v0_retains_the_350m_data_path_with_more_headroom(self):
+        """The 400-m candidate only lowers slope and expands the range FOV."""
+        path = (
+            Path(__file__).resolve().parents[1]
+            / "Config"
+            / "shore_sea_400m_v0_from_350m.cfg"
+        )
+        lines = {
+            line.strip()
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("%")
+        }
+        self.assertIn("channelCfg 15 15 0 0 0", lines)
+        self.assertIn("adcCfg 2 0", lines)
+        self.assertIn("profileCfg 0 77 186 7 57.14 0 0 2 1 656 13349 0 0 158", lines)
+        self.assertIn("frameCfg 0 3 16 0 656 100 1 0", lines)
+        self.assertIn("guiMonitor -1 2 1 0 0 0 1", lines)
+        self.assertIn("lvdsStreamCfg -1 0 1 0", lines)
+        self.assertIn("cfarFovCfg -1 0 0 400", lines)
+        self.assertIn("cfarFovCfg -1 1 -1 1.00", lines)
+
+        # 2 MHz/us leaves an approximately 500-m real-ADC Nyquist limit,
+        # providing 400-m headroom while retaining the known capture topology.
+        sample_rate_hz = 13_349_000
+        slope_hz_per_s = 2_000_000_000_000
+        theoretical_limit_m = 299_792_458 * sample_rate_hz / (4 * slope_hz_per_s)
+        self.assertGreater(theoretical_limit_m, 500)
+        self.assertLess(400, theoretical_limit_m)
+
     def test_v4_halves_only_the_v0_slope_for_a_bandwidth_ab(self):
         """V4 isolates sweep-bandwidth/slope from the V0 sample-load factors."""
         path = (
