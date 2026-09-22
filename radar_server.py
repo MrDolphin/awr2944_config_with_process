@@ -17,6 +17,10 @@ from radar_replay import CaptureAccessError, CaptureCatalog
 from radar_runtime import PointCloudRecorder
 from encoder_gpio import open_encoder_sweep_session
 from encoder_scan import EncoderSweepPlan
+from radar_camera_sync import match_camera_frame
+from tools.camera.camera_capture import CameraFrameBuffer, CameraRuntime
+from tools.camera.camera_config import load_camera_config
+from tools.camera.camera_http import CameraHttpServer
 
 # 配置日志：同时输出到文件和控制台
 config_dir = os.path.dirname(os.path.abspath(__file__))
@@ -64,6 +68,54 @@ pointcloud_recorder = PointCloudRecorder(capture_root)
 capture_catalog = CaptureCatalog(capture_root)
 config_manager = RadarConfigManager(Path(config_dir) / "Config")
 radar_health = RadarHealthMonitor()
+
+camera_services = {"enabled": False, "runtime": None, "http": None, "buffer": None, "public_base_url": "", "last_error": ""}
+
+
+def start_camera_services(config_path, host, port, public_base_url):
+    """Start the optional camera owner; failures remain isolated from radar."""
+    if camera_services["enabled"]:
+        return
+    runtime = None
+    http_server = None
+    runtime_started = False
+    http_started = False
+    try:
+        if not public_base_url:
+            raise ValueError("camera public base URL is required when camera is enabled")
+        config = load_camera_config(Path(config_path))
+        buffer = CameraFrameBuffer()
+        runtime = CameraRuntime(config, buffer)
+        http_server = CameraHttpServer(host, int(port), runtime, buffer)
+        runtime.start()
+        runtime_started = True
+        http_server.start()
+        http_started = True
+        camera_services.update({"enabled": True, "runtime": runtime, "http": http_server, "buffer": buffer, "public_base_url": public_base_url.rstrip("/"), "last_error": ""})
+    except Exception as error:
+        if http_started and http_server is not None:
+            http_server.stop()
+        if runtime_started and runtime is not None:
+            runtime.stop()
+        camera_services.update({"enabled": False, "runtime": None, "http": None, "buffer": None, "public_base_url": ""})
+        camera_services["last_error"] = str(error)
+        logger.error(f"Camera service unavailable: {error}")
+
+
+def stop_camera_services():
+    if camera_services.get("http"):
+        camera_services["http"].stop()
+    if camera_services.get("runtime"):
+        camera_services["runtime"].stop()
+    camera_services.update({"enabled": False, "runtime": None, "http": None, "buffer": None})
+
+
+def camera_sync_metadata(radar_monotonic_s):
+    buffer = camera_services.get("buffer")
+    if not camera_services.get("enabled") or buffer is None:
+        return {"status": "unavailable", "frame_id": None, "capture_monotonic_ns": None, "time_offset_ms": None, "frame_url": None, "clock_basis": "pi_receive_monotonic"}
+    result = match_camera_frame(int(float(radar_monotonic_s) * 1_000_000_000), buffer, camera_services.get("public_base_url", ""))
+    return {"status": result.status, "frame_id": result.frame_id, "capture_monotonic_ns": result.capture_monotonic_ns, "time_offset_ms": result.time_offset_ms, "frame_url": result.frame_url, "clock_basis": "pi_receive_monotonic"}
 
 gimbal_scan = {
     "enabled": False,
@@ -1020,6 +1072,9 @@ async def handle_client(websocket):
                         frame = dict(latest_radar_frame)
                         frame["pointcloud_recording"] = get_recording_status()
                         frame["runtime_health"] = get_runtime_health()
+                        frame["camera_sync"] = camera_sync_metadata(
+                            frame.get("host_monotonic_s", time.monotonic())
+                        )
                         if gimbal_scan["enabled"] and gimbal_scan["config"].get("mode") == "motor":
                             yaw_deg = motor_scan_angle_deg()
                             gimbal_scan["yaw_actual_deg"] = yaw_deg
@@ -1054,6 +1109,17 @@ async def main_ws_server(port):
     async with websockets.serve(handle_client, "0.0.0.0", port):
         await asyncio.Future() 
 
+
+def run_websocket_server(port):
+    """Run the WebSocket server and always release the optional camera owner."""
+    try:
+        asyncio.run(main_ws_server(port))
+    except KeyboardInterrupt:
+        print("\n中枢已关闭。")
+    finally:
+        stop_camera_services()
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="雷达【远程交互版服务器】")
     parser.add_argument('--cfg_port', type=str, default='')
@@ -1063,6 +1129,14 @@ if __name__ == "__main__":
     parser.add_argument('--ws_port', type=int, default=8765)
     parser.add_argument('--log_file', type=str, default='')
     parser.add_argument('--gimbal_port', type=str, default='/dev/ttyUSB0')
+    parser.add_argument('--enable-camera', action='store_true',
+                        help='start the optional single-owner camera service')
+    parser.add_argument('--camera-config', type=str,
+                        default=str(Path(config_dir) / 'tools' / 'camera' / 'camera_config.cfg'))
+    parser.add_argument('--camera-http-host', type=str, default='0.0.0.0')
+    parser.add_argument('--camera-http-port', type=int, default=8081)
+    parser.add_argument('--camera-public-base-url', type=str, default='',
+                        help='browser-reachable base URL, for example http://192.168.33.30:8081')
     ARGS = parser.parse_args()
     gimbal_scan["config"]["servo_port"] = ARGS.gimbal_port
     
@@ -1158,8 +1232,13 @@ if __name__ == "__main__":
             
     t = threading.Thread(target=radar_serial_thread, args=(real_data_port, ARGS.baud, ARGS.log_file), daemon=True)
     t.start()
-    
-    try:
-        asyncio.run(main_ws_server(ARGS.ws_port))
-    except KeyboardInterrupt:
-        print("\n中枢已关闭。")
+
+    if ARGS.enable_camera:
+        start_camera_services(
+            ARGS.camera_config,
+            ARGS.camera_http_host,
+            ARGS.camera_http_port,
+            ARGS.camera_public_base_url,
+        )
+
+    run_websocket_server(ARGS.ws_port)

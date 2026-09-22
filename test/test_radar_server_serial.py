@@ -4,6 +4,9 @@ import sys
 import threading
 import types
 import unittest
+from unittest.mock import patch
+
+from tools.camera.camera_capture import CameraFrame
 
 
 class RadarSerialIntegrationTests(unittest.TestCase):
@@ -67,6 +70,146 @@ class RadarSerialIntegrationTests(unittest.TestCase):
         self.assertEqual(frame["device_time_cpu_cycles"], 1234)
         self.assertEqual(frame["detected_object_count"], 0)
         self.assertEqual(frame["points"], [])
+
+
+class CameraServiceLifecycleTests(unittest.TestCase):
+    def setUp(self):
+        self.server = importlib.import_module("radar_server")
+        self.server.stop_camera_services()
+        self.server.camera_services.update({"public_base_url": "", "last_error": ""})
+
+    def tearDown(self):
+        self.server.stop_camera_services()
+
+    def test_start_owns_runtime_and_http_server_then_stop_is_idempotent(self):
+        events = []
+
+        class FakeRuntime:
+            def __init__(self, config, buffer):
+                self.buffer = buffer
+
+            def start(self):
+                events.append("runtime.start")
+
+            def stop(self):
+                events.append("runtime.stop")
+
+        class FakeHttpServer:
+            def __init__(self, host, port, runtime, buffer):
+                self.host = host
+                self.port = port
+
+            def start(self):
+                events.append("http.start")
+
+            def stop(self):
+                events.append("http.stop")
+
+        with (
+            patch.object(self.server, "load_camera_config", return_value=object()),
+            patch.object(self.server, "CameraRuntime", FakeRuntime),
+            patch.object(self.server, "CameraHttpServer", FakeHttpServer),
+        ):
+            self.server.start_camera_services("camera.cfg", "127.0.0.1", 8081, "http://pi:8081")
+            self.assertTrue(self.server.camera_services["enabled"])
+            self.assertEqual(self.server.camera_services["public_base_url"], "http://pi:8081")
+            self.server.stop_camera_services()
+            self.server.stop_camera_services()
+
+        self.assertEqual(events, ["runtime.start", "http.start", "http.stop", "runtime.stop"])
+
+    def test_start_failure_releases_runtime_and_leaves_camera_unavailable(self):
+        events = []
+
+        class FakeRuntime:
+            def __init__(self, config, buffer):
+                pass
+
+            def start(self):
+                events.append("runtime.start")
+
+            def stop(self):
+                events.append("runtime.stop")
+
+        class FailingHttpServer:
+            def __init__(self, host, port, runtime, buffer):
+                pass
+
+            def start(self):
+                events.append("http.start")
+                raise RuntimeError("bind failed")
+
+            def stop(self):
+                events.append("http.stop")
+
+        with (
+            patch.object(self.server, "load_camera_config", return_value=object()),
+            patch.object(self.server, "CameraRuntime", FakeRuntime),
+            patch.object(self.server, "CameraHttpServer", FailingHttpServer),
+        ):
+            self.server.start_camera_services("camera.cfg", "127.0.0.1", 8081, "http://pi:8081")
+
+        self.assertFalse(self.server.camera_services["enabled"])
+        self.assertIsNone(self.server.camera_services["runtime"])
+        self.assertEqual(events, ["runtime.start", "http.start", "runtime.stop"])
+        self.assertEqual(self.server.camera_services["last_error"], "bind failed")
+
+    def test_camera_enable_requires_browser_reachable_base_url(self):
+        with patch.object(self.server, "load_camera_config") as load_config:
+            self.server.start_camera_services("camera.cfg", "0.0.0.0", 8081, "")
+
+        load_config.assert_not_called()
+        self.assertFalse(self.server.camera_services["enabled"])
+        self.assertIn("public base URL", self.server.camera_services["last_error"])
+
+    def test_metadata_is_unavailable_until_camera_is_enabled(self):
+        metadata = self.server.camera_sync_metadata(1.0)
+        self.assertEqual(metadata["status"], "unavailable")
+        self.assertEqual(metadata["clock_basis"], "pi_receive_monotonic")
+        self.assertIsNone(metadata["frame_url"])
+
+    def test_metadata_matches_camera_frame_with_receive_time_clock(self):
+        buffer = self.server.CameraFrameBuffer()
+        buffer.append(CameraFrame(3, 1_020_000_000, 1_020_000_001, 1280, 720, b"jpeg"))
+        self.server.camera_services.update({
+            "enabled": True,
+            "buffer": buffer,
+            "public_base_url": "http://pi:8081",
+        })
+
+        metadata = self.server.camera_sync_metadata(1.0)
+
+        self.assertEqual(metadata["status"], "matched")
+        self.assertEqual(metadata["frame_id"], 3)
+        self.assertEqual(metadata["time_offset_ms"], 20.0)
+        self.assertEqual(metadata["frame_url"], "http://pi:8081/camera/frame/3.jpg")
+        self.assertEqual(metadata["clock_basis"], "pi_receive_monotonic")
+
+    def test_keyboard_interrupt_cleanup_stops_camera_services(self):
+        events = []
+
+        class FakeRuntime:
+            def stop(self):
+                events.append("runtime.stop")
+
+        class FakeHttpServer:
+            def stop(self):
+                events.append("http.stop")
+
+        self.server.camera_services.update({
+            "enabled": True,
+            "runtime": FakeRuntime(),
+            "http": FakeHttpServer(),
+        })
+
+        with (
+            patch.object(self.server, "main_ws_server", new=lambda _port: object()),
+            patch.object(self.server.asyncio, "run", side_effect=KeyboardInterrupt),
+        ):
+            self.server.run_websocket_server(8765)
+
+        self.assertEqual(events, ["http.stop", "runtime.stop"])
+        self.assertFalse(self.server.camera_services["enabled"])
 
 
 if __name__ == "__main__":
