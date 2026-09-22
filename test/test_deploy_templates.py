@@ -26,7 +26,9 @@ class DeployTemplateTests(unittest.TestCase):
 
         self.assertIn("WorkingDirectory=/home/pi/camera_web_fusion", service)
         self.assertIn("EnvironmentFile=-/etc/default/radar-camera", service)
-        self.assertIn("${RADAR_CAMERA_ARGS}", service)
+        # systemd splits a standalone $NAME into argv entries; ${NAME} stays one argv entry.
+        self.assertIn("ExecStart=/usr/bin/python3 radar_server.py --ws_port 8765 $RADAR_CAMERA_ARGS", service)
+        self.assertNotIn("${RADAR_CAMERA_ARGS}", service)
         self.assertIn("TimeoutStopSec=15", service)
         self.assertNotIn("--enable-camera", service)
         self.assertIn("RADAR_CAMERA_ARGS=", env_example)

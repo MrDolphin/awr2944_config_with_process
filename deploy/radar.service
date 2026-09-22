@@ -8,7 +8,7 @@ Type=simple
 # Keep this path identical to APP_DIR in setup_rpi.sh, or replace it during installation.
 WorkingDirectory=/home/pi/camera_web_fusion
 EnvironmentFile=-/etc/default/radar-camera
-ExecStart=/usr/bin/python3 radar_server.py --ws_port 8765 ${RADAR_CAMERA_ARGS}
+ExecStart=/usr/bin/python3 radar_server.py --ws_port 8765 $RADAR_CAMERA_ARGS
 User=pi
 SupplementaryGroups=dialout
 Environment=PYTHONUNBUFFERED=1

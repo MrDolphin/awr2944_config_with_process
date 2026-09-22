@@ -18,6 +18,8 @@ Install from the checkout with `sudo APP_DIR=/home/pi/camera_web_fusion ./deploy
 
 `/etc/default/radar-camera` defaults to `RADAR_CAMERA_ARGS=`. Enable the camera only after the camera-only gate by setting a complete explicit argument string, including `--enable-camera`, `--camera-config`, `--camera-http-port`, and a browser-reachable `--camera-public-base-url`.
 
+The service uses systemd's standalone `$RADAR_CAMERA_ARGS` expansion so each option reaches Python as a separate argument. Keep this variable unbraced in `ExecStart`; `${RADAR_CAMERA_ARGS}` would pass the whole option string as one argument.
+
 ## Rollback
 
 Rollback is one environment edit: removing --enable-camera from `RADAR_CAMERA_ARGS`, then run `sudo systemctl daemon-reload` and `sudo systemctl restart radar.service`. Preserve session data and logs; do not delete them during rollback.
