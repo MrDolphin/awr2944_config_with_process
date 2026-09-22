@@ -260,6 +260,8 @@ def _gate(value: float | None, threshold: float, *, higher_is_better: bool) -> s
 def _validate_thresholds(min_matched_ratio: float, max_absolute_offset_p95_ms: float) -> None:
     if not 0.0 <= min_matched_ratio <= 1.0:
         raise ValueError("min_matched_ratio must be between 0 and 1")
+    if not math.isfinite(max_absolute_offset_p95_ms):
+        raise ValueError("max_absolute_offset_p95_ms must be finite")
     if max_absolute_offset_p95_ms < 0.0:
         raise ValueError("max_absolute_offset_p95_ms must be non-negative")
 

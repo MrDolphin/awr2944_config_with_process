@@ -134,6 +134,10 @@ class RadarCameraSessionValidationTests(unittest.TestCase):
                 validate_session(session, min_matched_ratio=1.01)
             with self.assertRaisesRegex(ValueError, "max_absolute_offset_p95_ms must be non-negative"):
                 validate_session(session, max_absolute_offset_p95_ms=-0.1)
+            for value in (float("nan"), float("inf"), -float("inf")):
+                with self.subTest(value=value):
+                    with self.assertRaisesRegex(ValueError, "max_absolute_offset_p95_ms must be finite"):
+                        validate_session(session, max_absolute_offset_p95_ms=value)
 
     def test_cli_rejects_invalid_threshold_before_reading_a_session(self):
         script = Path(__file__).resolve().parents[1] / "radar_camera_session_validation.py"
