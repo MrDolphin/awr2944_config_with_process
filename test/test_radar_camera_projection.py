@@ -5,6 +5,7 @@ from pathlib import Path
 
 from tools.fusion.calibration import CalibrationError, load_calibration
 from tools.fusion.projection import project_radar_point
+from sensor_pose import SensorPose
 
 
 def payload():
@@ -49,6 +50,12 @@ class CalibrationProjectionTests(unittest.TestCase):
         calibration = self.load(data)
         u, v, depth = project_radar_point((1, 1, 10), calibration)
         self.assertAlmostEqual(u, 720.0, places=5); self.assertAlmostEqual(v, 440.32, places=5); self.assertEqual(depth, 10.0)
+
+    def test_fixed_camera_applies_measured_yaw_but_co_rotating_does_not(self):
+        fixed = payload(); fixed["mount_mode"] = "fixed_camera"
+        pose = SensorPose(1, 90.0, 0.0, 0.0, "encoder")
+        self.assertEqual(project_radar_point((1, 0, 5), self.load(fixed), pose), (640.0, 520.0, 5.0))
+        self.assertEqual(project_radar_point((1, 0, 5), self.load(payload()), pose), (800.0, 360.0, 5.0))
 
 
 if __name__ == "__main__": unittest.main()

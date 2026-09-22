@@ -20,6 +20,7 @@ from encoder_gpio import open_encoder_sweep_session
 from encoder_scan import EncoderSweepPlan
 from radar_camera_sync import match_camera_frame
 from radar_camera_recording import RadarCameraSessionWriter
+from sensor_pose import SensorPose, SensorPoseHistory, pose_metadata
 from tools.camera.camera_capture import CameraFrameBuffer, CameraRuntime
 from tools.camera.camera_config import load_camera_config
 from tools.camera.camera_http import CameraHttpServer
@@ -69,6 +70,7 @@ capture_root = Path(config_dir) / "captures" / "pointcloud_logs"
 pointcloud_recorder = PointCloudRecorder(capture_root)
 radar_camera_session_root = Path(config_dir) / "captures" / "radar_camera_sessions"
 radar_camera_session_writer = RadarCameraSessionWriter()
+sensor_pose_history = SensorPoseHistory()
 capture_catalog = CaptureCatalog(capture_root)
 config_manager = RadarConfigManager(Path(config_dir) / "Config")
 radar_health = RadarHealthMonitor()
@@ -162,7 +164,16 @@ def record_radar_camera_frame(frame):
     frame_id = sync.get("frame_id") if isinstance(sync, dict) else None
     buffer = camera_services.get("buffer")
     camera_frame = buffer.get(int(frame_id)) if buffer is not None and frame_id is not None else None
-    radar_camera_session_writer.append(frame, camera_frame)
+    radar_camera_session_writer.append(frame, camera_frame, frame.get("sensor_pose"))
+
+
+def publish_measured_pose(yaw_deg, pitch_deg, *, source):
+    """Publish measured orientation only; this function never commands motion."""
+    sensor_pose_history.append(SensorPose(time.monotonic_ns(), float(yaw_deg), float(pitch_deg), 0.0, source))
+
+
+def sensor_pose_metadata(radar_monotonic_s):
+    return pose_metadata(sensor_pose_history, int(float(radar_monotonic_s) * 1_000_000_000))
 
 gimbal_scan = {
     "enabled": False,
@@ -361,6 +372,7 @@ def encoder_scan_loop(config, stop_event):
         while not stop_event.is_set():
             snapshot = session.tick(now_s=time.monotonic())
             gimbal_scan["yaw_actual_deg"] = snapshot.angle_deg
+            publish_measured_pose(snapshot.angle_deg, 0.0, source="encoder")
             gimbal_scan["direction"] = snapshot.command.mode
             gimbal_scan["last_update_s"] = time.time()
             gimbal_scan["status"] = "capturing" if snapshot.capture_ready else "running"
@@ -466,6 +478,7 @@ def gimbal_scan_loop(config, stop_event):
                 gimbal_scan["status"] = "capturing"
                 gimbal_scan["yaw_actual_deg"] = yaw_actual
                 gimbal_scan["pitch_actual_deg"] = pitch_actual
+                publish_measured_pose(yaw_actual, pitch_actual, source="servo_feedback")
                 logger.info(
                     f"Gimbal scan actual yaw={yaw_actual:.1f}deg P{yaw_pwm_actual}, "
                     f"pitch={pitch_actual:.1f}deg P{pitch_pwm_actual}, points={len(latest_radar_frame.get('points', []))}"
@@ -1136,6 +1149,9 @@ async def handle_client(websocket):
                         frame["pointcloud_recording"] = get_recording_status()
                         frame["runtime_health"] = get_runtime_health()
                         frame["camera_sync"] = camera_sync_metadata(
+                            frame.get("host_monotonic_s", time.monotonic())
+                        )
+                        frame["sensor_pose"] = sensor_pose_metadata(
                             frame.get("host_monotonic_s", time.monotonic())
                         )
                         record_radar_camera_frame(frame)

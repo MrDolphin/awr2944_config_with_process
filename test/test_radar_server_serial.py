@@ -7,6 +7,7 @@ import unittest
 from unittest.mock import patch
 
 from tools.camera.camera_capture import CameraFrame
+from sensor_pose import SensorPoseHistory
 
 
 class RadarSerialIntegrationTests(unittest.TestCase):
@@ -80,6 +81,20 @@ class CameraServiceLifecycleTests(unittest.TestCase):
 
     def tearDown(self):
         self.server.stop_camera_services()
+
+    def test_measured_pose_metadata_uses_receive_time_and_stale_threshold(self):
+        self.server.sensor_pose_history = SensorPoseHistory()
+        self.server.sensor_pose_history.append(
+            self.server.SensorPose(1_000_000_000, 12.3, -1.4, 0.0, "encoder")
+        )
+
+        fresh = self.server.sensor_pose_metadata(1.040)
+        stale = self.server.sensor_pose_metadata(1.051)
+
+        self.assertEqual(fresh["status"], "fresh")
+        self.assertEqual(fresh["yaw_deg"], 12.3)
+        self.assertEqual(fresh["source"], "encoder")
+        self.assertEqual(stale["status"], "stale")
 
     def test_start_owns_runtime_and_http_server_then_stop_is_idempotent(self):
         events = []
