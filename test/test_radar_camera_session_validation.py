@@ -135,6 +135,57 @@ class RadarCameraSessionValidationTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 2)
         self.assertIn("min_matched_ratio must be between 0 and 1", completed.stderr)
 
+    def test_replay_manifest_selects_ten_spread_matched_frames(self):
+        metadata = {
+            "git": {"commit": "abc123", "dirty": False},
+            "radar_config": {"name": "dock.cfg", "sha256": "radar-hash"},
+            "camera_config": {"device": "/dev/v4l/by-id/camera", "width": 1280, "height": 720},
+            "sync_thresholds_ms": {"matched": 50, "stale": 100},
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            writer = RadarCameraSessionWriter(clock=lambda: 1_700_000_000.0, monotonic_ns=lambda: 900)
+            session = writer.start(Path(directory), metadata)
+            for number in range(1, 21):
+                timestamp = number * 1_000_000_000
+                frame = CameraFrame(number, timestamp, timestamp, 1280, 720, b"jpeg")
+                writer.append({
+                    "frame_num": number,
+                    "host_monotonic_s": number,
+                    "points": [],
+                    "camera_sync": {
+                        "status": "matched", "frame_id": number,
+                        "capture_monotonic_ns": timestamp, "time_offset_ms": 0.0,
+                    },
+                }, frame)
+            writer.stop()
+            report = validate_session(session)
+
+        self.assertEqual(report["errors"], [])
+        samples = report["replay_samples"]
+        self.assertEqual(len(samples), 10)
+        self.assertEqual(samples[0]["radar_frame_num"], 1)
+        self.assertEqual(samples[-1]["radar_frame_num"], 20)
+        self.assertEqual(samples[0]["radar_jsonl_line"], 1)
+        self.assertEqual(samples[-1]["camera_frame"], "camera_frames/20.jpg")
+        self.assertEqual(len({sample["radar_frame_num"] for sample in samples}), 10)
+
+    def test_replay_manifest_rejects_matched_row_without_camera_id(self):
+        with tempfile.TemporaryDirectory() as directory:
+            session = self._write_session(Path(directory))
+            index = session / "fusion_index.csv"
+            with index.open(newline="", encoding="utf-8") as handle:
+                reader = csv.DictReader(handle)
+                fields = reader.fieldnames
+                rows = list(reader)
+            rows[-1]["sync_status"] = "matched"
+            with index.open("w", newline="", encoding="utf-8") as handle:
+                writer = csv.DictWriter(handle, fieldnames=fields)
+                writer.writeheader()
+                writer.writerows(rows)
+            report = validate_session(session)
+
+        self.assertTrue(any("matched" in error and "camera_frame_id" in error for error in report["errors"]))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -53,6 +53,7 @@ def validate_session(
     total_rows = len(index_rows)
     matched_ratio = len(matched_rows) / total_rows if total_rows else 0.0
     p95 = _percentile_nearest_rank(valid_offsets, 0.95)
+    replay_samples = _replay_samples(radar_rows, matched_rows)
 
     return {
         "session_dir": str(session_dir),
@@ -72,6 +73,7 @@ def validate_session(
             "matched_ratio": _gate(matched_ratio, min_matched_ratio, higher_is_better=True),
             "absolute_offset_p95_ms": _gate(p95, max_absolute_offset_p95_ms, higher_is_better=False),
         },
+        "replay_samples": replay_samples,
         "limitations": [
             "Offline validation does not establish camera frame rate, radar packet loss, calibration accuracy, or gimbal behavior.",
             "Sync offsets use the persisted Pi receive-time clock, not a hardware trigger clock.",
@@ -147,7 +149,16 @@ def _validate_references(
     index_rows: list[dict[str, str]],
     errors: list[str],
 ) -> None:
-    radar_numbers = {str(row.get("frame_num")) for row in radar_rows if row.get("frame_num") is not None}
+    radar_numbers: set[str] = set()
+    for row in radar_rows:
+        number = row.get("frame_num")
+        if number is None:
+            errors.append("radar_frames.jsonl row has no frame_num")
+            continue
+        number_text = str(number)
+        if number_text in radar_numbers:
+            errors.append(f"radar_frames.jsonl repeats frame_num {number_text}")
+        radar_numbers.add(number_text)
     if len(index_rows) != len(radar_rows):
         errors.append(f"fusion_index.csv has {len(index_rows)} rows but radar_frames.jsonl has {len(radar_rows)} rows")
     seen_index_numbers: set[str] = set()
@@ -163,8 +174,13 @@ def _validate_references(
         seen_index_numbers.add(frame_number)
 
         camera_id = (row.get("camera_frame_id") or "").strip()
+        if row.get("sync_status") == "matched" and not camera_id:
+            errors.append(f"fusion_index.csv matched row {row_number} has no camera_frame_id")
         if camera_id:
-            referenced_camera_ids.add(camera_id)
+            if not camera_id.isascii() or not camera_id.isdecimal():
+                errors.append(f"fusion_index.csv row {row_number} has invalid camera_frame_id {camera_id!r}")
+            else:
+                referenced_camera_ids.add(camera_id)
     for camera_id in sorted(referenced_camera_ids, key=_natural_key):
         image = session_dir / "camera_frames" / f"{camera_id}.jpg"
         if not image.is_file():
@@ -185,6 +201,41 @@ def _absolute_offset(row: dict[str, str], errors: list[str]) -> float | None:
         errors.append(f"Matched radar_frame_num {row.get('radar_frame_num') or '?'} has non-finite time_offset_ms")
         return None
     return offset
+
+
+def _replay_samples(
+    radar_rows: list[dict[str, Any]], matched_rows: list[dict[str, str]],
+) -> list[dict[str, Any]]:
+    """Select up to ten evenly distributed matched rows for manual replay."""
+    radar_lines = {str(row.get("frame_num")): line for line, row in enumerate(radar_rows, start=1)}
+    candidates = [
+        row for row in matched_rows
+        if (row.get("camera_frame_id") or "").isascii()
+        and (row.get("camera_frame_id") or "").isdecimal()
+        and (row.get("radar_frame_num") or "") in radar_lines
+    ]
+    if len(candidates) <= 10:
+        selected = candidates
+    else:
+        selected = [candidates[round(index * (len(candidates) - 1) / 9)] for index in range(10)]
+    samples: list[dict[str, Any]] = []
+    for row in selected:
+        number = row.get("radar_frame_num") or ""
+        if not number.isascii() or not number.isdecimal():
+            continue
+        try:
+            offset = float(row.get("time_offset_ms") or "")
+        except ValueError:
+            continue
+        if not math.isfinite(offset):
+            continue
+        samples.append({
+            "radar_frame_num": int(number),
+            "radar_jsonl_line": radar_lines[number],
+            "camera_frame": f"camera_frames/{row['camera_frame_id']}.jpg",
+            "time_offset_ms": offset,
+        })
+    return samples
 
 
 def _percentile_nearest_rank(values: list[float], percentile: float) -> float | None:

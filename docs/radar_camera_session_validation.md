@@ -46,4 +46,6 @@ python3 radar_camera_session_validation.py /path/to/radar_camera_YYYYMMDD_HHMMSS
 - 每一个 `camera_frame_id` 所引用的 `camera_frames/<id>.jpg` 是否存在；
 - `matched` 行的匹配比例和绝对 `time_offset_ms` p95。
 
+输出中的 `replay_samples` 从匹配行中按时间顺序均匀选取最多十组，列出雷达帧号、`radar_frames.jsonl` 的行号、相机 JPEG 相对路径和接收时钟偏差。复制真实 60 秒会话到 PC 后，可按该清单逐组打开雷达 JSON 行和对应图片，记录目视重放结果；生成清单本身不等于完成了十帧人工重放。
+
 该结果只证明已保存文件的完整性和树莓派接收时间轴上的同步统计。它不证明相机实际帧率、雷达丢帧、空间标定精度、目标识别结果或云台行为；这些仍需按 Task 11 在上电且操作员在场的条件下单独记录。
