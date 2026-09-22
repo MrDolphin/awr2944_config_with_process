@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from tools.camera.camera_capture import CameraFrame
 from sensor_pose import SensorPoseHistory
+from tools.fusion.calibration import RadarCameraCalibration
 
 
 class RadarSerialIntegrationTests(unittest.TestCase):
@@ -95,6 +96,24 @@ class CameraServiceLifecycleTests(unittest.TestCase):
         self.assertEqual(fresh["yaw_deg"], 12.3)
         self.assertEqual(fresh["source"], "encoder")
         self.assertEqual(stale["status"], "stale")
+
+    def test_projection_requires_matched_camera_and_fresh_pose_then_clips_points(self):
+        self.server.active_camera_calibration = RadarCameraCalibration(
+            1280, 720, 800.0, 800.0, 640.0, 360.0, (0, 0, 0, 0, 0),
+            ((1, 0, 0), (0, 1, 0), (0, 0, 1)), (0, 0, 0), "fixed_camera", 1.0,
+        )
+        self.server.active_calibration_id = "sha256:test"
+        frame = {"points": [{"x": 0, "y": 0, "z": 5, "snr": 12}, {"x": 100, "y": 0, "z": 1}],
+                 "camera_sync": {"status": "matched"},
+                 "sensor_pose": {"status": "fresh", "yaw_deg": 0, "pitch_deg": 0, "roll_deg": 0, "pose_age_ms": 10}}
+        valid = self.server.camera_projection_metadata(frame)
+        self.assertEqual(valid["status"], "valid")
+        self.assertEqual(valid["calibration_id"], "sha256:test")
+        self.assertEqual(len(valid["points"]), 1)
+        frame["sensor_pose"]["pose_age_ms"] = 101
+        self.assertEqual(self.server.camera_projection_metadata(frame)["status"], "suppressed")
+        frame["sensor_pose"]["pose_age_ms"] = 10; frame["camera_sync"]["status"] = "stale"
+        self.assertEqual(self.server.camera_projection_metadata(frame)["reason"], "camera_sync_not_matched")
 
     def test_start_owns_runtime_and_http_server_then_stop_is_idempotent(self):
         events = []

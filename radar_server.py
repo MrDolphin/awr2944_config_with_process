@@ -11,6 +11,8 @@ import logging
 import os
 import math
 import subprocess
+import hashlib
+from types import SimpleNamespace
 from pathlib import Path
 from radar_control import RadarConfigManager
 from radar_health import RadarHealthMonitor
@@ -24,6 +26,8 @@ from sensor_pose import SensorPose, SensorPoseHistory, pose_metadata
 from tools.camera.camera_capture import CameraFrameBuffer, CameraRuntime
 from tools.camera.camera_config import load_camera_config
 from tools.camera.camera_http import CameraHttpServer
+from tools.fusion.calibration import CalibrationError, load_calibration
+from tools.fusion.projection import project_radar_point
 
 # 配置日志：同时输出到文件和控制台
 config_dir = os.path.dirname(os.path.abspath(__file__))
@@ -71,6 +75,8 @@ pointcloud_recorder = PointCloudRecorder(capture_root)
 radar_camera_session_root = Path(config_dir) / "captures" / "radar_camera_sessions"
 radar_camera_session_writer = RadarCameraSessionWriter()
 sensor_pose_history = SensorPoseHistory()
+active_camera_calibration = None
+active_calibration_id = None
 capture_catalog = CaptureCatalog(capture_root)
 config_manager = RadarConfigManager(Path(config_dir) / "Config")
 radar_health = RadarHealthMonitor()
@@ -174,6 +180,41 @@ def publish_measured_pose(yaw_deg, pitch_deg, *, source):
 
 def sensor_pose_metadata(radar_monotonic_s):
     return pose_metadata(sensor_pose_history, int(float(radar_monotonic_s) * 1_000_000_000))
+
+
+def load_camera_calibration(path):
+    """Load a validated calibration explicitly selected by the operator."""
+    global active_camera_calibration, active_calibration_id
+    if not path:
+        active_camera_calibration = active_calibration_id = None
+        return None
+    calibration_path = Path(path)
+    active_camera_calibration = load_calibration(calibration_path)
+    active_calibration_id = "sha256:" + hashlib.sha256(calibration_path.read_bytes()).hexdigest()
+    return active_camera_calibration
+
+
+def camera_projection_metadata(frame):
+    calibration = active_camera_calibration
+    if calibration is None:
+        return {"status": "unavailable", "reason": "calibration_not_loaded", "calibration_id": None, "calibration_schema_version": None, "points": []}
+    sync = frame.get("camera_sync") or {}
+    if sync.get("status") != "matched":
+        return {"status": "suppressed", "reason": "camera_sync_not_matched", "calibration_id": active_calibration_id, "calibration_schema_version": 1, "points": []}
+    pose_data = frame.get("sensor_pose") or {}
+    if calibration.mount_mode == "fixed_camera" and (pose_data.get("status") != "fresh" or float(pose_data.get("pose_age_ms", 999)) > 100):
+        return {"status": "suppressed", "reason": "fixed_camera_pose_stale", "calibration_id": active_calibration_id, "calibration_schema_version": 1, "points": []}
+    config = camera_services.get("config")
+    if config is not None and (config.width != calibration.image_width or config.height != calibration.image_height):
+        return {"status": "suppressed", "reason": "camera_image_size_mismatch", "calibration_id": active_calibration_id, "calibration_schema_version": 1, "points": []}
+    pose = SimpleNamespace(**pose_data) if pose_data else None
+    projected = []
+    for point in frame.get("points", []):
+        result = project_radar_point((float(point.get("x", 0)), float(point.get("y", 0)), float(point.get("z", 0))), calibration, pose, clip_to_image=True)
+        if result is not None:
+            u, v, depth = result
+            projected.append({"u": u, "v": v, "depth_m": depth, "range_m": math.sqrt(float(point.get("x", 0)) ** 2 + float(point.get("y", 0)) ** 2 + float(point.get("z", 0)) ** 2), "power": point.get("snr")})
+    return {"status": "valid", "reason": None, "calibration_id": active_calibration_id, "calibration_schema_version": 1, "rms_reprojection_error_px": calibration.rms_reprojection_error_px, "points": projected, "input_points": len(frame.get("points", []))}
 
 gimbal_scan = {
     "enabled": False,
@@ -1154,6 +1195,7 @@ async def handle_client(websocket):
                         frame["sensor_pose"] = sensor_pose_metadata(
                             frame.get("host_monotonic_s", time.monotonic())
                         )
+                        frame["camera_projection"] = camera_projection_metadata(frame)
                         record_radar_camera_frame(frame)
                         if gimbal_scan["enabled"] and gimbal_scan["config"].get("mode") == "motor":
                             yaw_deg = motor_scan_angle_deg()
@@ -1218,8 +1260,16 @@ if __name__ == "__main__":
     parser.add_argument('--camera-http-port', type=int, default=8081)
     parser.add_argument('--camera-public-base-url', type=str, default='',
                         help='browser-reachable base URL, for example http://192.168.33.30:8081')
+    parser.add_argument('--camera-calibration', type=str, default='',
+                        help='validated radar-camera calibration JSON; projection remains disabled when omitted')
     ARGS = parser.parse_args()
     gimbal_scan["config"]["servo_port"] = ARGS.gimbal_port
+    if ARGS.camera_calibration:
+        try:
+            load_camera_calibration(ARGS.camera_calibration)
+            logger.info(f"Loaded radar-camera calibration {active_calibration_id}")
+        except CalibrationError as error:
+            logger.error(f"Camera projection disabled: invalid calibration: {error}")
     
     # 【战前清场】：自动猎杀全系统内所有残留的前代 radar_server.py 进程
     import os, signal

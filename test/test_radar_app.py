@@ -34,6 +34,21 @@ class RadarAppMarkupTests(unittest.TestCase):
             self.assertIn(marker, app_html)
         self.assertNotIn(".mjpeg", app_html.lower())
 
+    def test_camera_overlay_controls_fail_closed_and_explain_projection_limits(self):
+        app_html = (Path(__file__).resolve().parents[1] / "radar_app.html").read_text(
+            encoding="utf-8"
+        )
+        for marker in (
+            'id="cameraOverlayEnabled"',
+            'id="cameraCalibrationStatus"',
+            'id="cameraProjectionReason"',
+            'id="cameraOverlayOpacity"',
+            'id="cameraOverlayDebug"',
+            "drawCameraProjection",
+            "投影点是坐标配准结果，不代表目标已被分类或确认。",
+        ):
+            self.assertIn(marker, app_html)
+
     def test_control_sidebar_declares_independent_scroll_contract(self):
         """The operator controls must remain reachable on short displays."""
         app_html = (Path(__file__).resolve().parents[1] / "radar_app.html").read_text(

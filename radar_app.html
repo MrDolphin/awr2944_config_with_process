@@ -1026,7 +1026,13 @@
                     <span>雷达-相机偏移</span>
                     <strong id="cameraSyncOffset" class="camera-status-disabled">--</strong>
                 </div>
-                <p class="camera-disclaimer">软件接收时钟同步，非硬件触发同步。尚未空间标定。</p>
+                <div class="camera-meta">
+                    <span>标定 / RMS</span><strong id="cameraCalibrationStatus">未加载</strong>
+                    <span>投影状态</span><strong id="cameraProjectionReason">等待有效标定</strong>
+                    <span>透明度</span><input id="cameraOverlayOpacity" type="range" min="0.1" max="1" step="0.1" value="0.8">
+                    <span>叠加控制</span><span><label><input id="cameraOverlayEnabled" type="checkbox" disabled> 显示</label> <label><input id="cameraOverlayDebug" type="checkbox"> 点号</label></span>
+                </div>
+                <p class="camera-disclaimer">软件接收时钟同步，非硬件触发同步。尚未空间标定。投影点是坐标配准结果，不代表目标已被分类或确认。</p>
             </section>
         </div>
 
@@ -1209,6 +1215,7 @@
         let pendingCameraRequest = null;
         let cameraRequestSequence = 0;
         let lastCameraSync = null;
+        let lastCameraProjection = null;
 
         function setCameraStatus(state, text) {
             const status = document.getElementById('cameraStatus');
@@ -1255,6 +1262,43 @@
             document.getElementById('cameraFrameId').innerText =
                 `#${Number.isFinite(frame.frameId) ? frame.frameId : '--'} / ${formatCameraWallTime(frame.captureWallTimeNs)}`;
             cameraOverlayCtx.clearRect(0, 0, cameraOverlayCanvas.width, cameraOverlayCanvas.height);
+            drawCameraProjection(lastCameraProjection);
+        }
+
+        function drawCameraProjection(projection) {
+            cameraOverlayCtx.clearRect(0, 0, cameraOverlayCanvas.width, cameraOverlayCanvas.height);
+            const enabled = document.getElementById('cameraOverlayEnabled').checked;
+            if (!enabled || !projection || projection.status !== 'valid') return;
+            const alpha = Number(document.getElementById('cameraOverlayOpacity').value);
+            const debug = document.getElementById('cameraOverlayDebug').checked;
+            (projection.points || []).forEach((point, index) => {
+                const power = Number(point.power);
+                const hue = Number.isFinite(power) ? Math.max(0, Math.min(120, 120 - power * 3)) : 190;
+                cameraOverlayCtx.fillStyle = `hsla(${hue}, 100%, 60%, ${alpha})`;
+                cameraOverlayCtx.beginPath();
+                cameraOverlayCtx.arc(point.u, point.v, 5, 0, Math.PI * 2);
+                cameraOverlayCtx.fill();
+                if (debug) {
+                    cameraOverlayCtx.fillStyle = '#fff';
+                    cameraOverlayCtx.font = '12px monospace';
+                    cameraOverlayCtx.fillText(String(index + 1), point.u + 7, point.v - 7);
+                }
+            });
+        }
+
+        function updateCameraProjection(projection) {
+            lastCameraProjection = projection || null;
+            const enabled = document.getElementById('cameraOverlayEnabled');
+            const calibration = document.getElementById('cameraCalibrationStatus');
+            const reason = document.getElementById('cameraProjectionReason');
+            const valid = projection && projection.status === 'valid';
+            enabled.disabled = !valid;
+            if (!valid) enabled.checked = false;
+            calibration.innerText = projection && projection.calibration_id
+                ? `${projection.calibration_id.slice(0, 16)} · RMS ${Number(projection.rms_reprojection_error_px || 0).toFixed(1)}px`
+                : '未加载';
+            reason.innerText = valid ? `有效 ${projection.points.length}/${projection.input_points} 点` : (projection && projection.reason || '等待有效标定');
+            drawCameraProjection(projection);
         }
 
         function cameraUrlForMode(sync) {
@@ -3015,6 +3059,7 @@
 
         function renderRadarFrame(data) {
             updateCameraPanel(data.camera_sync);
+            updateCameraProjection(data.camera_projection);
             latestGimbalScan = data.gimbal_scan || latestGimbalScan;
             if (data.gimbal_scan && data.gimbal_scan.enabled) {
                 gimbalScanEnabled = true;
@@ -3802,6 +3847,9 @@
         document.getElementById('cameraDisplayMode').addEventListener('change', () => {
             if (lastCameraSync) requestCameraFrame(lastCameraSync);
         });
+        document.getElementById('cameraOverlayEnabled').addEventListener('change', () => drawCameraProjection(lastCameraProjection));
+        document.getElementById('cameraOverlayOpacity').addEventListener('input', () => drawCameraProjection(lastCameraProjection));
+        document.getElementById('cameraOverlayDebug').addEventListener('change', () => drawCameraProjection(lastCameraProjection));
 
         document.getElementById('connectBtn').addEventListener('click', () => {
             let addr = document.getElementById('wsInput').value.trim();
