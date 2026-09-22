@@ -19,6 +19,23 @@ class DeployTemplateTests(unittest.TestCase):
         self.assertIn("python3-serial python3-websockets", script)
         self.assertNotIn("nmcli connection modify", script)
 
+    def test_camera_service_is_opt_in_and_has_safe_shutdown_contract(self):
+        service = (ROOT / "deploy" / "radar.service").read_text(encoding="utf-8")
+        env_example = (ROOT / "deploy" / "radar-camera.env.example").read_text(encoding="utf-8")
+        checklist = (ROOT / "deploy" / "DEPLOYMENT_CHECKLIST.md").read_text(encoding="utf-8")
+
+        self.assertIn("WorkingDirectory=/home/pi/camera_web_fusion", service)
+        self.assertIn("EnvironmentFile=-/etc/default/radar-camera", service)
+        self.assertIn("${RADAR_CAMERA_ARGS}", service)
+        self.assertIn("TimeoutStopSec=15", service)
+        self.assertNotIn("--enable-camera", service)
+        self.assertIn("RADAR_CAMERA_ARGS=", env_example)
+        self.assertIn("RADAR_CAMERA_CONFIG=/home/pi/camera_web_fusion/tools/camera/camera_config.cfg", env_example)
+        self.assertIn("RADAR_CAMERA_HTTP_PORT=8081", env_example)
+        for command in ("readlink -f /dev/v4l/by-id", "v4l2-ctl --device", "ss -ltnp", "pgrep -af", "vcgencmd measure_temp", "git rev-parse HEAD"):
+            self.assertIn(command, checklist)
+        self.assertIn("removing --enable-camera", checklist)
+
 
 if __name__ == "__main__":
     unittest.main()

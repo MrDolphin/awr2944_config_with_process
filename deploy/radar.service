@@ -6,8 +6,9 @@ Wants=network-online.target
 [Service]
 Type=simple
 # Keep this path identical to APP_DIR in setup_rpi.sh, or replace it during installation.
-WorkingDirectory=/home/pi/awr2944_config_with_process
-ExecStart=/usr/bin/python3 radar_server.py --ws_port 8765
+WorkingDirectory=/home/pi/camera_web_fusion
+EnvironmentFile=-/etc/default/radar-camera
+ExecStart=/usr/bin/python3 radar_server.py --ws_port 8765 ${RADAR_CAMERA_ARGS}
 User=pi
 SupplementaryGroups=dialout
 Environment=PYTHONUNBUFFERED=1
@@ -15,6 +16,7 @@ StandardOutput=journal
 StandardError=journal
 Restart=on-failure
 RestartSec=5
+TimeoutStopSec=15
 
 [Install]
 WantedBy=multi-user.target

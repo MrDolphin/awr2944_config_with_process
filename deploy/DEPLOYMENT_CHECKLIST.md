@@ -1,19 +1,23 @@
-# 树莓派部署与实机联调清单
+# Radar-camera deployment checklist
 
-部署前先在项目目录执行：
+Use the verified checkout at `/home/pi/camera_web_fusion`. Record these before and after every acceptance gate:
 
 ```bash
-python3 tools/deployment_preflight.py --config Config/<profile>.cfg
+git rev-parse HEAD
+git status --short
+vcgencmd measure_temp
+free -h
+df -h
+readlink -f /dev/v4l/by-id/usb-TSTC_USB20_WEB_CAMERA_TSTC_USB20_WEB_CAMERA_01.00.00-video-index0
+v4l2-ctl --device /dev/v4l/by-id/usb-TSTC_USB20_WEB_CAMERA_TSTC_USB20_WEB_CAMERA_01.00.00-video-index0 --list-formats-ext
+ss -ltnp | grep -E ':(8765|8081)\b'
+pgrep -af 'ffmpeg|camera.py|radar_server.py'
 ```
 
-硬件已接入后增加 `--require-ports`，它会把缺少的 `/dev/ttyACM*` 端口视为失败。预检只读检查依赖、配置、采集目录、磁盘空间、串口路径与 WebSocket 端口；不会改网络或服务。
+Install from the checkout with `sudo APP_DIR=/home/pi/camera_web_fusion ./deploy/setup_rpi.sh`. The installer enables but does not start `radar.service`; first verify the radar-only WebSocket path, serial ownership, and absence of FFmpeg.
 
-实机联调顺序：
+`/etc/default/radar-camera` defaults to `RADAR_CAMERA_ARGS=`. Enable the camera only after the camera-only gate by setting a complete explicit argument string, including `--enable-camera`, `--camera-config`, `--camera-http-port`, and a browser-reachable `--camera-public-base-url`.
 
-1. 固定雷达与电源，确认天线视场无船体遮挡。
-2. 接入 USB，执行预检并记录输出。
-3. 启动服务，网页确认“数据流正常”；无帧时应显示“等待雷达帧”或“数据帧超时”。
-4. 录制至少 60 秒空场与已知目标场景，确认 `dropped_frames=0`、`writer_error` 为空。
-5. 用离线回放检查空帧、目标帧和配置快照；保留 capture 目录作为试验留档。
+## Rollback
 
-若串口掉线，先查看 HUD 最近错误和 `journalctl -u radar -f`；服务会对 I/O 错误尝试重连，但电源、USB 线和端口映射仍需现场确认。
+Rollback is one environment edit: removing --enable-camera from `RADAR_CAMERA_ARGS`, then run `sudo systemctl daemon-reload` and `sudo systemctl restart radar.service`. Preserve session data and logs; do not delete them during rollback.
