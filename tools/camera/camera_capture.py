@@ -87,6 +87,14 @@ class CameraFrameBuffer:
                 key=lambda frame: abs(frame.host_monotonic_ns - host_monotonic_ns),
             )
 
+    def observed_fps(self) -> float | None:
+        """Estimate rate from the two newest retained receive-time stamps."""
+        with self._lock:
+            if len(self._frames) < 2:
+                return None
+            elapsed_ns = self._frames[-1].host_monotonic_ns - self._frames[-2].host_monotonic_ns
+            return 1_000_000_000 / elapsed_ns if elapsed_ns > 0 else None
+
 
 def build_v4l2_input_args(config: CameraConfig) -> list[str]:
     """Build validated V4L2 input arguments for every camera command."""
