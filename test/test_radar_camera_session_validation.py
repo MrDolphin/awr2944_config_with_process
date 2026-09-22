@@ -1,5 +1,7 @@
 import csv
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -112,6 +114,26 @@ class RadarCameraSessionValidationTests(unittest.TestCase):
 
         self.assertEqual(report["errors"], [])
         self.assertEqual(report["acceptance"], {"matched_ratio": "pass", "absolute_offset_p95_ms": "pass"})
+
+    def test_rejects_invalid_acceptance_thresholds(self):
+        with tempfile.TemporaryDirectory() as directory:
+            session = self._write_session(Path(directory))
+            with self.assertRaisesRegex(ValueError, "min_matched_ratio must be between 0 and 1"):
+                validate_session(session, min_matched_ratio=1.01)
+            with self.assertRaisesRegex(ValueError, "max_absolute_offset_p95_ms must be non-negative"):
+                validate_session(session, max_absolute_offset_p95_ms=-0.1)
+
+    def test_cli_rejects_invalid_threshold_before_reading_a_session(self):
+        script = Path(__file__).resolve().parents[1] / "radar_camera_session_validation.py"
+        completed = subprocess.run(
+            [sys.executable, str(script), "missing-session", "--min-matched-ratio", "-0.1"],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        self.assertEqual(completed.returncode, 2)
+        self.assertIn("min_matched_ratio must be between 0 and 1", completed.stderr)
 
 
 if __name__ == "__main__":

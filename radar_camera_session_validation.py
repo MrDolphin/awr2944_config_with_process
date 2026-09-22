@@ -38,6 +38,7 @@ def validate_session(
     camera frame rate, radar packet-loss result, calibration accuracy, or a
     gimbal result, because none of those facts are present in a session index.
     """
+    _validate_thresholds(min_matched_ratio, max_absolute_offset_p95_ms)
     session_dir = Path(session_dir)
     errors: list[str] = []
     metadata = _load_metadata(session_dir / "session_metadata.json", errors)
@@ -200,6 +201,13 @@ def _gate(value: float | None, threshold: float, *, higher_is_better: bool) -> s
     return "pass" if passed else "fail"
 
 
+def _validate_thresholds(min_matched_ratio: float, max_absolute_offset_p95_ms: float) -> None:
+    if not 0.0 <= min_matched_ratio <= 1.0:
+        raise ValueError("min_matched_ratio must be between 0 and 1")
+    if max_absolute_offset_p95_ms < 0.0:
+        raise ValueError("max_absolute_offset_p95_ms must be non-negative")
+
+
 def _natural_key(value: str) -> tuple[int, str]:
     try:
         return (0, f"{int(value):020d}")
@@ -213,11 +221,14 @@ def main() -> int:
     parser.add_argument("--min-matched-ratio", type=float, default=0.95)
     parser.add_argument("--max-absolute-offset-p95-ms", type=float, default=50.0)
     args = parser.parse_args()
-    report = validate_session(
-        args.session_dir,
-        min_matched_ratio=args.min_matched_ratio,
-        max_absolute_offset_p95_ms=args.max_absolute_offset_p95_ms,
-    )
+    try:
+        report = validate_session(
+            args.session_dir,
+            min_matched_ratio=args.min_matched_ratio,
+            max_absolute_offset_p95_ms=args.max_absolute_offset_p95_ms,
+        )
+    except ValueError as exc:
+        parser.error(str(exc))
     print(json.dumps(report, ensure_ascii=False, indent=2))
     if report["errors"]:
         return 2
