@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "image_size": [1280, 720],
+  "camera_matrix": {"fx": 0.0, "fy": 0.0, "cx": 0.0, "cy": 0.0},
+  "distortion": [0.0, 0.0, 0.0, 0.0, 0.0],
+  "radar_to_camera": {"rotation_3x3": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]], "translation_m": [0.0, 0.0, 0.0]},
+  "mount_mode": "co_rotating",
+  "calibrated_at": "2000-01-01T00:00:00Z",
+  "rms_reprojection_error_px": 0.0
+}
