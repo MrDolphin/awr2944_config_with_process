@@ -10,6 +10,7 @@ import websockets
 import logging
 import os
 import math
+import subprocess
 from pathlib import Path
 from radar_control import RadarConfigManager
 from radar_health import RadarHealthMonitor
@@ -18,6 +19,7 @@ from radar_runtime import PointCloudRecorder
 from encoder_gpio import open_encoder_sweep_session
 from encoder_scan import EncoderSweepPlan
 from radar_camera_sync import match_camera_frame
+from radar_camera_recording import RadarCameraSessionWriter
 from tools.camera.camera_capture import CameraFrameBuffer, CameraRuntime
 from tools.camera.camera_config import load_camera_config
 from tools.camera.camera_http import CameraHttpServer
@@ -65,11 +67,13 @@ runtime_state = {
 }
 capture_root = Path(config_dir) / "captures" / "pointcloud_logs"
 pointcloud_recorder = PointCloudRecorder(capture_root)
+radar_camera_session_root = Path(config_dir) / "captures" / "radar_camera_sessions"
+radar_camera_session_writer = RadarCameraSessionWriter()
 capture_catalog = CaptureCatalog(capture_root)
 config_manager = RadarConfigManager(Path(config_dir) / "Config")
 radar_health = RadarHealthMonitor()
 
-camera_services = {"enabled": False, "runtime": None, "http": None, "buffer": None, "public_base_url": "", "last_error": ""}
+camera_services = {"enabled": False, "runtime": None, "http": None, "buffer": None, "config": None, "public_base_url": "", "last_error": ""}
 
 
 def start_camera_services(config_path, host, port, public_base_url):
@@ -91,13 +95,13 @@ def start_camera_services(config_path, host, port, public_base_url):
         runtime_started = True
         http_server.start()
         http_started = True
-        camera_services.update({"enabled": True, "runtime": runtime, "http": http_server, "buffer": buffer, "public_base_url": public_base_url.rstrip("/"), "last_error": ""})
+        camera_services.update({"enabled": True, "runtime": runtime, "http": http_server, "buffer": buffer, "config": config, "public_base_url": public_base_url.rstrip("/"), "last_error": ""})
     except Exception as error:
         if http_started and http_server is not None:
             http_server.stop()
         if runtime_started and runtime is not None:
             runtime.stop()
-        camera_services.update({"enabled": False, "runtime": None, "http": None, "buffer": None, "public_base_url": ""})
+        camera_services.update({"enabled": False, "runtime": None, "http": None, "buffer": None, "config": None, "public_base_url": ""})
         camera_services["last_error"] = str(error)
         logger.error(f"Camera service unavailable: {error}")
 
@@ -107,7 +111,7 @@ def stop_camera_services():
         camera_services["http"].stop()
     if camera_services.get("runtime"):
         camera_services["runtime"].stop()
-    camera_services.update({"enabled": False, "runtime": None, "http": None, "buffer": None})
+    camera_services.update({"enabled": False, "runtime": None, "http": None, "buffer": None, "config": None})
 
 
 def camera_sync_metadata(radar_monotonic_s):
@@ -116,6 +120,49 @@ def camera_sync_metadata(radar_monotonic_s):
         return {"status": "unavailable", "frame_id": None, "capture_monotonic_ns": None, "time_offset_ms": None, "frame_url": None, "clock_basis": "pi_receive_monotonic"}
     result = match_camera_frame(int(float(radar_monotonic_s) * 1_000_000_000), buffer, camera_services.get("public_base_url", ""))
     return {"status": result.status, "frame_id": result.frame_id, "capture_monotonic_ns": result.capture_monotonic_ns, "time_offset_ms": result.time_offset_ms, "frame_url": result.frame_url, "clock_basis": "pi_receive_monotonic"}
+
+
+def _git_provenance():
+    try:
+        commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=config_dir, text=True, capture_output=True, check=True).stdout.strip()
+        dirty = bool(subprocess.run(["git", "status", "--porcelain"], cwd=config_dir, text=True, capture_output=True, check=True).stdout.strip())
+        return {"commit": commit, "dirty": dirty}
+    except (OSError, subprocess.SubprocessError):
+        return {"commit": None, "dirty": None}
+
+
+def start_radar_camera_recording():
+    config = camera_services.get("config")
+    camera_config = ({"device": config.device, "width": config.width, "height": config.height, "fps": config.fps,
+                      "input_format": config.input_format} if config else None)
+    return radar_camera_session_writer.start(radar_camera_session_root, {
+        "git": _git_provenance(),
+        "radar_config": runtime_state["active_config"],
+        "camera_config": camera_config,
+        "sync_thresholds_ms": {"matched": 50, "stale": 100},
+        "mount_mode": "unconfigured",
+    })
+
+
+def stop_radar_camera_recording():
+    path = radar_camera_session_writer.active_path
+    radar_camera_session_writer.stop()
+    return str(path) if path else ""
+
+
+def get_radar_camera_recording_status():
+    path = radar_camera_session_writer.active_path
+    return {"enabled": path is not None, "path": str(path) if path else ""}
+
+
+def record_radar_camera_frame(frame):
+    if radar_camera_session_writer.active_path is None:
+        return
+    sync = frame.get("camera_sync") or {}
+    frame_id = sync.get("frame_id") if isinstance(sync, dict) else None
+    buffer = camera_services.get("buffer")
+    camera_frame = buffer.get(int(frame_id)) if buffer is not None and frame_id is not None else None
+    radar_camera_session_writer.append(frame, camera_frame)
 
 gimbal_scan = {
     "enabled": False,
@@ -997,6 +1044,22 @@ async def handle_client(websocket):
                             status["type"] = "pointcloud_record_status"
                             status["recording"] = status["enabled"]
                             await websocket.send(json.dumps(status))
+                    elif ctype == "radar_camera_record":
+                        action = cmd.get("action")
+                        if action == "start":
+                            path = start_radar_camera_recording()
+                            await websocket.send(json.dumps({
+                                "type": "radar_camera_record_status", "recording": True, "path": str(path)
+                            }))
+                        elif action == "stop":
+                            path = stop_radar_camera_recording()
+                            await websocket.send(json.dumps({
+                                "type": "radar_camera_record_status", "recording": False, "path": path
+                            }))
+                        elif action == "status":
+                            status = get_radar_camera_recording_status()
+                            status.update({"type": "radar_camera_record_status", "recording": status["enabled"]})
+                            await websocket.send(json.dumps(status))
                     elif ctype == "system_health":
                         status = get_runtime_health()
                         status["type"] = "system_health_status"
@@ -1075,6 +1138,7 @@ async def handle_client(websocket):
                         frame["camera_sync"] = camera_sync_metadata(
                             frame.get("host_monotonic_s", time.monotonic())
                         )
+                        record_radar_camera_frame(frame)
                         if gimbal_scan["enabled"] and gimbal_scan["config"].get("mode") == "motor":
                             yaw_deg = motor_scan_angle_deg()
                             gimbal_scan["yaw_actual_deg"] = yaw_deg
@@ -1117,6 +1181,7 @@ def run_websocket_server(port):
     except KeyboardInterrupt:
         print("\n中枢已关闭。")
     finally:
+        stop_radar_camera_recording()
         stop_camera_services()
 
 

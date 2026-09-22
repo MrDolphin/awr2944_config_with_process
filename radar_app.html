@@ -883,6 +883,8 @@
                     title="显示/关闭每个点云的 SNR 和附近 noise 数值">SNR标签: 关</button>
                 <button id="recordPointcloudBtn" style="border-color: #7fdcff; color: #7fdcff;"
                     title="保存当前点云到服务器本地 CSV，便于后续分析 SNR/noise/TLV">记录点云: 关</button>
+                <button id="radarCameraRecordBtn" style="border-color: #b99cff; color: #d7c8ff;"
+                    title="保存雷达帧、匹配相机 JPEG 和同步索引">同步记录: 关</button>
                 <button id="noiseFilterToggleBtn" style="border-color: #7fdcff; color: #7fdcff;"
                     title="启用/关闭 Noise基线 对 confidence 的扣分">Noise过滤: 开</button>
                 <button id="liveObjectToggleBtn" style="border-color: #35e6ff; color: #35e6ff;"
@@ -1395,6 +1397,7 @@
         let showTrails = false; // 默认关闭航迹显示
         let showSnrLabels = false; // 默认关闭 SNR/noise 文字，避免点多时遮挡
         let pointcloudRecording = false;
+        let radarCameraRecording = false;
         let lastRecordingHealthSignature = '';
         let healthPollTimer = null;
         const replayState = {
@@ -3461,6 +3464,18 @@
             document.getElementById('recordDisplay').innerText = action === "start" ? "记录中..." : "正在停止";
         });
 
+        document.getElementById('radarCameraRecordBtn').addEventListener('click', (e) => {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert("请先连接雷达服务，再开始同步记录。");
+                return;
+            }
+            const action = radarCameraRecording ? "stop" : "start";
+            radarCameraRecording = action === "start";
+            ws.send(JSON.stringify({ type: "radar_camera_record", action }));
+            e.target.innerText = action === "start" ? "同步记录: 开" : "同步记录: 关";
+            e.target.style.backgroundColor = action === "start" ? "rgba(185, 156, 255, 0.18)" : "transparent";
+        });
+
         function replaySocketReady() {
             return ws && ws.readyState === WebSocket.OPEN;
         }
@@ -3821,6 +3836,7 @@
                 // 修正 JSON 大小写
                 ws.send(JSON.stringify({ type: "list_configs" }));
                 ws.send(JSON.stringify({ type: "pointcloud_record", action: "status" }));
+                ws.send(JSON.stringify({ type: "radar_camera_record", action: "status" }));
                 ws.send(JSON.stringify({ type: "gimbal_scan", action: "status" }));
                 ws.send(JSON.stringify({ type: "system_health" }));
                 startHealthPolling();
@@ -4234,6 +4250,12 @@
             }
             if (data.type === 'pointcloud_record_status') {
                 updateRecordingHealth(data);
+            }
+            if (data.type === 'radar_camera_record_status') {
+                radarCameraRecording = !!data.recording;
+                const btn = document.getElementById('radarCameraRecordBtn');
+                btn.innerText = radarCameraRecording ? '同步记录: 开' : '同步记录: 关';
+                btn.style.backgroundColor = radarCameraRecording ? 'rgba(185, 156, 255, 0.18)' : 'transparent';
             }
             if (data.type === 'system_health_status') {
                 updateSystemHealth(data);
