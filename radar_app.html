@@ -191,6 +191,90 @@
             max-height: calc(100vh - 290px);
         }
 
+        .camera-panel {
+            flex: 0 1 440px;
+            min-width: 300px;
+            padding: 12px;
+            border: 1px solid rgba(53, 230, 255, 0.42);
+            border-left: 3px solid #35e6ff;
+            border-radius: 10px;
+            background: rgba(4, 16, 25, 0.84);
+            color: #d6fbff;
+            box-sizing: border-box;
+        }
+
+        .camera-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            color: #8feeff;
+            font: 700 12px/1.2 "Courier New", monospace;
+            letter-spacing: 0.08em;
+        }
+
+        .camera-stage {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            margin-top: 9px;
+            overflow: hidden;
+            border: 1px solid rgba(53, 230, 255, 0.4);
+            border-radius: 6px;
+            background: #02070c;
+        }
+
+        #cameraCanvas,
+        #cameraOverlayCanvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+        }
+
+        #cameraCanvas {
+            display: block;
+            background: #02070c;
+        }
+
+        #cameraOverlayCanvas {
+            pointer-events: none;
+        }
+
+        .camera-meta {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 6px 10px;
+            margin-top: 9px;
+            font: 12px/1.3 "Courier New", monospace;
+        }
+
+        .camera-meta span { color: rgba(194, 235, 245, 0.76); }
+        .camera-meta strong { color: #fff; text-align: right; }
+
+        #cameraStatus,
+        #cameraSyncOffset {
+            border-radius: 999px;
+            padding: 3px 7px;
+            font-weight: 700;
+        }
+
+        .camera-status-disabled { color: #a8b7bd; background: rgba(168, 183, 189, 0.14); }
+        .camera-status-connecting { color: #8feeff; background: rgba(53, 230, 255, 0.14); }
+        .camera-status-live { color: #7dffdc; background: rgba(125, 255, 220, 0.14); }
+        .camera-status-stale { color: #ffe0ad; background: rgba(255, 189, 107, 0.16); }
+        .camera-status-error { color: #ff9e9e; background: rgba(255, 85, 85, 0.16); }
+
+        .camera-disclaimer {
+            margin: 10px 0 0;
+            color: rgba(210, 238, 247, 0.78);
+            font-size: 11px;
+            line-height: 1.45;
+        }
+
         .hud-overlay {
             position: static;
             pointer-events: none;
@@ -721,6 +805,11 @@
                 padding-top: 0;
             }
 
+            .camera-panel {
+                width: 100%;
+                max-width: 640px;
+            }
+
             #radarCanvas {
                 width: min(100%, calc((100vh - 250px) * 4 / 3));
                 max-height: calc(100vh - 250px);
@@ -915,6 +1004,28 @@
                     <canvas id="rangeProfileCanvas" class="hud-chart" width="960" height="120"></canvas>
                 </div>
             </div>
+            <section class="camera-panel" aria-label="相机同步画面">
+                <div class="camera-heading">
+                    <span>CAMERA / RADAR SYNC</span>
+                    <span id="cameraStatus" class="camera-status-disabled">disabled</span>
+                </div>
+                <div class="camera-stage">
+                    <canvas id="cameraCanvas" width="1280" height="720" aria-label="相机帧"></canvas>
+                    <canvas id="cameraOverlayCanvas" width="1280" height="720" aria-label="相机叠加层"></canvas>
+                </div>
+                <div class="camera-meta">
+                    <span>显示模式</span>
+                    <select id="cameraDisplayMode" aria-label="相机显示模式">
+                        <option value="latest">最新画面</option>
+                        <option value="matched">匹配雷达帧</option>
+                    </select>
+                    <span>相机帧 / 墙钟</span>
+                    <strong id="cameraFrameId">-- / --</strong>
+                    <span>雷达-相机偏移</span>
+                    <strong id="cameraSyncOffset" class="camera-status-disabled">--</strong>
+                </div>
+                <p class="camera-disclaimer">软件接收时钟同步，非硬件触发同步。尚未空间标定。</p>
+            </section>
         </div>
 
         <!-- 配置管理面板 -->
@@ -1088,6 +1199,118 @@
         const ctx = canvas.getContext('2d');
         const rangeProfileCanvas = document.getElementById('rangeProfileCanvas');
         const rangeProfileCtx = rangeProfileCanvas.getContext('2d');
+        const cameraCanvas = document.getElementById('cameraCanvas');
+        const cameraCtx = cameraCanvas.getContext('2d');
+        const cameraOverlayCanvas = document.getElementById('cameraOverlayCanvas');
+        const cameraOverlayCtx = cameraOverlayCanvas.getContext('2d');
+        let cameraRequestController = null;
+        let pendingCameraRequest = null;
+        let cameraRequestSequence = 0;
+        let lastCameraSync = null;
+
+        function setCameraStatus(state, text) {
+            const status = document.getElementById('cameraStatus');
+            status.className = `camera-status-${state}`;
+            status.innerText = text || state;
+        }
+
+        function setCameraSyncOffset(sync) {
+            const offset = document.getElementById('cameraSyncOffset');
+            const status = sync && sync.status;
+            offset.className = `camera-status-${status === 'matched' ? 'live' : status === 'degraded' || status === 'stale' ? 'stale' : 'disabled'}`;
+            offset.innerText = Number.isFinite(Number(sync && sync.time_offset_ms))
+                ? `${Number(sync.time_offset_ms).toFixed(1)} ms`
+                : '--';
+        }
+
+        function formatCameraWallTime(nanoseconds) {
+            const value = Number(nanoseconds);
+            return Number.isFinite(value) && value > 0
+                ? new Date(value / 1_000_000).toLocaleTimeString()
+                : '--';
+        }
+
+        async function fetchCameraFrame(url, abortSignal) {
+            const response = await fetch(url, { cache: 'no-store', signal: abortSignal });
+            if (!response.ok) throw new Error(`camera HTTP ${response.status}`);
+            const blob = await response.blob();
+            const bitmap = await createImageBitmap(blob);
+            return {
+                bitmap,
+                frameId: Number(response.headers.get('X-Camera-Frame-Id')),
+                captureMonotonicNs: response.headers.get('X-Capture-Monotonic-Ns'),
+                captureWallTimeNs: response.headers.get('X-Capture-Wall-Time-Ns'),
+            };
+        }
+
+        function drawCameraFrame(frame) {
+            try {
+                cameraCtx.clearRect(0, 0, cameraCanvas.width, cameraCanvas.height);
+                cameraCtx.drawImage(frame.bitmap, 0, 0, cameraCanvas.width, cameraCanvas.height);
+            } finally {
+                frame.bitmap.close();
+            }
+            document.getElementById('cameraFrameId').innerText =
+                `#${Number.isFinite(frame.frameId) ? frame.frameId : '--'} / ${formatCameraWallTime(frame.captureWallTimeNs)}`;
+            cameraOverlayCtx.clearRect(0, 0, cameraOverlayCanvas.width, cameraOverlayCanvas.height);
+        }
+
+        function cameraUrlForMode(sync) {
+            if (!sync || !sync.frame_url) return null;
+            if (document.getElementById('cameraDisplayMode').value === 'matched') return sync.frame_url;
+            return sync.frame_url.replace(/\/camera\/frame\/\d+\.jpg$/, '/camera/frame/latest.jpg');
+        }
+
+        function requestCameraFrame(sync) {
+            const url = cameraUrlForMode(sync);
+            if (!url) return;
+            pendingCameraRequest = { url, sequence: ++cameraRequestSequence };
+            setCameraStatus('connecting', 'connecting');
+            if (cameraRequestController) {
+                cameraRequestController.abort();
+                return;
+            }
+            void pumpCameraFrameRequests();
+        }
+
+        async function pumpCameraFrameRequests() {
+            while (pendingCameraRequest) {
+                const request = pendingCameraRequest;
+                pendingCameraRequest = null;
+                const controller = new AbortController();
+                cameraRequestController = controller;
+                try {
+                    const frame = await fetchCameraFrame(request.url, controller.signal);
+                    if (request.sequence === cameraRequestSequence) {
+                        drawCameraFrame(frame);
+                        setCameraStatus(
+                            lastCameraSync && lastCameraSync.status === 'matched' ? 'live' : 'stale',
+                            lastCameraSync && lastCameraSync.status || 'live'
+                        );
+                    } else {
+                        frame.bitmap.close();
+                    }
+                } catch (error) {
+                    if (error.name !== 'AbortError') {
+                        setCameraStatus('error', 'error');
+                        console.warn('camera frame request failed:', error);
+                    }
+                } finally {
+                    cameraRequestController = null;
+                }
+            }
+        }
+
+        function updateCameraPanel(sync) {
+            lastCameraSync = sync || null;
+            if (!sync || sync.status === 'unavailable' || !sync.frame_url) {
+                setCameraStatus('disabled', 'disabled');
+                setCameraSyncOffset(null);
+                return;
+            }
+            setCameraSyncOffset(sync);
+            requestCameraFrame(sync);
+        }
 
         // 雷达显示量程配置 (米)：由配置面板里的“最大探测距离”动态驱动。
         let radarRangeY = 15;
@@ -2788,6 +3011,7 @@
         }
 
         function renderRadarFrame(data) {
+            updateCameraPanel(data.camera_sync);
             latestGimbalScan = data.gimbal_scan || latestGimbalScan;
             if (data.gimbal_scan && data.gimbal_scan.enabled) {
                 gimbalScanEnabled = true;
@@ -3560,6 +3784,10 @@
             }
         });
 
+        document.getElementById('cameraDisplayMode').addEventListener('change', () => {
+            if (lastCameraSync) requestCameraFrame(lastCameraSync);
+        });
+
         document.getElementById('connectBtn').addEventListener('click', () => {
             let addr = document.getElementById('wsInput').value.trim();
             // 自动补全逻辑
@@ -3629,6 +3857,10 @@
                 stopHealthPolling();
                 updateReplayControls();
                 setReplayStatus('连接已断开');
+                if (cameraRequestController) cameraRequestController.abort();
+                pendingCameraRequest = null;
+                setCameraStatus('disabled', 'disabled');
+                setCameraSyncOffset(null);
             };
             ws.onerror = (err) => { alert("连接雷达服务失败，请检查 IP 端口是否正确。"); };
         });

@@ -9,6 +9,31 @@ except ImportError:  # pragma: no cover - development environment may not bundle
 
 
 class RadarAppMarkupTests(unittest.TestCase):
+    def test_camera_panel_declares_bounded_synchronised_frame_contract(self):
+        app_html = (Path(__file__).resolve().parents[1] / "radar_app.html").read_text(
+            encoding="utf-8"
+        )
+
+        for marker in (
+            'id="cameraCanvas"',
+            'id="cameraStatus"',
+            'id="cameraFrameId"',
+            'id="cameraSyncOffset"',
+            'id="cameraDisplayMode"',
+            'id="cameraOverlayCanvas"',
+            "fetchCameraFrame",
+            "drawCameraFrame",
+            "cache: 'no-store'",
+            "createImageBitmap(blob)",
+            "frame.bitmap.close()",
+            "AbortController",
+            "updateCameraPanel(data.camera_sync)",
+            "软件接收时钟同步，非硬件触发同步",
+            "尚未空间标定",
+        ):
+            self.assertIn(marker, app_html)
+        self.assertNotIn(".mjpeg", app_html.lower())
+
     def test_control_sidebar_declares_independent_scroll_contract(self):
         """The operator controls must remain reachable on short displays."""
         app_html = (Path(__file__).resolve().parents[1] / "radar_app.html").read_text(
