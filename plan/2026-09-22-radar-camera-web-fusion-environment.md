@@ -1,7 +1,7 @@
 # Radar-Camera Web Fusion Execution Environment Baseline
 
-**Captured at:** 2026-09-22 16:17–16:23 CST  
-**Purpose:** 固化 `Radar-Camera Web Fusion Implementation Plan` 开始执行前的 PC、树莓派、相机、雷达接口、网络和工具链事实。  
+**Captured at:** 2026-09-22 16:17–16:23 CST
+**Purpose:** 固化 `Radar-Camera Web Fusion Implementation Plan` 开始执行前的 PC、树莓派、相机、雷达接口、网络和工具链事实。
 **Collection method:** PC 本地只读 PowerShell/Git 命令，以及通过 `ssh pi@172.20.10.10` 执行的只读 Linux 命令。采集过程没有打开相机视频流、发送雷达配置、启动采集或驱动云台。
 
 ## 1. Authoritative Development Locations
