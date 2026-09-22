@@ -18,10 +18,15 @@ simulation/stages/*/results/**
 __pycache__/
 *.pyc
 *.pyo
+.venv/
 
 # Raspberry Pi local radar-capture topology/profile.  Keep the tracked
 # awr2944_capture_defaults.example.json as the reproducible template.
 Config/awr2944_capture_defaults.json
+
+# Camera capture artifacts are experiment data, not source code.
+tools/camera/output/
+camera_sessions/
 
 # 系统文件
 .DS_Store
