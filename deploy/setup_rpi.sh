@@ -17,7 +17,7 @@ if [[ ! -f "${APP_DIR}/radar_server.py" ]]; then
 fi
 
 apt-get update
-apt-get install -y python3 python3-serial python3-websockets
+apt-get install -y python3 python3-serial python3-websockets ffmpeg v4l-utils
 
 install -m 0644 "${SCRIPT_DIR}/radar.service" "/etc/systemd/system/${SERVICE_NAME}"
 sed -i "s|^WorkingDirectory=.*|WorkingDirectory=${APP_DIR}|" "/etc/systemd/system/${SERVICE_NAME}"
