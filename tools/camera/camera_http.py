@@ -94,6 +94,10 @@ class CameraHttpServer:
         handler.send_header("X-Capture-Wall-Time-Ns", str(frame.host_wall_time_ns))
         handler.send_header("Cache-Control", "no-store")
         handler.send_header("Access-Control-Allow-Origin", "*")
+        handler.send_header(
+            "Access-Control-Expose-Headers",
+            "X-Camera-Frame-Id, X-Capture-Monotonic-Ns, X-Capture-Wall-Time-Ns",
+        )
         handler.end_headers()
         handler.wfile.write(frame.jpeg)
 

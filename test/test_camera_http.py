@@ -59,6 +59,10 @@ class CameraHttpServerTests(unittest.TestCase):
         self.assertEqual(headers["X-Capture-Wall-Time-Ns"], "2000000018")
         self.assertEqual(headers["Cache-Control"], "no-store")
         self.assertEqual(headers["Access-Control-Allow-Origin"], "*")
+        self.assertEqual(
+            headers["Access-Control-Expose-Headers"],
+            "X-Camera-Frame-Id, X-Capture-Monotonic-Ns, X-Capture-Wall-Time-Ns",
+        )
 
     def test_retained_frame_is_exact_and_missing_frame_is_json_404(self):
         """A stale requested frame must not be silently replaced by the latest frame."""

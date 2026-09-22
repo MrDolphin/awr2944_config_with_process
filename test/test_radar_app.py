@@ -1,3 +1,4 @@
+import base64
 import unittest
 from pathlib import Path
 
@@ -6,6 +7,12 @@ try:
     from playwright.sync_api import sync_playwright
 except ImportError:  # pragma: no cover - development environment may not bundle Playwright
     sync_playwright = None
+
+
+CHROME_EXECUTABLE = Path(r"C:\Program Files\Google\Chrome\Application\chrome.exe")
+CAMERA_IMAGE = base64.b64decode(
+    "R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+)
 
 
 class RadarAppMarkupTests(unittest.TestCase):
@@ -146,13 +153,19 @@ class RadarAppMarkupTests(unittest.TestCase):
         self.assertNotIn("return `aoaFovCfg -1 -${ang} ${ang} -${ang} ${ang}`", app_html)
 
 
-@unittest.skipUnless(sync_playwright is not None, "Playwright is not installed")
+@unittest.skipUnless(
+    sync_playwright is not None and CHROME_EXECUTABLE.is_file(),
+    "Playwright or the local Chrome executable is not installed",
+)
 class RadarAppTests(unittest.TestCase):
+    def _new_browser(self, playwright):
+        return playwright.chromium.launch(headless=True, executable_path=str(CHROME_EXECUTABLE))
+
     def test_offline_replay_controls_render_without_javascript_errors(self):
         page_errors = []
         page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(headless=True)
+            browser = self._new_browser(playwright)
             page = browser.new_page(viewport={"width": 1440, "height": 900})
             page.on("pageerror", lambda error: page_errors.append(str(error)))
             page.goto(page_url, wait_until="networkidle")
@@ -167,6 +180,75 @@ class RadarAppTests(unittest.TestCase):
             ):
                 self.assertEqual(page.locator(selector).count(), 1, selector)
             self.assertTrue(page.locator("#replayPlayBtn").is_disabled())
+            browser.close()
+        self.assertEqual(page_errors, [])
+
+    def test_matched_radar_frame_fetches_and_displays_mock_camera_image(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.route(
+                "http://synthetic-camera/**",
+                lambda route: route.fulfill(
+                    status=200,
+                    body=CAMERA_IMAGE,
+                    headers={
+                        "content-type": "image/gif",
+                        "access-control-allow-origin": "*",
+                        "access-control-expose-headers": "X-Camera-Frame-Id, X-Capture-Monotonic-Ns, X-Capture-Wall-Time-Ns",
+                        "X-Camera-Frame-Id": "7",
+                        "X-Capture-Monotonic-Ns": "2000000000",
+                        "X-Capture-Wall-Time-Ns": "1700000000000000000",
+                    },
+                ),
+            )
+            page.goto(page_url, wait_until="networkidle")
+            page.evaluate(
+                """renderRadarFrame({
+                    frame_num: 1,
+                    points: [],
+                    camera_sync: {
+                        status: 'matched',
+                        frame_id: 7,
+                        frame_url: 'http://synthetic-camera/camera/frame/7.jpg',
+                        time_offset_ms: 20
+                    },
+                    camera_projection: { status: 'unavailable', reason: 'calibration_not_loaded' }
+                })"""
+            )
+            page.wait_for_function(
+                "document.getElementById('cameraFrameId').innerText.startsWith('#7')",
+                timeout=5_000,
+            )
+            self.assertEqual(page.locator("#cameraStatus").inner_text(), "matched")
+            self.assertEqual(page.locator("#cameraSyncOffset").inner_text(), "20.0 ms")
+            self.assertTrue(page.locator("#cameraFrameId").inner_text().startswith("#7 / "))
+            browser.close()
+
+    def test_camera_http_error_is_shown_without_a_page_exception(self):
+        page_errors = []
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.on("pageerror", lambda error: page_errors.append(str(error)))
+            page.route("http://synthetic-camera/**", lambda route: route.fulfill(status=404, body="missing"))
+            page.goto(page_url, wait_until="networkidle")
+            page.evaluate(
+                """renderRadarFrame({
+                    frame_num: 2,
+                    points: [],
+                    camera_sync: {
+                        status: 'matched',
+                        frame_id: 8,
+                        frame_url: 'http://synthetic-camera/camera/frame/8.jpg',
+                        time_offset_ms: -20
+                    }
+                })"""
+            )
+            page.wait_for_function("document.getElementById('cameraStatus').innerText === 'error'")
+            self.assertEqual(page.locator("#cameraStatus").inner_text(), "error")
             browser.close()
         self.assertEqual(page_errors, [])
 
