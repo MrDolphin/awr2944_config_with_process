@@ -87,7 +87,7 @@ def _load_metadata(path: Path, errors: list[str]) -> dict[str, Any]:
         return {}
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         errors.append(f"Cannot read session_metadata.json: {exc}")
         return {}
     if not isinstance(value, dict):
@@ -109,7 +109,12 @@ def _load_radar_rows(path: Path, errors: list[str]) -> list[dict[str, Any]]:
         errors.append("Missing radar_frames.jsonl")
         return []
     rows: list[dict[str, Any]] = []
-    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError) as exc:
+        errors.append(f"Cannot read radar_frames.jsonl: {exc}")
+        return []
+    for line_number, line in enumerate(lines, start=1):
         if not line.strip():
             continue
         try:
@@ -138,7 +143,7 @@ def _load_index_rows(path: Path, errors: list[str]) -> list[dict[str, str]]:
                 if field not in fields:
                     errors.append(f"fusion_index.csv missing required column: {field}")
             return list(reader)
-    except OSError as exc:
+    except (OSError, UnicodeError) as exc:
         errors.append(f"Cannot read fusion_index.csv: {exc}")
         return []
 

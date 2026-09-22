@@ -86,6 +86,18 @@ class RadarCameraSessionValidationTests(unittest.TestCase):
         self.assertIn("camera_frames/7.jpg", report["errors"][0])
         self.assertIn("camera_frames/8.jpg", report["errors"][1])
 
+    def test_corrupt_text_file_is_reported_as_integrity_error(self):
+        for filename, error_fragment in (
+            ("session_metadata.json", "Cannot read session_metadata.json"),
+            ("radar_frames.jsonl", "Cannot read radar_frames.jsonl"),
+            ("fusion_index.csv", "Cannot read fusion_index.csv"),
+        ):
+            with self.subTest(filename=filename), tempfile.TemporaryDirectory() as directory:
+                session = self._write_session(Path(directory))
+                (session / filename).write_bytes(b"\xff")
+                report = validate_session(session)
+                self.assertTrue(any(error_fragment in error for error in report["errors"]))
+
     def test_validates_a_package_written_by_the_session_writer(self):
         metadata = {
             "git": {"commit": "abc123", "dirty": False},
