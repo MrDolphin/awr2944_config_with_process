@@ -103,43 +103,27 @@ scp "D:\hp-laptop\USV\awr2944_config_and_process_with_trace_codex\radar_app.html
 http://172.20.10.10:8765
 ```
 
-如果树莓派使用推荐项目目录 `/home/pi/awr2944_config_with_process`，则改为：
+如果树莓派使用受管项目目录 `/home/pi/camera_web_fusion`，则改为：
 
 ```powershell
-scp "D:\hp-laptop\USV\awr2944_config_and_process_with_trace_codex\radar_app.html" pi@172.20.10.10:/home/pi/awr2944_config_with_process/radar_app.html
+scp "D:\hp-laptop\USV\awr2944_radar_camera_web_fusion\radar_app.html" pi@172.20.10.10:/home/pi/camera_web_fusion/radar_app.html
 ```
 
 ## 树莓派设备端部署
 
 ### 1. 准备部署目录
 
-如果当前继续使用 `/home/pi` 直部署模式，只同步必要文件即可：
-
-```powershell
-scp "D:\hp-laptop\USV\awr2944_config_and_process_with_trace_codex\radar_server.py" pi@172.20.10.10:/home/pi/radar_server.py
-scp "D:\hp-laptop\USV\awr2944_config_and_process_with_trace_codex\radar_app.html" pi@172.20.10.10:/home/pi/radar_app.html
-scp "D:\hp-laptop\USV\awr2944_config_and_process_with_trace_codex\radar_replay.py" pi@172.20.10.10:/home/pi/radar_replay.py
-scp "D:\hp-laptop\USV\awr2944_config_and_process_with_trace_codex\radar_runtime.py" pi@172.20.10.10:/home/pi/radar_runtime.py
-scp "D:\hp-laptop\USV\awr2944_config_and_process_with_trace_codex\radar_control.py" pi@172.20.10.10:/home/pi/radar_control.py
-scp "D:\hp-laptop\USV\awr2944_config_and_process_with_trace_codex\radar_health.py" pi@172.20.10.10:/home/pi/radar_health.py
-```
-
-如果是新机器，推荐使用独立目录，避免把开发文件和用户主目录混在一起：
+使用独立 Git 检出目录，避免将单个脚本复制到 `/home/pi`：
 
 ```bash
-mkdir -p /home/pi/awr2944_config_with_process
+git clone --branch codex/radar-camera-web-fusion https://github.com/MrDolphin/awr2944_config_with_process.git /home/pi/camera_web_fusion
 ```
 
-然后把仓库文件同步到该目录，并在安装服务时设置：
+后续通过 Git 更新该目录中的代码；首次安装服务时执行：
 
 ```bash
-sudo APP_DIR=/home/pi/awr2944_config_with_process ./deploy/setup_rpi.sh
-```
-
-如果当前服务已经配置为 `/home/pi`，安装脚本应使用：
-
-```bash
-sudo APP_DIR=/home/pi ./deploy/setup_rpi.sh
+cd /home/pi/camera_web_fusion
+sudo APP_DIR=/home/pi/camera_web_fusion ./deploy/setup_rpi.sh
 ```
 
 ### 2. 安装运行依赖和 systemd 服务
@@ -147,7 +131,7 @@ sudo APP_DIR=/home/pi ./deploy/setup_rpi.sh
 在树莓派项目目录下执行：
 
 ```bash
-sudo APP_DIR=/home/pi ./deploy/setup_rpi.sh
+sudo APP_DIR=/home/pi/camera_web_fusion ./deploy/setup_rpi.sh
 ```
 
 脚本会做以下事情：
@@ -212,25 +196,9 @@ journalctl -u radar.service -f
 sudo systemctl restart radar.service
 ```
 
-## 当前直部署模式说明
+## 旧直部署迁移
 
-已有现场部署曾直接放在：
-
-```text
-/home/pi
-```
-
-常见文件包括：
-
-```text
-/home/pi/radar_server.py
-/home/pi/radar_app.html
-/home/pi/captures/
-/home/pi/record/
-/home/pi/tools/
-```
-
-如果 `systemctl status radar.service` 显示服务正在从 `/home/pi/radar_server.py` 启动，则不要只把文件传到 `/home/pi/awr2944_config_with_process`，否则不会影响当前运行服务。
+若现有 `radar.service` 仍引用 `/home/pi/radar_server.py`，先记录实际命令，再在维护窗口安装 `/home/pi/camera_web_fusion` 的受管服务。不要继续手工覆盖旧 `/home/pi` 脚本；新服务必须从受管 Git 检出启动。
 
 确认服务实际命令：
 
