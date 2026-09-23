@@ -1226,9 +1226,10 @@
         function setCameraSyncOffset(sync) {
             const offset = document.getElementById('cameraSyncOffset');
             const status = sync && sync.status;
+            const timeOffsetMs = sync && sync.time_offset_ms;
             offset.className = `camera-status-${status === 'matched' ? 'live' : status === 'degraded' || status === 'stale' ? 'stale' : 'disabled'}`;
-            offset.innerText = Number.isFinite(Number(sync && sync.time_offset_ms))
-                ? `${Number(sync.time_offset_ms).toFixed(1)} ms`
+            offset.innerText = Number.isFinite(Number(timeOffsetMs))
+                ? `${Number(timeOffsetMs).toFixed(1)} ms`
                 : '--';
         }
 

@@ -290,6 +290,29 @@ class RadarAppTests(unittest.TestCase):
             browser.close()
         self.assertEqual(page_errors, [])
 
+    def test_radar_frame_with_null_camera_sync_completes_ppi_frame_handling(self):
+        """Radar-only frames must not let an absent camera halt the PPI renderer."""
+        page_errors = []
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.on("pageerror", lambda error: page_errors.append(str(error)))
+            page.goto(page_url, wait_until="networkidle")
+            page.evaluate(
+                """renderRadarFrame({
+                    frame_num: 42,
+                    points: [{x: 1.0, y: 2.0, z: 0.0, v: 0.0}],
+                    camera_sync: null,
+                    camera_projection: null
+                })"""
+            )
+            self.assertIn("42", page.locator("#frameDisplay").inner_text())
+            self.assertIn("/1", page.locator("#pointsDisplay").inner_text())
+            self.assertEqual(page.locator("#cameraStatus").inner_text(), "disabled")
+            browser.close()
+        self.assertEqual(page_errors, [])
+
 
 if __name__ == "__main__":
     unittest.main()
