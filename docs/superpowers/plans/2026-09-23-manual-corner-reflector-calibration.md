@@ -159,7 +159,7 @@ Draw a crosshair on cameraOverlayCanvas only during calibration mode without cha
 
 - [ ] **Step 5: Save, delete and export**
 
-Reject incomplete selections. Save a JSON row with id, set, radar frame/x/y/z/point_index, camera frame/u/v, offset, timestamp and note. Mount data is null unless dx/dy/dz are all finite. Download JSON as radar_camera_calibration_session_<UTC timestamp>.json through a Blob and revoke its URL. Do not send a WebSocket command.
+Reject incomplete selections. Save a JSON row with id, set, radar frame/x/y/z/point_index, camera frame/u/v, offset, timestamp and note. Mount data is null unless dx/dy/dz, uncertainty_m and reference are supplied and valid. The UI must populate uncertainty_m from its numeric field and reference with the literal radar phase centre to camera optical centre when no user note is supplied. Download JSON as radar_camera_calibration_session_<UTC timestamp>.json through a Blob and revoke its URL. Do not send a WebSocket command.
 
 - [ ] **Step 6: Run the focused tests**
 
