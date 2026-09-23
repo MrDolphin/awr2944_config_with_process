@@ -516,6 +516,23 @@
             padding-bottom: 64px;
         }
 
+        .calibration-workspace {
+            margin-top: 14px;
+            padding: 10px;
+            border: 1px solid rgba(53, 230, 255, 0.45);
+            border-radius: 6px;
+            background: rgba(4, 18, 29, 0.9);
+        }
+        .calibration-workspace summary { cursor: pointer; color: #8feeff; font-weight: 700; }
+        .calibration-workspace p { margin: 8px 0; line-height: 1.45; }
+        .calibration-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+        .calibration-fields label { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+        .calibration-fields input, .calibration-fields select { width: 100%; box-sizing: border-box; }
+        .calibration-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 9px 0; }
+        .calibration-samples { max-height: 160px; overflow: auto; font: 11px/1.5 monospace; }
+        .calibration-samples table { width: 100%; border-collapse: collapse; }
+        .calibration-samples th, .calibration-samples td { border-bottom: 1px solid rgba(53, 230, 255, 0.2); text-align: left; padding: 3px; }
+
         .analysis-eyebrow {
             color: #ffbd6b;
             font: 700 10px/1.2 "Courier New", monospace;
@@ -1239,6 +1256,36 @@
                 <div id="replayTargetList" class="analysis-target-list">选择回放帧后按空间邻近自动分组。</div>
                 <div class="analysis-section-title">点位详情</div>
                 <div id="replayPointDetail" class="analysis-point-detail">点击 PPI 图上的点，查看精确距离、方位、速度、SNR 与 Noise。</div>
+                <details id="calibrationWorkspace" class="calibration-workspace">
+                    <summary>手动角反射器标定</summary>
+                    <p>只记录匹配帧中的雷达原始点与相机像素。冻结后点击 PPI 原始点，再点击相机画面中的反射器中心，选择拟合或独立验证并保存。</p>
+                    <div class="calibration-actions">
+                        <button id="calibrationFreezeBtn" type="button">冻结匹配帧</button>
+                        <button id="calibrationSaveSampleBtn" type="button">保存样本</button>
+                        <button id="calibrationDeleteLastBtn" type="button">删除末条</button>
+                        <button id="calibrationExportBtn" type="button">下载 JSON</button>
+                    </div>
+                    <div id="calibrationStatus" role="status">等待匹配的雷达与相机帧。</div>
+                    <div class="calibration-fields">
+                        <label>样本集<select id="calibrationSampleSet"><option value="fit">拟合 fit</option><option value="validation">独立验证 validation</option></select></label>
+                        <label>样本备注<input id="calibrationNoteInput" type="text" placeholder="反射器位置 / 环境"></label>
+                        <label>雷达 ID<input id="calibrationRadarIdInput" type="text" value="awr2944p"></label>
+                        <label>相机 ID<input id="calibrationCameraIdInput" type="text" value="camera"></label>
+                    </div>
+                    <p>安装测量可选：相机光心相对雷达相位中心，向右 dx、向前 dy、向上 dz 为正。dz：相机相对雷达向上为正；雷达高于相机 10 cm 时填 -0.100 m。</p>
+                    <div class="calibration-fields">
+                        <label>dx (m)<input id="mountDxInput" type="number" step="any" placeholder="可选"></label>
+                        <label>dy (m)<input id="mountDyInput" type="number" step="any" placeholder="可选"></label>
+                        <label>dz (m)<input id="mountDzInput" type="number" step="any" placeholder="可选"></label>
+                        <label>测量不确定度 (m)<input id="mountUncertaintyInput" type="number" min="0" step="any" placeholder="必填，若有安装测量"></label>
+                        <label>yaw (°)<input id="mountYawInput" type="number" step="any" placeholder="可选"></label>
+                        <label>pitch (°)<input id="mountPitchInput" type="number" step="any" placeholder="可选"></label>
+                        <label>roll (°)<input id="mountRollInput" type="number" step="any" placeholder="可选"></label>
+                        <label>测量参考<input id="mountReferenceInput" type="text" placeholder="radar phase centre to camera optical centre"></label>
+                    </div>
+                    <div id="calibrationSampleSummary">拟合 0 / 验证 0</div>
+                    <div id="calibrationSampleList" class="calibration-samples"></div>
+                </details>
                 <details class="analysis-quality-details">
                     <summary>采集质量 / 调试信息<small>用于判断这段数据是否适合标定，不直接作为避障结论。</small></summary>
                     <div id="replayAnalysisSummary" class="analysis-summary-grid"></div>
@@ -1267,6 +1314,242 @@
         let cameraRequestSequence = 0;
         let lastCameraSync = null;
         let lastCameraProjection = null;
+        let displayedCameraFrameId = null;
+        let displayedCameraMetadata = null;
+        let latestCalibrationRadarFrame = null;
+        const calibrationSession = {
+            schema_version: 1,
+            camera_image_size: [cameraCanvas.width, cameraCanvas.height],
+            radar_id: 'awr2944p',
+            camera_id: 'camera',
+            mount_measurement: null,
+            samples: [],
+        };
+        let calibrationSnapshot = null;
+        let calibrationRadarSelection = null;
+        let calibrationImageSelection = null;
+
+        function setCalibrationStatus(message) {
+            document.getElementById('calibrationStatus').textContent = message;
+        }
+
+        function freezeCalibrationSnapshot() {
+            const sync = lastCameraSync;
+            const radar = latestCalibrationRadarFrame;
+            const matchedId = sync && Number(sync.frame_id);
+            const offset = sync && Number(sync.time_offset_ms);
+            if (!radar || replayState.active || (radar.gimbal_scan && radar.gimbal_scan.enabled) ||
+                radar.frame_num === null || radar.frame_num === undefined ||
+                !sync || sync.status !== 'matched' || !Number.isFinite(matchedId) ||
+                !Number.isFinite(offset) || displayedCameraFrameId !== matchedId ||
+                document.getElementById('cameraDisplayMode').value !== 'matched' ||
+                document.getElementById('cameraStatus').textContent !== 'matched') {
+                setCalibrationStatus('无法冻结：需要当前雷达帧与已绘制的同 ID 匹配相机帧。');
+                return false;
+            }
+            const points = Array.isArray(radar.points) ? JSON.parse(JSON.stringify(radar.points)) : [];
+            const cameraPixels = document.createElement('canvas');
+            cameraPixels.width = cameraCanvas.width;
+            cameraPixels.height = cameraCanvas.height;
+            cameraPixels.getContext('2d').drawImage(cameraCanvas, 0, 0);
+            const ppiPixels = document.createElement('canvas');
+            ppiPixels.width = canvas.width;
+            ppiPixels.height = canvas.height;
+            ppiPixels.getContext('2d').drawImage(canvas, 0, 0);
+            calibrationSnapshot = {
+                radarFrameNum: radar.frame_num,
+                cameraFrameId: matchedId,
+                cameraImageSize: [cameraCanvas.width, cameraCanvas.height],
+                syncOffsetMs: offset,
+                captureMonotonicNs: displayedCameraMetadata && displayedCameraMetadata.captureMonotonicNs,
+                captureWallTimeNs: displayedCameraMetadata && displayedCameraMetadata.captureWallTimeNs,
+                timestamp: new Date().toISOString(),
+                rawPoints: points,
+                pointPixels: points.map(point => [point.x, point.y, point.z].every(Number.isFinite)
+                    ? mapToCanvas(point.x, point.y) : null),
+                cameraPixels,
+                ppiPixels,
+            };
+            calibrationRadarSelection = null;
+            calibrationImageSelection = null;
+            document.getElementById('calibrationFreezeBtn').textContent = '继续实时画面';
+            setCalibrationStatus(`已冻结雷达 #${radar.frame_num} / 相机 #${matchedId}；选择原始点和像素。`);
+            drawCameraProjection(lastCameraProjection);
+            drawCalibrationPpi();
+            return true;
+        }
+
+        function releaseCalibrationSnapshot() {
+            calibrationSnapshot = null;
+            calibrationRadarSelection = null;
+            calibrationImageSelection = null;
+            document.getElementById('calibrationFreezeBtn').textContent = '冻结匹配帧';
+            setCalibrationStatus('已恢复实时画面。等待下一组匹配帧。');
+            if (lastCameraSync) requestCameraFrame(lastCameraSync);
+        }
+
+        function selectCalibrationRadarPoint(point, rawIndex) {
+            if (!calibrationSnapshot || !Number.isInteger(rawIndex)) return false;
+            const raw = calibrationSnapshot.rawPoints[rawIndex];
+            if (!raw || raw !== point || ![raw.x, raw.y, raw.z].every(Number.isFinite)) return false;
+            calibrationRadarSelection = {point: {...raw}, rawIndex};
+            setCalibrationStatus(`原始点 #${rawIndex} 已选；请在冻结相机画面点选反射器中心。`);
+            drawCalibrationPpi();
+            return true;
+        }
+
+        function drawCalibrationPpi() {
+            if (!calibrationSnapshot) return;
+            ctx.drawImage(calibrationSnapshot.ppiPixels, 0, 0);
+            ctx.save();
+            ctx.fillStyle = '#8feeff';
+            calibrationSnapshot.pointPixels.forEach(mapped => {
+                if (!mapped || mapped.px < 0 || mapped.px >= canvas.width ||
+                    mapped.py < 0 || mapped.py >= canvas.height) return;
+                ctx.beginPath();
+                ctx.arc(mapped.px, mapped.py, 3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.restore();
+            if (!calibrationRadarSelection) return;
+            const {px, py} = calibrationSnapshot.pointPixels[calibrationRadarSelection.rawIndex];
+            ctx.save();
+            ctx.strokeStyle = '#ffdf70';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(px, py, 11, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function selectCalibrationImagePixel(event) {
+            if (!calibrationSnapshot) return false;
+            const rect = cameraCanvas.getBoundingClientRect();
+            if (!rect.width || !rect.height) return false;
+            const u = (event.clientX - rect.left) * cameraCanvas.width / rect.width;
+            const v = (event.clientY - rect.top) * cameraCanvas.height / rect.height;
+            if (!Number.isFinite(u) || !Number.isFinite(v) || u < 0 || v < 0 ||
+                u >= cameraCanvas.width || v >= cameraCanvas.height) return false;
+            calibrationImageSelection = {u, v};
+            setCalibrationStatus(`相机像素 (${u.toFixed(1)}, ${v.toFixed(1)}) 已选；可以保存样本。`);
+            drawCameraProjection(lastCameraProjection);
+            return true;
+        }
+
+        function drawCalibrationCrosshair() {
+            if (!calibrationSnapshot || !calibrationImageSelection) return;
+            const {u, v} = calibrationImageSelection;
+            cameraOverlayCtx.save();
+            cameraOverlayCtx.strokeStyle = '#ffdf70';
+            cameraOverlayCtx.lineWidth = 2;
+            cameraOverlayCtx.beginPath();
+            cameraOverlayCtx.moveTo(u - 13, v);
+            cameraOverlayCtx.lineTo(u + 13, v);
+            cameraOverlayCtx.moveTo(u, v - 13);
+            cameraOverlayCtx.lineTo(u, v + 13);
+            cameraOverlayCtx.stroke();
+            cameraOverlayCtx.restore();
+        }
+
+        function saveCalibrationSample() {
+            if (!calibrationSnapshot || !calibrationRadarSelection || !calibrationImageSelection) {
+                setCalibrationStatus('请先冻结匹配帧，并选择一个雷达原始点和一个相机像素。');
+                return false;
+            }
+            const snapshot = calibrationSnapshot;
+            const point = calibrationRadarSelection.point;
+            const pixel = calibrationImageSelection;
+            const sample = Object.freeze({
+                id: `sample-${Date.now()}-${calibrationSession.samples.length + 1}`,
+                set: document.getElementById('calibrationSampleSet').value,
+                radar: Object.freeze({frame_num: snapshot.radarFrameNum, point_index: calibrationRadarSelection.rawIndex,
+                    x: point.x, y: point.y, z: point.z}),
+                camera: Object.freeze({frame_id: snapshot.cameraFrameId, u: pixel.u, v: pixel.v}),
+                sync_offset_ms: snapshot.syncOffsetMs,
+                timestamp: snapshot.timestamp,
+                note: document.getElementById('calibrationNoteInput').value.trim(),
+            });
+            calibrationSession.samples.push(sample);
+            calibrationRadarSelection = null;
+            calibrationImageSelection = null;
+            drawCalibrationPpi();
+            drawCameraProjection(lastCameraProjection);
+            renderCalibrationSamples();
+            setCalibrationStatus(`样本 ${sample.id} 已保存。`);
+            return true;
+        }
+
+        function renderCalibrationSamples() {
+            const fit = calibrationSession.samples.filter(sample => sample.set === 'fit').length;
+            const validation = calibrationSession.samples.length - fit;
+            document.getElementById('calibrationSampleSummary').textContent = `拟合 ${fit} / 验证 ${validation}`;
+            const list = document.getElementById('calibrationSampleList');
+            list.replaceChildren();
+            const table = document.createElement('table');
+            const header = document.createElement('tr');
+            for (const title of ['#', '集', '雷达帧/点', '相机帧', 'u,v']) {
+                const cell = document.createElement('th'); cell.textContent = title; header.appendChild(cell);
+            }
+            table.appendChild(header);
+            calibrationSession.samples.forEach((sample, index) => {
+                const row = document.createElement('tr');
+                for (const value of [index + 1, sample.set, `${sample.radar.frame_num}/${sample.radar.point_index}`,
+                    sample.camera.frame_id, `${sample.camera.u.toFixed(1)}, ${sample.camera.v.toFixed(1)}`]) {
+                    const cell = document.createElement('td'); cell.textContent = value; row.appendChild(cell);
+                }
+                table.appendChild(row);
+            });
+            list.appendChild(table);
+        }
+
+        function buildCalibrationMountMeasurement() {
+            const ids = ['mountDxInput', 'mountDyInput', 'mountDzInput', 'mountUncertaintyInput'];
+            const values = ids.map(id => document.getElementById(id).value.trim());
+            const angles = ['mountYawInput', 'mountPitchInput', 'mountRollInput'].map(id => document.getElementById(id).value.trim());
+            const referenceInput = document.getElementById('mountReferenceInput').value.trim();
+            if (values.every(value => !value) && angles.every(value => !value) && !referenceInput) return null;
+            if (values.some(value => !value) || values.some(value => !Number.isFinite(Number(value))) ||
+                Number(values[3]) < 0 || (angles.some(value => !!value) && angles.some(value => !value)) ||
+                angles.some(value => value && !Number.isFinite(Number(value)))) {
+                throw new Error('安装测量需完整、有限的 dx/dy/dz 和非负不确定度；角度需同时填写。');
+            }
+            const mount = {
+                dx_m: Number(values[0]), dy_m: Number(values[1]), dz_m: Number(values[2]),
+                uncertainty_m: Number(values[3]),
+                reference: referenceInput || 'radar phase centre to camera optical centre',
+            };
+            if (angles.every(value => !!value)) {
+                mount.yaw_deg = Number(angles[0]); mount.pitch_deg = Number(angles[1]); mount.roll_deg = Number(angles[2]);
+            }
+            return mount;
+        }
+
+        function downloadCalibrationSession() {
+            if (!calibrationSession.samples.length) {
+                setCalibrationStatus('至少保存一条样本后才可下载。');
+                return false;
+            }
+            let mount;
+            try { mount = buildCalibrationMountMeasurement(); }
+            catch (error) { setCalibrationStatus(error.message); return false; }
+            const radarId = document.getElementById('calibrationRadarIdInput').value.trim();
+            const cameraId = document.getElementById('calibrationCameraIdInput').value.trim();
+            if (!radarId || !cameraId) { setCalibrationStatus('雷达 ID 和相机 ID 均不能为空。'); return false; }
+            calibrationSession.radar_id = radarId;
+            calibrationSession.camera_id = cameraId;
+            calibrationSession.mount_measurement = mount;
+            const blob = new Blob([JSON.stringify(calibrationSession, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `radar_camera_calibration_session_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 0);
+            setCalibrationStatus(`已下载 ${calibrationSession.samples.length} 条样本。`);
+            return true;
+        }
 
         function setCameraStatus(state, text) {
             const status = document.getElementById('cameraStatus');
@@ -1310,6 +1593,7 @@
         }
 
         function drawCameraFrame(frame) {
+            if (calibrationSnapshot) { frame.bitmap.close(); return; }
             try {
                 cameraCtx.clearRect(0, 0, cameraCanvas.width, cameraCanvas.height);
                 cameraCtx.drawImage(frame.bitmap, 0, 0, cameraCanvas.width, cameraCanvas.height);
@@ -1318,12 +1602,15 @@
             }
             document.getElementById('cameraFrameId').innerText =
                 `#${Number.isFinite(frame.frameId) ? frame.frameId : '--'} / ${formatCameraWallTime(frame.captureWallTimeNs)}`;
+            displayedCameraFrameId = frame.frameId;
+            displayedCameraMetadata = {captureMonotonicNs: frame.captureMonotonicNs, captureWallTimeNs: frame.captureWallTimeNs};
             cameraOverlayCtx.clearRect(0, 0, cameraOverlayCanvas.width, cameraOverlayCanvas.height);
             drawCameraProjection(lastCameraProjection);
         }
 
         function drawCameraProjection(projection) {
             cameraOverlayCtx.clearRect(0, 0, cameraOverlayCanvas.width, cameraOverlayCanvas.height);
+            if (calibrationSnapshot) { drawCalibrationCrosshair(); return; }
             const enabled = document.getElementById('cameraOverlayEnabled').checked;
             if (!enabled || !projection || projection.status !== 'valid') return;
             const alpha = Number(document.getElementById('cameraOverlayOpacity').value);
@@ -3080,6 +3367,21 @@
         }
 
         function handleLiveCanvasClick(event) {
+            if (calibrationSnapshot) {
+                const bounds = canvas.getBoundingClientRect();
+                const px = (event.clientX - bounds.left) * canvas.width / bounds.width;
+                const py = (event.clientY - bounds.top) * canvas.height / bounds.height;
+                let closestIndex = -1;
+                let closestDistance = LIVE_POINT_PICK_RADIUS_PX;
+                calibrationSnapshot.rawPoints.forEach((point, index) => {
+                    if (![point.x, point.y, point.z].every(Number.isFinite)) return;
+                    const mapped = calibrationSnapshot.pointPixels[index];
+                    const distance = Math.hypot(mapped.px - px, mapped.py - py);
+                    if (distance < closestDistance) { closestIndex = index; closestDistance = distance; }
+                });
+                if (closestIndex >= 0) selectCalibrationRadarPoint(calibrationSnapshot.rawPoints[closestIndex], closestIndex);
+                return;
+            }
             if (replayState.active || !liveSpatialAnalysis.displayPoints.length) return;
             const bounds = canvas.getBoundingClientRect();
             const px = (event.clientX - bounds.left) * canvas.width / bounds.width;
@@ -3128,6 +3430,7 @@
         }
 
         function renderRadarFrame(data) {
+            latestCalibrationRadarFrame = data;
             updateCameraPanel(data.camera_sync);
             updateCameraProjection(data.camera_projection);
             latestGimbalScan = data.gimbal_scan || latestGimbalScan;
@@ -3289,6 +3592,7 @@
             if (data.runtime_health) updateSystemHealth(data.runtime_health);
             renderLiveForwardObjectList(liveForwardClusters);
             renderLivePointDetail();
+            drawCalibrationPpi();
         }
 
         // 点云绘制：精细小点 + 轻微光晕，适合密集环境扫描
@@ -3739,6 +4043,7 @@
         }
 
         function enterReplayMode() {
+            if (calibrationSnapshot) releaseCalibrationSnapshot();
             if (!replayState.active) clearReplayVisualState();
             replayState.active = true;
             document.getElementById('replayLiveBtn').style.backgroundColor = 'rgba(185, 156, 255, 0.22)';
@@ -3850,6 +4155,20 @@
         });
         canvas.addEventListener('click', handleReplayCanvasClick);
         canvas.addEventListener('click', handleLiveCanvasClick);
+        cameraCanvas.addEventListener('click', selectCalibrationImagePixel);
+        document.getElementById('calibrationFreezeBtn').addEventListener('click', () => {
+            if (calibrationSnapshot) releaseCalibrationSnapshot();
+            else freezeCalibrationSnapshot();
+        });
+        document.getElementById('calibrationSaveSampleBtn').addEventListener('click', saveCalibrationSample);
+        document.getElementById('calibrationDeleteLastBtn').addEventListener('click', () => {
+            if (!calibrationSession.samples.length) { setCalibrationStatus('没有可删除的样本。'); return; }
+            calibrationSession.samples.pop();
+            renderCalibrationSamples();
+            setCalibrationStatus('已删除末条样本。');
+        });
+        document.getElementById('calibrationExportBtn').addEventListener('click', downloadCalibrationSession);
+        renderCalibrationSamples();
 
         document.getElementById('clearMapBtn').addEventListener('click', () => {
             resetStaticMap();

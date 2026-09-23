@@ -1,6 +1,9 @@
 import base64
+import json
 import unittest
 from pathlib import Path
+
+from tools.fusion.calibration_session import load_session
 
 
 try:
@@ -16,6 +19,25 @@ CAMERA_IMAGE = base64.b64decode(
 
 
 class RadarAppMarkupTests(unittest.TestCase):
+    def test_manual_calibration_workspace_declares_local_controls(self):
+        app_html = (Path(__file__).resolve().parents[1] / "radar_app.html").read_text(
+            encoding="utf-8"
+        )
+        for marker in (
+            'id="calibrationFreezeBtn"',
+            'id="calibrationSampleSet"',
+            'id="calibrationSaveSampleBtn"',
+            'id="calibrationExportBtn"',
+            'id="mountDxInput"',
+            'id="mountDyInput"',
+            'id="mountDzInput"',
+            'id="mountUncertaintyInput"',
+            "freezeCalibrationSnapshot",
+            "downloadCalibrationSession",
+            "radar phase centre to camera optical centre",
+        ):
+            self.assertIn(marker, app_html)
+
     def test_camera_panel_declares_bounded_synchronised_frame_contract(self):
         app_html = (Path(__file__).resolve().parents[1] / "radar_app.html").read_text(
             encoding="utf-8"
@@ -162,6 +184,100 @@ class RadarAppTests(unittest.TestCase):
     def _new_browser(self, playwright):
         return playwright.chromium.launch(headless=True, executable_path=str(CHROME_EXECUTABLE))
 
+    def test_calibration_freeze_keeps_raw_point_and_native_camera_pixel(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.route(
+                "http://synthetic-camera/**",
+                lambda route: route.fulfill(
+                    status=200,
+                    body=CAMERA_IMAGE,
+                    headers={
+                        "content-type": "image/gif",
+                        "access-control-allow-origin": "*",
+                        "access-control-expose-headers": "X-Camera-Frame-Id",
+                        "X-Camera-Frame-Id": "7",
+                    },
+                ),
+            )
+            page.goto(page_url, wait_until="networkidle")
+            self.assertFalse(page.evaluate("freezeCalibrationSnapshot()"))
+            page.evaluate(
+                """renderRadarFrame({
+                    frame_num: 88,
+                    points: [{x: 1, y: 2, z: 0.3, v: 0}],
+                    camera_sync: {status: 'matched', frame_id: 7,
+                        frame_url: 'http://synthetic-camera/camera/frame/7.jpg', time_offset_ms: 12}
+                })"""
+            )
+            page.wait_for_function("displayedCameraFrameId === 7")
+            self.assertTrue(page.evaluate("freezeCalibrationSnapshot()"))
+            page.evaluate("liveSpatialAnalysis.rawPoints[0].z = 99")
+            picked = page.evaluate(
+                """() => {
+                    const {px, py} = calibrationSnapshot.pointPixels[0];
+                    radarRangeX = 100;
+                    radarRangeY = 100;
+                    const rect = canvas.getBoundingClientRect();
+                    handleLiveCanvasClick({clientX: rect.left + px * rect.width / canvas.width,
+                        clientY: rect.top + py * rect.height / canvas.height});
+                    const imageRect = cameraCanvas.getBoundingClientRect();
+                    selectCalibrationImagePixel({clientX: imageRect.left + imageRect.width / 2,
+                        clientY: imageRect.top + imageRect.height / 2});
+                    return {radar: calibrationRadarSelection, image: calibrationImageSelection};
+                }"""
+            )
+            self.assertEqual(picked["radar"]["rawIndex"], 0)
+            self.assertEqual(picked["image"], {"u": 640, "v": 360})
+            page.evaluate("saveCalibrationSample()")
+            page.evaluate("renderRadarFrame({frame_num: 89, points: [], camera_sync: null})")
+            saved = page.evaluate("calibrationSession.samples[0]")
+            self.assertEqual(saved["radar"], {"frame_num": 88, "point_index": 0,
+                                               "x": 1, "y": 2, "z": 0.3})
+            self.assertEqual(saved["camera"], {"frame_id": 7, "u": 640, "v": 360})
+            self.assertEqual(saved["set"], "fit")
+            self.assertEqual(saved["sync_offset_ms"], 12)
+            self.assertEqual(page.evaluate("displayedCameraFrameId"), 7)
+            browser.close()
+
+    def test_calibration_export_mount_requires_complete_finite_measurement(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page()
+            page.goto(page_url, wait_until="networkidle")
+            page.evaluate("""() => {
+                calibrationSession.samples = Array.from({length: 7}, (_, index) => ({
+                    id: `fixture-${index}`, set: index === 6 ? 'validation' : 'fit',
+                    radar: {frame_num: 88, point_index: index, x: 1, y: 2, z: 0.3},
+                    camera: {frame_id: 7, u: 640, v: 360},
+                    sync_offset_ms: 12, timestamp: '2026-09-23T00:00:00Z', note: ''
+                }));
+            }""")
+            page.evaluate("""() => {
+                document.getElementById('mountDxInput').value = '0';
+                document.getElementById('mountDyInput').value = '0';
+                document.getElementById('mountDzInput').value = '-0.1';
+            }""")
+            self.assertFalse(page.evaluate("downloadCalibrationSession()"))
+            page.evaluate("document.getElementById('mountUncertaintyInput').value = '0.02'")
+            mount = page.evaluate("buildCalibrationMountMeasurement()")
+            self.assertEqual(mount, {"dx_m": 0, "dy_m": 0, "dz_m": -0.1,
+                                     "uncertainty_m": 0.02,
+                                     "reference": "radar phase centre to camera optical centre"})
+            with page.expect_download() as download_info:
+                self.assertTrue(page.evaluate("downloadCalibrationSession()"))
+            exported = json.loads(Path(download_info.value.path()).read_text(encoding="utf-8"))
+            self.assertEqual(exported["mount_measurement"], mount)
+            session = load_session(Path(download_info.value.path()))
+            self.assertEqual(session.mount_measurement, (0.0, 0.0, -0.1))
+            self.assertEqual(session.mount_uncertainty_m, 0.02)
+            page.evaluate("document.getElementById('mountUncertaintyInput').value = '-0.02'")
+            self.assertFalse(page.evaluate("downloadCalibrationSession()"))
+            browser.close()
+
     def test_offline_replay_controls_render_without_javascript_errors(self):
         page_errors = []
         page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
@@ -263,6 +379,7 @@ class RadarAppTests(unittest.TestCase):
             )
             page.wait_for_function("document.getElementById('cameraStatus').innerText === 'error'")
             self.assertFalse(page.locator("#cameraFrameId").inner_text().startswith("#6 / "))
+            self.assertFalse(page.evaluate("freezeCalibrationSnapshot()"))
             browser.close()
 
     def test_camera_http_error_is_shown_without_a_page_exception(self):
