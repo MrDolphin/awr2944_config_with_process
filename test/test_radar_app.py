@@ -380,6 +380,44 @@ class RadarAppTests(unittest.TestCase):
             self.assertLessEqual(abs(sizes["radar"] - sizes["camera"]), 36)
             browser.close()
 
+    def test_sidebar_can_collapse_to_expand_live_radar_and_camera_views(self):
+        """The operator can reclaim the control column for the two live displays."""
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 2048, "height": 1100})
+            page.goto(page_url, wait_until="networkidle")
+            page.evaluate("document.getElementById('configPanel').classList.add('collapsed')")
+            before = page.locator("#radarCanvas").bounding_box()["width"]
+            page.locator("#sidebarToggleBtn").click()
+            after = page.locator("#radarCanvas").bounding_box()["width"]
+            self.assertFalse(page.locator(".hud-sidebar").is_visible())
+            self.assertGreater(after, before)
+            self.assertEqual(page.locator("#sidebarToggleBtn").inner_text(), "控制栏: 展开")
+            browser.close()
+
+    def test_live_panels_keep_their_bottom_edges_aligned_with_the_workspace(self):
+        """The Range Profile and camera panel should visually finish at the workspace bottom."""
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 2048, "height": 1100})
+            page.goto(page_url, wait_until="networkidle")
+            page.evaluate("document.getElementById('configPanel').classList.add('collapsed')")
+            positions = page.evaluate(
+                """() => {
+                    const bottom = selector => document.querySelector(selector).getBoundingClientRect().bottom;
+                    return {
+                        workspace: bottom('.radar-layout'),
+                        profile: bottom('.profile-panel'),
+                        camera: bottom('.camera-panel')
+                    };
+                }"""
+            )
+            self.assertLessEqual(abs(positions["workspace"] - positions["profile"]), 2)
+            self.assertLessEqual(abs(positions["workspace"] - positions["camera"]), 2)
+            browser.close()
+
 
 if __name__ == "__main__":
     unittest.main()

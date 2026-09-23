@@ -97,11 +97,12 @@
 
         .radar-layout {
             width: 100%;
+            height: 100%;
             min-height: 0;
             max-width: calc(1840px - var(--config-panel-width) - var(--layout-gap));
             display: grid;
             grid-template-columns: var(--sidebar-width) minmax(0, 1fr) minmax(0, 1fr);
-            align-items: flex-start;
+            align-items: stretch;
             justify-content: flex-start;
             gap: var(--layout-gap);
         }
@@ -149,7 +150,9 @@
         .main-visual {
             min-width: 0;
             width: 100%;
+            height: 100%;
             max-width: none;
+            box-sizing: border-box;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -202,6 +205,9 @@
         .camera-panel {
             width: 100%;
             min-width: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
             padding: 12px;
             border: 1px solid rgba(53, 230, 255, 0.42);
             border-left: 3px solid #35e6ff;
@@ -277,7 +283,7 @@
         .camera-status-error { color: #ff9e9e; background: rgba(255, 85, 85, 0.16); }
 
         .camera-disclaimer {
-            margin: 10px 0 0;
+            margin: auto 0 0;
             color: rgba(210, 238, 247, 0.78);
             font-size: 11px;
             line-height: 1.45;
@@ -383,6 +389,7 @@
 
         .profile-panel {
             width: 100%;
+            margin-top: auto;
             background: rgba(0, 30, 30, 0.68);
             border-left: 3px solid rgba(90, 180, 255, 0.7);
             padding: 10px 12px 12px;
@@ -420,6 +427,29 @@
             transition: all 0.3s ease;
             max-height: calc(100vh - 40px);
             overflow-y: auto;
+        }
+
+        .sidebar-toggle {
+            position: absolute;
+            top: 18px;
+            left: calc(28px + var(--sidebar-width) - 116px);
+            z-index: 9;
+            min-width: 108px;
+            padding: 6px 8px;
+            font-size: 12px;
+            background: rgba(8, 22, 34, 0.9);
+        }
+
+        .radar-layout.sidebar-collapsed {
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        }
+
+        .radar-layout.sidebar-collapsed .hud-sidebar {
+            display: none;
+        }
+
+        .radar-layout.sidebar-collapsed + .sidebar-toggle {
+            left: 28px;
         }
 
         .config-panel.collapsed {
@@ -795,6 +825,7 @@
             }
 
             .radar-layout {
+                height: auto;
                 max-width: 100%;
                 grid-template-columns: minmax(0, 1fr);
                 gap: 14px;
@@ -809,13 +840,24 @@
 
             .main-visual {
                 width: 100%;
+                height: auto;
                 max-width: 100%;
                 padding-top: 0;
             }
 
             .camera-panel {
                 width: 100%;
+                height: auto;
                 max-width: 640px;
+            }
+
+            .profile-panel {
+                margin-top: 6px;
+            }
+
+            .sidebar-toggle {
+                position: static;
+                margin: 0 14px 8px auto;
             }
 
             #radarCanvas {
@@ -1043,6 +1085,7 @@
                 <p class="camera-disclaimer">软件接收时钟同步，非硬件触发同步。尚未空间标定。投影点是坐标配准结果，不代表目标已被分类或确认。</p>
             </section>
         </div>
+        <button id="sidebarToggleBtn" class="sidebar-toggle" type="button" aria-expanded="true">控制栏: 收起</button>
 
         <!-- 配置管理面板 -->
         <div id="configPanel" class="config-panel">
@@ -3264,7 +3307,8 @@
                 if (px > 0 && px < canvas.width && py > 0) {
                     const alphaScale = showStableStaticPoints ? 0.38 : 1.0;
                     const confidence = pointConfidence(pt);
-                    const alpha = Math.min(1, pt.alpha * alphaScale * confidenceToAlpha(confidence));
+                    const minimumAlpha = showStableStaticPoints ? 0 : 0.68;
+                    const alpha = Math.min(1, Math.max(minimumAlpha, pt.alpha * alphaScale * confidenceToAlpha(confidence)));
                     if (alpha <= 0) return;
                     const snr = getPointSnr(pt);
                     ctx.shadowBlur = 4;
@@ -3447,6 +3491,14 @@
             lineFilterEnabled = !lineFilterEnabled;
             localStorage.setItem(LINE_FILTER_ENABLED_STORAGE_KEY, String(lineFilterEnabled));
             updateFilterToggleButtons();
+        });
+
+        document.getElementById('sidebarToggleBtn').addEventListener('click', () => {
+            const layout = document.querySelector('.radar-layout');
+            const collapsed = layout.classList.toggle('sidebar-collapsed');
+            const button = document.getElementById('sidebarToggleBtn');
+            button.innerText = collapsed ? '控制栏: 展开' : '控制栏: 收起';
+            button.setAttribute('aria-expanded', String(!collapsed));
         });
 
         window.addEventListener('load', loadIpHistory);
