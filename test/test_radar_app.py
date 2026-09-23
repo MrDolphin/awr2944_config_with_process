@@ -35,6 +35,7 @@ class RadarAppMarkupTests(unittest.TestCase):
             "freezeCalibrationSnapshot",
             "downloadCalibrationSession",
             "radar phase centre to camera optical centre",
+            "直接使用 5 cm 角反射器",
         ):
             self.assertIn(marker, app_html)
 
@@ -232,7 +233,10 @@ class RadarAppTests(unittest.TestCase):
             self.assertEqual(picked["radar"]["rawIndex"], 0)
             self.assertEqual(picked["image"], {"u": 640, "v": 360})
             page.evaluate("saveCalibrationSample()")
+            page.evaluate("window.frozenPpiDataUrl = canvas.toDataURL()")
             page.evaluate("renderRadarFrame({frame_num: 89, points: [], camera_sync: null})")
+            self.assertTrue(page.evaluate("canvas.toDataURL() === window.frozenPpiDataUrl"))
+            self.assertEqual(page.evaluate("calibrationSnapshot.radarFrameNum"), 88)
             saved = page.evaluate("calibrationSession.samples[0]")
             self.assertEqual(saved["radar"], {"frame_num": 88, "point_index": 0,
                                                "x": 1, "y": 2, "z": 0.3})
@@ -240,6 +244,56 @@ class RadarAppTests(unittest.TestCase):
             self.assertEqual(saved["set"], "fit")
             self.assertEqual(saved["sync_offset_ms"], 12)
             self.assertEqual(page.evaluate("displayedCameraFrameId"), 7)
+            browser.close()
+
+    def test_calibration_rejects_duplicate_pairs_and_requires_new_validation_frame(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page()
+            page.goto(page_url, wait_until="networkidle")
+            outcomes = page.evaluate(
+                """() => {
+                    const ppiPixels = document.createElement('canvas');
+                    ppiPixels.width = canvas.width;
+                    ppiPixels.height = canvas.height;
+                    calibrationSnapshot = {
+                        radarFrameNum: 88, cameraFrameId: 7, syncOffsetMs: 12,
+                        timestamp: '2026-09-23T00:00:00Z', ppiPixels,
+                        rawPoints: [{x: 1, y: 2, z: 0.3}], pointPixels: [{px: 400, py: 300}]
+                    };
+                    const sampleSet = document.getElementById('calibrationSampleSet');
+                    const choose = (u = 640, v = 360) => {
+                        calibrationRadarSelection = {point: {x: 1, y: 2, z: 0.3}, rawIndex: 0};
+                        calibrationImageSelection = {u, v};
+                    };
+                    choose();
+                    const first = saveCalibrationSample();
+                    choose();
+                    const sameSet = saveCalibrationSample();
+                    const sameSetStatus = document.getElementById('calibrationStatus').textContent;
+                    sampleSet.value = 'validation';
+                    choose();
+                    const crossSet = saveCalibrationSample();
+                    const crossSetStatus = document.getElementById('calibrationStatus').textContent;
+                    choose(641, 360);
+                    const sameFrame = saveCalibrationSample();
+                    calibrationSnapshot.radarFrameNum = 89;
+                    calibrationSnapshot.cameraFrameId = 8;
+                    choose();
+                    const newFrame = saveCalibrationSample();
+                    return {first, sameSet, sameSetStatus, crossSet, crossSetStatus,
+                        sameFrame, newFrame, sets: calibrationSession.samples.map(sample => sample.set)};
+                }"""
+            )
+            self.assertTrue(outcomes["first"])
+            self.assertFalse(outcomes["sameSet"])
+            self.assertIn("重复", outcomes["sameSetStatus"])
+            self.assertFalse(outcomes["crossSet"])
+            self.assertIn("独立", outcomes["crossSetStatus"])
+            self.assertFalse(outcomes["sameFrame"])
+            self.assertTrue(outcomes["newFrame"])
+            self.assertEqual(outcomes["sets"], ["fit", "validation"])
             browser.close()
 
     def test_calibration_export_mount_requires_complete_finite_measurement(self):

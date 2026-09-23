@@ -1258,7 +1258,7 @@
                 <div id="replayPointDetail" class="analysis-point-detail">点击 PPI 图上的点，查看精确距离、方位、速度、SNR 与 Noise。</div>
                 <details id="calibrationWorkspace" class="calibration-workspace">
                     <summary>手动角反射器标定</summary>
-                    <p>只记录匹配帧中的雷达原始点与相机像素。冻结后点击 PPI 原始点，再点击相机画面中的反射器中心，选择拟合或独立验证并保存。</p>
+                    <p>本阶段直接使用 5 cm 角反射器，不使用标签或自动关联。只记录匹配帧中的雷达原始点与相机像素。冻结后点击 PPI 原始点，再点击相机画面中的反射器中心，选择拟合或独立验证并保存；验证样本请在不同位置重新冻结匹配帧采集。</p>
                     <div class="calibration-actions">
                         <button id="calibrationFreezeBtn" type="button">冻结匹配帧</button>
                         <button id="calibrationSaveSampleBtn" type="button">保存样本</button>
@@ -1400,6 +1400,7 @@
 
         function drawCalibrationPpi() {
             if (!calibrationSnapshot) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(calibrationSnapshot.ppiPixels, 0, 0);
             ctx.save();
             ctx.fillStyle = '#8feeff';
@@ -1459,9 +1460,23 @@
             const snapshot = calibrationSnapshot;
             const point = calibrationRadarSelection.point;
             const pixel = calibrationImageSelection;
+            const setName = document.getElementById('calibrationSampleSet').value;
+            const sameFrame = sample => String(sample.radar.frame_num) === String(snapshot.radarFrameNum) &&
+                String(sample.camera.frame_id) === String(snapshot.cameraFrameId);
+            const duplicate = calibrationSession.samples.some(sample => sameFrame(sample) &&
+                sample.radar.point_index === calibrationRadarSelection.rawIndex &&
+                sample.camera.u === pixel.u && sample.camera.v === pixel.v);
+            if (duplicate) {
+                setCalibrationStatus('重复样本：此雷达原始点和相机像素已保存。拟合与验证必须独立采集。');
+                return false;
+            }
+            if (calibrationSession.samples.some(sample => sample.set !== setName && sameFrame(sample))) {
+                setCalibrationStatus('验证样本必须独立采集：请恢复实时画面，在不同位置重新冻结匹配帧。');
+                return false;
+            }
             const sample = Object.freeze({
                 id: `sample-${Date.now()}-${calibrationSession.samples.length + 1}`,
-                set: document.getElementById('calibrationSampleSet').value,
+                set: setName,
                 radar: Object.freeze({frame_num: snapshot.radarFrameNum, point_index: calibrationRadarSelection.rawIndex,
                     x: point.x, y: point.y, z: point.z}),
                 camera: Object.freeze({frame_id: snapshot.cameraFrameId, u: pixel.u, v: pixel.v}),
