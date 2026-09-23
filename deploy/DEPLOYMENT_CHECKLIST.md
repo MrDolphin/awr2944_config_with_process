@@ -14,7 +14,7 @@ ss -ltnp | grep -E ':(8765|8081)\b'
 pgrep -af 'ffmpeg|camera.py|radar_server.py'
 ```
 
-Install from the checkout with `sudo env APP_DIR=/home/pi/camera_web_fusion ./deploy/setup_rpi.sh`. The installer enables but does not start `radar.service`; first verify the radar-only WebSocket path, serial ownership, and absence of FFmpeg.
+Install from the checkout with `sudo env APP_DIR=/home/pi/camera_web_fusion bash ./deploy/setup_rpi.sh`. The installer enables but does not start `radar.service`; first verify the radar-only WebSocket path, serial ownership, and absence of FFmpeg.
 
 `/etc/default/radar-camera` defaults to `RADAR_CAMERA_ARGS=`. Enable the camera only after the camera-only gate by setting a complete explicit argument string, including `--enable-camera`, `--camera-config`, `--camera-http-port`, and a browser-reachable `--camera-public-base-url`.
 

@@ -123,7 +123,7 @@ git clone --branch codex/radar-camera-web-fusion https://github.com/MrDolphin/aw
 
 ```bash
 cd /home/pi/camera_web_fusion
-sudo env APP_DIR=/home/pi/camera_web_fusion ./deploy/setup_rpi.sh
+sudo env APP_DIR=/home/pi/camera_web_fusion bash ./deploy/setup_rpi.sh
 ```
 
 ### 2. 安装运行依赖和 systemd 服务
@@ -131,7 +131,7 @@ sudo env APP_DIR=/home/pi/camera_web_fusion ./deploy/setup_rpi.sh
 在树莓派项目目录下执行：
 
 ```bash
-sudo env APP_DIR=/home/pi/camera_web_fusion ./deploy/setup_rpi.sh
+sudo env APP_DIR=/home/pi/camera_web_fusion bash ./deploy/setup_rpi.sh
 ```
 
 脚本会做以下事情：

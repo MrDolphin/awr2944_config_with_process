@@ -8,7 +8,7 @@ SERVICE_NAME="radar.service"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [[ "${EUID}" -ne 0 ]]; then
-  echo "Run with sudo. Example: sudo env APP_DIR=/home/pi/camera_web_fusion ./deploy/setup_rpi.sh"
+  echo "Run with sudo. Example: sudo env APP_DIR=/home/pi/camera_web_fusion bash ./deploy/setup_rpi.sh"
   exit 1
 fi
 if [[ ! -f "${APP_DIR}/radar_server.py" ]]; then
