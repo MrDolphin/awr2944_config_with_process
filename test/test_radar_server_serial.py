@@ -47,7 +47,9 @@ class RadarSerialIntegrationTests(unittest.TestCase):
         try:
             server = importlib.import_module("radar_server")
             captured = []
+            synchronized_captures = []
             server.record_pointcloud_frame = lambda frame, raw_packet: captured.append((frame, raw_packet))
+            server.record_radar_camera_frame = lambda frame: synchronized_captures.append(frame)
             previous_disabled = server.logger.disabled
             server.logger.disabled = True
             try:
@@ -72,6 +74,8 @@ class RadarSerialIntegrationTests(unittest.TestCase):
         self.assertEqual(frame["device_time_cpu_cycles"], 1234)
         self.assertEqual(frame["detected_object_count"], 0)
         self.assertEqual(frame["points"], [])
+        self.assertEqual(len(synchronized_captures), 1)
+        self.assertEqual(synchronized_captures[0]["frame_num"], 42)
 
 
 class CameraServiceLifecycleTests(unittest.TestCase):

@@ -991,6 +991,14 @@ def radar_serial_thread(data_port_name, baud_rate, log_file="", stop_event=None)
                 }
                 radar_health.mark_frame(f_num)
                 record_pointcloud_frame(latest_radar_frame, raw_packet)
+                recording_frame = dict(latest_radar_frame)
+                recording_frame["camera_sync"] = camera_sync_metadata(
+                    recording_frame.get("host_monotonic_s", time.monotonic())
+                )
+                recording_frame["sensor_pose"] = sensor_pose_metadata(
+                    recording_frame.get("host_monotonic_s", time.monotonic())
+                )
+                record_radar_camera_frame(recording_frame)
                 if time.time() - stats["last_tlv"] > 5:
                     logger.info(
                         f"📦 [TLV] frame={f_num} types={tlv_types} "
@@ -1196,7 +1204,6 @@ async def handle_client(websocket):
                             frame.get("host_monotonic_s", time.monotonic())
                         )
                         frame["camera_projection"] = camera_projection_metadata(frame)
-                        record_radar_camera_frame(frame)
                         if gimbal_scan["enabled"] and gimbal_scan["config"].get("mode") == "motor":
                             yaw_deg = motor_scan_angle_deg()
                             gimbal_scan["yaw_actual_deg"] = yaw_deg
