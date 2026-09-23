@@ -99,10 +99,19 @@
             width: 100%;
             min-height: 0;
             max-width: calc(1840px - var(--config-panel-width) - var(--layout-gap));
-            display: flex;
+            display: grid;
+            grid-template-columns: var(--sidebar-width) minmax(0, 1fr) minmax(0, 1fr);
             align-items: flex-start;
             justify-content: flex-start;
             gap: var(--layout-gap);
+        }
+
+        .radar-container:has(.config-panel.collapsed) {
+            padding-right: 28px;
+        }
+
+        .radar-container:has(.config-panel.collapsed) .radar-layout {
+            max-width: none;
         }
 
         .hud-sidebar {
@@ -138,10 +147,9 @@
         }
 
         .main-visual {
-            flex: 1;
             min-width: 0;
-            width: min(var(--radar-panel-max-width), 100%);
-            max-width: var(--radar-panel-max-width);
+            width: 100%;
+            max-width: none;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -192,8 +200,8 @@
         }
 
         .camera-panel {
-            flex: 0 1 440px;
-            min-width: 300px;
+            width: 100%;
+            min-width: 0;
             padding: 12px;
             border: 1px solid rgba(53, 230, 255, 0.42);
             border-left: 3px solid #35e6ff;
@@ -788,7 +796,7 @@
 
             .radar-layout {
                 max-width: 100%;
-                flex-direction: column;
+                grid-template-columns: minmax(0, 1fr);
                 gap: 14px;
             }
 
@@ -3118,8 +3126,8 @@
             drawStaticMap();
 
             // 1. 原始点云保留真实跳动；稳定地图开启时会自动淡化原始点
-            drawPoints(ctx, renderPoints);
             drawLiveClusterOverlay(liveForwardClusters);
+            drawPoints(ctx, renderPoints);
             drawLiveSelectedPoint();
             drawStableStaticPoints();
             drawStaticObstacles();

@@ -331,6 +331,55 @@ class RadarAppTests(unittest.TestCase):
             self.assertTrue(page.locator("#pointsDisplay").inner_text().startswith("1/1"))
             browser.close()
 
+    def test_raw_points_are_drawn_after_live_cluster_overlays(self):
+        """Live object labels must not obscure the PPI's raw radar detections."""
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.goto(page_url, wait_until="networkidle")
+            order = page.evaluate(
+                """() => {
+                    const calls = [];
+                    drawPoints = () => calls.push('points');
+                    drawLiveClusterOverlay = () => calls.push('clusters');
+                    lineFilterEnabled = false;
+                    liveObjectEnabled = true;
+                    renderRadarFrame({
+                        frame_num: 44,
+                        points: [
+                            {x: 1.00, y: 2.00, z: 0.0, v: 0.12},
+                            {x: 1.05, y: 2.03, z: 0.0, v: 0.12},
+                            {x: 1.10, y: 2.06, z: 0.0, v: 0.12}
+                        ],
+                        camera_sync: null,
+                        camera_projection: null
+                    });
+                    return calls;
+                }"""
+            )
+            self.assertLess(order.index("clusters"), order.index("points"))
+            browser.close()
+
+    def test_collapsed_configuration_gives_radar_and_camera_similar_large_widths(self):
+        """When configuration is collapsed, the two live views should use the freed workspace."""
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 2048, "height": 1100})
+            page.goto(page_url, wait_until="networkidle")
+            page.evaluate("document.getElementById('configPanel').classList.add('collapsed')")
+            sizes = page.evaluate(
+                """() => ({
+                    radar: document.getElementById('radarCanvas').getBoundingClientRect().width,
+                    camera: document.querySelector('.camera-panel').getBoundingClientRect().width
+                })"""
+            )
+            self.assertGreaterEqual(sizes["radar"], 700)
+            self.assertGreaterEqual(sizes["camera"], 700)
+            self.assertLessEqual(abs(sizes["radar"] - sizes["camera"]), 36)
+            browser.close()
+
 
 if __name__ == "__main__":
     unittest.main()
