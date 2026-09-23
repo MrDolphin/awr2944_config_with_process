@@ -313,6 +313,24 @@ class RadarAppTests(unittest.TestCase):
             browser.close()
         self.assertEqual(page_errors, [])
 
+    def test_ppi_displays_noise_qualified_static_point_when_line_filter_is_enabled(self):
+        """The PPI must remain an operator view of raw accepted radar detections."""
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.goto(page_url, wait_until="networkidle")
+            page.evaluate(
+                """lineFilterEnabled = true; renderRadarFrame({
+                    frame_num: 43,
+                    points: [{x: 1.0, y: 2.0, z: 0.0, v: 0.12}],
+                    camera_sync: null,
+                    camera_projection: null
+                })"""
+            )
+            self.assertTrue(page.locator("#pointsDisplay").inner_text().startswith("1/1"))
+            browser.close()
+
 
 if __name__ == "__main__":
     unittest.main()

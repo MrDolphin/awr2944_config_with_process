@@ -3084,9 +3084,11 @@
             const blindZone = getBlindZoneM();
             const visiblePoints = rawPoints.filter(pt => Math.hypot(pt.x, pt.y) >= blindZone);
             const usablePoints = visiblePoints.filter(pt => isPointUsable(pt));
-            const staticCandidates = usablePoints.filter(pt => pt.y >= 0 && Math.abs(pt.v) <= STATIC_SPEED_MAX);
+            // PPI 是操作员的原始检测视图：结构筛选只能影响建图和目标判断，不能把有效点云从图上隐藏。
+            const renderPoints = usablePoints.filter(pt => pt.y >= 0);
+            const staticCandidates = renderPoints.filter(pt => Math.abs(pt.v) <= STATIC_SPEED_MAX);
             const staticPoints = selectStructureAwareStaticPoints(staticCandidates);
-            const dynamicPoints = usablePoints.filter(pt => pt.y >= 0 && Math.abs(pt.v) >= DYNAMIC_SPEED_MIN);
+            const dynamicPoints = renderPoints.filter(pt => Math.abs(pt.v) >= DYNAMIC_SPEED_MIN);
             const displayPoints = staticPoints.concat(dynamicPoints);
             const liveForwardClusters = liveObjectEnabled ? updateLiveClusterTracks(
                 clusterReplayPoints(displayPoints, LIVE_CLUSTER_RADIUS_M, LIVE_CLUSTER_MIN_POINTS)
@@ -3116,7 +3118,7 @@
             drawStaticMap();
 
             // 1. 原始点云保留真实跳动；稳定地图开启时会自动淡化原始点
-            drawPoints(ctx, displayPoints);
+            drawPoints(ctx, renderPoints);
             drawLiveClusterOverlay(liveForwardClusters);
             drawLiveSelectedPoint();
             drawStableStaticPoints();
@@ -3214,7 +3216,7 @@
             lastFrameTime = now;
 
             document.getElementById('frameDisplay').innerText = `#${data.frame_num} (${fps.toFixed(0)}Hz)`;
-            document.getElementById('pointsDisplay').innerText = `${displayPoints.length}/${visiblePoints.length} (静:${staticPoints.length}/${staticCandidates.length}/动:${dynamicPoints.length}+候:${promotedDynamicPoints.length})`;
+            document.getElementById('pointsDisplay').innerText = `${renderPoints.length}/${visiblePoints.length} (静:${staticPoints.length}/${staticCandidates.length}/动:${dynamicPoints.length}+候:${promotedDynamicPoints.length})`;
             document.getElementById('targetsDisplay').innerText = tracker.boats.filter(b => tracker.isBoatDrawable(b)).length;
             const tlvTypes = Array.isArray(data.tlv_types) ? data.tlv_types.join(',') : '--';
             const sideCount = Number.isFinite(Number(data.side_info_count)) ? Number(data.side_info_count) : 0;
