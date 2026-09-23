@@ -17,6 +17,7 @@ class DeployTemplateTests(unittest.TestCase):
         script = (ROOT / "deploy" / "setup_rpi.sh").read_text(encoding="utf-8")
         self.assertIn("APP_DIR", script)
         self.assertIn("python3-serial python3-websockets", script)
+        self.assertIn("sudo env APP_DIR=/home/pi/camera_web_fusion ./deploy/setup_rpi.sh", script)
         self.assertNotIn("nmcli connection modify", script)
 
     def test_camera_service_is_opt_in_and_has_safe_shutdown_contract(self):
