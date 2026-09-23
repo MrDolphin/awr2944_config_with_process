@@ -47,6 +47,7 @@ class RadarAppMarkupTests(unittest.TestCase):
         )
         for marker in (
             'id="cameraOverlayEnabled"',
+            'id="cameraOverlayLabels"',
             'id="cameraCalibrationStatus"',
             'id="cameraProjectionReason"',
             'id="cameraOverlayOpacity"',

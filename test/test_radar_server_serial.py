@@ -107,13 +107,14 @@ class CameraServiceLifecycleTests(unittest.TestCase):
             ((1, 0, 0), (0, 1, 0), (0, 0, 1)), (0, 0, 0), "fixed_camera", 1.0,
         )
         self.server.active_calibration_id = "sha256:test"
-        frame = {"points": [{"x": 0, "y": 0, "z": 5, "snr": 12}, {"x": 100, "y": 0, "z": 1}],
+        frame = {"points": [{"x": 0, "y": 0, "z": 5, "v": 0.12, "snr": 12}, {"x": 100, "y": 0, "z": 1}],
                  "camera_sync": {"status": "matched"},
                  "sensor_pose": {"status": "fresh", "yaw_deg": 0, "pitch_deg": 0, "roll_deg": 0, "pose_age_ms": 10}}
         valid = self.server.camera_projection_metadata(frame)
         self.assertEqual(valid["status"], "valid")
         self.assertEqual(valid["calibration_id"], "sha256:test")
         self.assertEqual(len(valid["points"]), 1)
+        self.assertEqual(valid["points"][0]["velocity_mps"], 0.12)
         frame["sensor_pose"]["pose_age_ms"] = 101
         self.assertEqual(self.server.camera_projection_metadata(frame)["status"], "suppressed")
         frame["sensor_pose"]["pose_age_ms"] = 10; frame["camera_sync"]["status"] = "stale"

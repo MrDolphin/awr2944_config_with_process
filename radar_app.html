@@ -1080,7 +1080,7 @@
                     <span>标定 / RMS</span><strong id="cameraCalibrationStatus">未加载</strong>
                     <span>投影状态</span><strong id="cameraProjectionReason">等待有效标定</strong>
                     <span>透明度</span><input id="cameraOverlayOpacity" type="range" min="0.1" max="1" step="0.1" value="0.8">
-                    <span>叠加控制</span><span><label><input id="cameraOverlayEnabled" type="checkbox" disabled> 显示</label> <label><input id="cameraOverlayDebug" type="checkbox"> 点号</label></span>
+                    <span>叠加控制</span><span><label><input id="cameraOverlayEnabled" type="checkbox" disabled> 显示</label> <label><input id="cameraOverlayDebug" type="checkbox"> 点号</label> <label><input id="cameraOverlayLabels" type="checkbox" checked> 距离/速度</label></span>
                 </div>
                 <p class="camera-disclaimer">软件接收时钟同步，非硬件触发同步。尚未空间标定。投影点是坐标配准结果，不代表目标已被分类或确认。</p>
             </section>
@@ -1328,6 +1328,7 @@
             if (!enabled || !projection || projection.status !== 'valid') return;
             const alpha = Number(document.getElementById('cameraOverlayOpacity').value);
             const debug = document.getElementById('cameraOverlayDebug').checked;
+            const labels = document.getElementById('cameraOverlayLabels').checked;
             (projection.points || []).forEach((point, index) => {
                 const power = Number(point.power);
                 const hue = Number.isFinite(power) ? Math.max(0, Math.min(120, 120 - power * 3)) : 190;
@@ -1339,6 +1340,15 @@
                     cameraOverlayCtx.fillStyle = '#fff';
                     cameraOverlayCtx.font = '12px monospace';
                     cameraOverlayCtx.fillText(String(index + 1), point.u + 7, point.v - 7);
+                }
+                if (labels) {
+                    const range = Number(point.range_m);
+                    const velocity = Number(point.velocity_mps);
+                    const rangeText = Number.isFinite(range) ? `${range.toFixed(1)}m` : '--m';
+                    const velocityText = Number.isFinite(velocity) ? ` ${velocity >= 0 ? '+' : ''}${velocity.toFixed(1)}m/s` : '';
+                    cameraOverlayCtx.fillStyle = '#fff';
+                    cameraOverlayCtx.font = '11px monospace';
+                    cameraOverlayCtx.fillText(`${rangeText}${velocityText}`, point.u + 7, point.v + 16);
                 }
             });
         }

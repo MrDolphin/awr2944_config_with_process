@@ -213,7 +213,7 @@ def camera_projection_metadata(frame):
         result = project_radar_point((float(point.get("x", 0)), float(point.get("y", 0)), float(point.get("z", 0))), calibration, pose, clip_to_image=True)
         if result is not None:
             u, v, depth = result
-            projected.append({"u": u, "v": v, "depth_m": depth, "range_m": math.sqrt(float(point.get("x", 0)) ** 2 + float(point.get("y", 0)) ** 2 + float(point.get("z", 0)) ** 2), "power": point.get("snr")})
+            projected.append({"u": u, "v": v, "depth_m": depth, "range_m": math.sqrt(float(point.get("x", 0)) ** 2 + float(point.get("y", 0)) ** 2 + float(point.get("z", 0)) ** 2), "velocity_mps": point.get("v"), "power": point.get("snr")})
     return {"status": "valid", "reason": None, "calibration_id": active_calibration_id, "calibration_schema_version": 1, "rms_reprojection_error_px": calibration.rms_reprojection_error_px, "points": projected, "input_points": len(frame.get("points", []))}
 
 gimbal_scan = {
