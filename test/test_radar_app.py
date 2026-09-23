@@ -204,6 +204,7 @@ class RadarAppTests(unittest.TestCase):
                 ),
             )
             page.goto(page_url, wait_until="networkidle")
+            self.assertEqual(page.locator("#cameraDisplayMode").input_value(), "matched")
             page.evaluate(
                 """renderRadarFrame({
                     frame_num: 1,
@@ -224,6 +225,43 @@ class RadarAppTests(unittest.TestCase):
             self.assertEqual(page.locator("#cameraStatus").inner_text(), "matched")
             self.assertEqual(page.locator("#cameraSyncOffset").inner_text(), "20.0 ms")
             self.assertTrue(page.locator("#cameraFrameId").inner_text().startswith("#7 / "))
+            browser.close()
+
+    def test_mismatched_camera_http_frame_is_not_presented_as_the_radar_match(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.route(
+                "http://synthetic-camera/**",
+                lambda route: route.fulfill(
+                    status=200,
+                    body=CAMERA_IMAGE,
+                    headers={
+                        "content-type": "image/gif",
+                        "access-control-allow-origin": "*",
+                        "access-control-expose-headers": "X-Camera-Frame-Id, X-Capture-Monotonic-Ns, X-Capture-Wall-Time-Ns",
+                        "X-Camera-Frame-Id": "6",
+                        "X-Capture-Monotonic-Ns": "2000000000",
+                        "X-Capture-Wall-Time-Ns": "1700000000000000000",
+                    },
+                ),
+            )
+            page.goto(page_url, wait_until="networkidle")
+            page.evaluate(
+                """renderRadarFrame({
+                    frame_num: 3,
+                    points: [],
+                    camera_sync: {
+                        status: 'matched',
+                        frame_id: 7,
+                        frame_url: 'http://synthetic-camera/camera/frame/7.jpg',
+                        time_offset_ms: 10
+                    }
+                })"""
+            )
+            page.wait_for_function("document.getElementById('cameraStatus').innerText === 'error'")
+            self.assertFalse(page.locator("#cameraFrameId").inner_text().startswith("#6 / "))
             browser.close()
 
     def test_camera_http_error_is_shown_without_a_page_exception(self):

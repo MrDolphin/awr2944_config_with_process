@@ -1019,7 +1019,7 @@
                     <span>显示模式</span>
                     <select id="cameraDisplayMode" aria-label="相机显示模式">
                         <option value="latest">最新画面</option>
-                        <option value="matched">匹配雷达帧</option>
+                        <option value="matched" selected>匹配雷达帧</option>
                     </select>
                     <span>相机帧 / 墙钟</span>
                     <strong id="cameraFrameId">-- / --</strong>
@@ -1239,14 +1239,19 @@
                 : '--';
         }
 
-        async function fetchCameraFrame(url, abortSignal) {
+        async function fetchCameraFrame(url, abortSignal, expectedFrameId = null) {
             const response = await fetch(url, { cache: 'no-store', signal: abortSignal });
             if (!response.ok) throw new Error(`camera HTTP ${response.status}`);
             const blob = await response.blob();
             const bitmap = await createImageBitmap(blob);
+            const frameId = Number(response.headers.get('X-Camera-Frame-Id'));
+            if (Number.isFinite(expectedFrameId) && frameId !== expectedFrameId) {
+                bitmap.close();
+                throw new Error(`camera frame mismatch: expected ${expectedFrameId}, got ${frameId}`);
+            }
             return {
                 bitmap,
-                frameId: Number(response.headers.get('X-Camera-Frame-Id')),
+                frameId,
                 captureMonotonicNs: response.headers.get('X-Capture-Monotonic-Ns'),
                 captureWallTimeNs: response.headers.get('X-Capture-Wall-Time-Ns'),
             };
@@ -1310,7 +1315,10 @@
         function requestCameraFrame(sync) {
             const url = cameraUrlForMode(sync);
             if (!url) return;
-            pendingCameraRequest = { url, sequence: ++cameraRequestSequence };
+            const expectedFrameId = document.getElementById('cameraDisplayMode').value === 'matched'
+                ? Number(sync.frame_id)
+                : null;
+            pendingCameraRequest = { url, expectedFrameId, sequence: ++cameraRequestSequence };
             setCameraStatus('connecting', 'connecting');
             if (cameraRequestController) {
                 cameraRequestController.abort();
@@ -1326,7 +1334,7 @@
                 const controller = new AbortController();
                 cameraRequestController = controller;
                 try {
-                    const frame = await fetchCameraFrame(request.url, controller.signal);
+                    const frame = await fetchCameraFrame(request.url, controller.signal, request.expectedFrameId);
                     if (request.sequence === cameraRequestSequence) {
                         drawCameraFrame(frame);
                         setCameraStatus(
