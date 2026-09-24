@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 from tools.fusion.calibration import load_calibration
+from tools.fusion.calibration_session import load_session
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -53,7 +54,7 @@ class CalibrateRadarCameraTests(unittest.TestCase):
         }), encoding="utf-8")
 
     def run_solver(self, *, validation_shift=0.0, validation_count=2, mount=True,
-                   rotation=IDENTITY, mount_xyz=None):
+                   rotation=IDENTITY, mount_xyz=None, output_path=None):
         samples = [sample(point, "fit", index, rotation=rotation)
                    for index, point in enumerate(FIT_POINTS)]
         samples += [sample(point, "validation", index, pixel_shift=validation_shift, rotation=rotation)
@@ -69,7 +70,8 @@ class CalibrateRadarCameraTests(unittest.TestCase):
         }), encoding="utf-8")
         return subprocess.run(
             [sys.executable, str(SOLVER), str(self.session_path),
-             str(self.intrinsics_path), str(self.output_path), "--mount-mode", "co_rotating"],
+             str(self.intrinsics_path), str(output_path or self.output_path),
+             "--mount-mode", "co_rotating"],
             cwd=ROOT, capture_output=True, text=True, check=False,
         )
 
@@ -104,6 +106,24 @@ class CalibrateRadarCameraTests(unittest.TestCase):
         self.assertNotEqual(failed.returncode, 0)
         self.assertFalse(self.output_path.exists())
         report = json.loads(self.report_path.read_text(encoding="utf-8"))
+        self.assertFalse(report["validation_passed"])
+        self.assertGreater(report["validation"]["p95_px"], 20.0)
+
+    def test_failed_validation_preserves_session_when_output_aliases_it(self):
+        result = self.run_solver(validation_shift=100.0, output_path=self.session_path)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertTrue(self.session_path.exists())
+        self.assertEqual(len(load_session(self.session_path).validation_pairs()), 2)
+        report = json.loads(self.session_path.with_suffix(".report.json").read_text(encoding="utf-8"))
+        self.assertFalse(report["validation_passed"])
+        self.assertGreater(report["validation"]["p95_px"], 20.0)
+
+    def test_failed_validation_preserves_intrinsics_when_output_aliases_it(self):
+        original_intrinsics = self.intrinsics_path.read_bytes()
+        result = self.run_solver(validation_shift=100.0, output_path=self.intrinsics_path)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.intrinsics_path.read_bytes(), original_intrinsics)
+        report = json.loads(self.intrinsics_path.with_suffix(".report.json").read_text(encoding="utf-8"))
         self.assertFalse(report["validation_passed"])
         self.assertGreater(report["validation"]["p95_px"], 20.0)
 
