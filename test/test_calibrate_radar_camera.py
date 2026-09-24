@@ -1,6 +1,8 @@
 """PC-only integration tests for independent radar-camera calibration validation."""
 
+import errno
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -53,7 +55,7 @@ class CalibrateRadarCameraTests(unittest.TestCase):
         }), encoding="utf-8")
 
     def run_solver(self, *, validation_shift=0.0, validation_count=2, mount=True,
-                   rotation=IDENTITY, mount_xyz=None, output_path=None):
+                   rotation=IDENTITY, mount_xyz=None, output_path=None, before_run=None):
         samples = [sample(point, "fit", index, rotation=rotation)
                    for index, point in enumerate(FIT_POINTS)]
         samples += [sample(point, "validation", index, pixel_shift=validation_shift, rotation=rotation)
@@ -69,12 +71,23 @@ class CalibrateRadarCameraTests(unittest.TestCase):
         })
         self.session_path.write_text(session_json, encoding="utf-8")
         self.session_bytes = self.session_path.read_bytes()
+        if before_run is not None:
+            before_run()
         return subprocess.run(
             [sys.executable, str(SOLVER), str(self.session_path),
              str(self.intrinsics_path), str(output_path or self.output_path),
              "--mount-mode", "co_rotating"],
             cwd=ROOT, capture_output=True, text=True, check=False,
         )
+
+    def hard_link_or_skip(self, source, target):
+        try:
+            os.link(source, target)
+        except OSError as error:
+            if error.errno in {errno.EPERM, errno.EACCES, errno.ENOTSUP, errno.ENOSYS} or \
+                    getattr(error, "winerror", None) in {50, 1314}:
+                self.skipTest(f"hard links unavailable: {error}")
+            raise
 
     def test_pass_writes_report_and_loader_compatible_runtime(self):
         result = self.run_solver()
@@ -162,6 +175,40 @@ class CalibrateRadarCameraTests(unittest.TestCase):
         self.assertIn("aliases an input", result.stderr)
         self.assertEqual(self.intrinsics_path.read_bytes(), original_intrinsics)
         self.assertEqual(output_path.read_bytes(), b"existing output")
+
+    def test_rejects_output_hard_link_to_session(self):
+        result = self.run_solver(before_run=lambda: self.hard_link_or_skip(
+            self.session_path, self.output_path))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("aliases an input", result.stderr)
+        self.assertEqual(self.session_path.read_bytes(), self.session_bytes)
+        self.assertFalse(self.report_path.exists())
+
+    def test_rejects_output_hard_link_to_intrinsics(self):
+        original_intrinsics = self.intrinsics_path.read_bytes()
+        result = self.run_solver(before_run=lambda: self.hard_link_or_skip(
+            self.intrinsics_path, self.output_path))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("aliases an input", result.stderr)
+        self.assertEqual(self.intrinsics_path.read_bytes(), original_intrinsics)
+        self.assertFalse(self.report_path.exists())
+
+    def test_rejects_report_hard_link_to_session(self):
+        result = self.run_solver(before_run=lambda: self.hard_link_or_skip(
+            self.session_path, self.report_path))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("aliases an input", result.stderr)
+        self.assertEqual(self.session_path.read_bytes(), self.session_bytes)
+        self.assertFalse(self.output_path.exists())
+
+    def test_rejects_report_hard_link_to_intrinsics(self):
+        original_intrinsics = self.intrinsics_path.read_bytes()
+        result = self.run_solver(before_run=lambda: self.hard_link_or_skip(
+            self.intrinsics_path, self.report_path))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("aliases an input", result.stderr)
+        self.assertEqual(self.intrinsics_path.read_bytes(), original_intrinsics)
+        self.assertFalse(self.output_path.exists())
 
     def test_rotated_geometry_reports_camera_center_and_mount_residual(self):
         result = self.run_solver(rotation=ROTATED, mount_xyz=(0.03, 0.11, -0.2))

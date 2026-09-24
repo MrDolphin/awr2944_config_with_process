@@ -39,12 +39,21 @@ def main():
     args = parser.parse_args()
 
     report_path = args.output.with_suffix(".report.json")
-    input_paths = {args.session.resolve(), args.intrinsics.resolve()}
+    input_paths = (args.session, args.intrinsics)
+    resolved_inputs = {path.resolve() for path in input_paths}
     output_path = args.output.resolve()
     resolved_report_path = report_path.resolve()
-    if output_path in input_paths:
+
+    def aliases_input(candidate, resolved_candidate):
+        return resolved_candidate in resolved_inputs or (
+            candidate.exists() and any(
+                source.exists() and candidate.samefile(source) for source in input_paths
+            )
+        )
+
+    if aliases_input(args.output, output_path):
         raise SystemExit("output path aliases an input")
-    if resolved_report_path in input_paths:
+    if aliases_input(report_path, resolved_report_path):
         raise SystemExit("report path aliases an input")
 
     try:
