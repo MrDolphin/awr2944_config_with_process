@@ -8,7 +8,6 @@ import unittest
 from pathlib import Path
 
 from tools.fusion.calibration import load_calibration
-from tools.fusion.calibration_session import load_session
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -60,14 +59,16 @@ class CalibrateRadarCameraTests(unittest.TestCase):
         samples += [sample(point, "validation", index, pixel_shift=validation_shift, rotation=rotation)
                     for index, point in enumerate(VALIDATION_POINTS[:validation_count])]
         measured = mount_xyz if mount_xyz is not None else tuple(-value for value in TRANSLATION)
-        self.session_path.write_text(json.dumps({
+        session_json = json.dumps({
             "schema_version": 1, "camera_image_size": IMAGE_SIZE,
             "radar_id": "radar", "camera_id": "camera",
             "mount_measurement": ({"dx_m": measured[0], "dy_m": measured[1],
                                    "dz_m": measured[2], "uncertainty_m": 0.01,
                                    "reference": "phase centre to optical centre"} if mount else None),
             "samples": samples,
-        }), encoding="utf-8")
+        })
+        self.session_path.write_text(session_json, encoding="utf-8")
+        self.session_bytes = self.session_path.read_bytes()
         return subprocess.run(
             [sys.executable, str(SOLVER), str(self.session_path),
              str(self.intrinsics_path), str(output_path or self.output_path),
@@ -109,23 +110,58 @@ class CalibrateRadarCameraTests(unittest.TestCase):
         self.assertFalse(report["validation_passed"])
         self.assertGreater(report["validation"]["p95_px"], 20.0)
 
-    def test_failed_validation_preserves_session_when_output_aliases_it(self):
+    def test_failed_validation_rejects_output_aliasing_session(self):
         result = self.run_solver(validation_shift=100.0, output_path=self.session_path)
         self.assertNotEqual(result.returncode, 0)
-        self.assertTrue(self.session_path.exists())
-        self.assertEqual(len(load_session(self.session_path).validation_pairs()), 2)
-        report = json.loads(self.session_path.with_suffix(".report.json").read_text(encoding="utf-8"))
-        self.assertFalse(report["validation_passed"])
-        self.assertGreater(report["validation"]["p95_px"], 20.0)
+        self.assertIn("aliases an input", result.stderr)
+        self.assertEqual(self.session_path.read_bytes(), self.session_bytes)
+        self.assertFalse(self.session_path.with_suffix(".report.json").exists())
 
-    def test_failed_validation_preserves_intrinsics_when_output_aliases_it(self):
+    def test_failed_validation_rejects_output_aliasing_intrinsics(self):
         original_intrinsics = self.intrinsics_path.read_bytes()
         result = self.run_solver(validation_shift=100.0, output_path=self.intrinsics_path)
         self.assertNotEqual(result.returncode, 0)
+        self.assertIn("aliases an input", result.stderr)
         self.assertEqual(self.intrinsics_path.read_bytes(), original_intrinsics)
-        report = json.loads(self.intrinsics_path.with_suffix(".report.json").read_text(encoding="utf-8"))
-        self.assertFalse(report["validation_passed"])
-        self.assertGreater(report["validation"]["p95_px"], 20.0)
+        self.assertFalse(self.intrinsics_path.with_suffix(".report.json").exists())
+
+    def test_passed_validation_rejects_output_aliasing_session(self):
+        result = self.run_solver(output_path=self.session_path)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("aliases an input", result.stderr)
+        self.assertEqual(self.session_path.read_bytes(), self.session_bytes)
+        self.assertFalse(self.session_path.with_suffix(".report.json").exists())
+
+    def test_passed_validation_rejects_output_aliasing_intrinsics(self):
+        original_intrinsics = self.intrinsics_path.read_bytes()
+        result = self.run_solver(output_path=self.intrinsics_path)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("aliases an input", result.stderr)
+        self.assertEqual(self.intrinsics_path.read_bytes(), original_intrinsics)
+        self.assertFalse(self.intrinsics_path.with_suffix(".report.json").exists())
+
+    def test_rejects_report_aliasing_session_without_writing_any_path(self):
+        self.session_path = self.path / "session.report.json"
+        output_path = self.path / "session.json"
+        output_path.write_bytes(b"existing output")
+        result = self.run_solver(output_path=output_path)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("aliases an input", result.stderr)
+        self.assertEqual(self.session_path.read_bytes(), self.session_bytes)
+        self.assertEqual(output_path.read_bytes(), b"existing output")
+
+    def test_rejects_report_aliasing_intrinsics_without_writing_any_path(self):
+        report_path = self.path / "intrinsics.report.json"
+        self.intrinsics_path.rename(report_path)
+        self.intrinsics_path = report_path
+        original_intrinsics = self.intrinsics_path.read_bytes()
+        output_path = self.path / "intrinsics.json"
+        output_path.write_bytes(b"existing output")
+        result = self.run_solver(output_path=output_path)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("aliases an input", result.stderr)
+        self.assertEqual(self.intrinsics_path.read_bytes(), original_intrinsics)
+        self.assertEqual(output_path.read_bytes(), b"existing output")
 
     def test_rotated_geometry_reports_camera_center_and_mount_residual(self):
         result = self.run_solver(rotation=ROTATED, mount_xyz=(0.03, 0.11, -0.2))

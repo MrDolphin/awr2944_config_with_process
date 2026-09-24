@@ -38,6 +38,15 @@ def main():
     parser.add_argument("--mount-mode", choices=("co_rotating", "fixed_camera"), default="co_rotating")
     args = parser.parse_args()
 
+    report_path = args.output.with_suffix(".report.json")
+    input_paths = {args.session.resolve(), args.intrinsics.resolve()}
+    output_path = args.output.resolve()
+    resolved_report_path = report_path.resolve()
+    if output_path in input_paths:
+        raise SystemExit("output path aliases an input")
+    if resolved_report_path in input_paths:
+        raise SystemExit("report path aliases an input")
+
     try:
         session = load_session(args.session)
     except SessionError as error:
@@ -97,12 +106,9 @@ def main():
         "camera_center_in_radar_m": list(solved_center),
         "mount_comparison": mount_comparison,
     }
-    report_path = args.output.with_suffix(".report.json")
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     if not passed:
-        input_paths = {args.session.resolve(), args.intrinsics.resolve()}
-        if args.output.resolve() not in input_paths:
-            args.output.unlink(missing_ok=True)
+        args.output.unlink(missing_ok=True)
         raise SystemExit("independent validation failed: median must be <= 8 px and P95 <= 20 px")
 
     result = {
