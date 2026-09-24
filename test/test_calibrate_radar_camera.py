@@ -15,6 +15,8 @@ SOLVER = ROOT / "tools" / "fusion" / "calibrate_radar_camera.py"
 IMAGE_SIZE = [1280, 720]
 INTRINSICS = {"fx": 800.0, "fy": 810.0, "cx": 640.0, "cy": 360.0}
 TRANSLATION = (0.1, -0.05, 0.2)
+IDENTITY = ((1, 0, 0), (0, 1, 0), (0, 0, 1))
+ROTATED = ((0, -1, 0), (1, 0, 0), (0, 0, 1))
 FIT_POINTS = (
     (-1.2, -0.8, 4.0), (0.9, -0.5, 4.7), (-0.7, 0.9, 5.4),
     (1.1, 0.8, 6.0), (0.1, -1.1, 5.8), (-0.3, 0.2, 7.1),
@@ -22,11 +24,12 @@ FIT_POINTS = (
 VALIDATION_POINTS = ((0.4, 0.7, 4.4), (-0.8, -0.3, 7.5))
 
 
-def sample(point, set_name, index, *, pixel_shift=0.0):
+def sample(point, set_name, index, *, pixel_shift=0.0, rotation=IDENTITY):
     x, y, z = point
-    tx, ty, tz = TRANSLATION
-    u = INTRINSICS["fx"] * (x + tx) / (z + tz) + INTRINSICS["cx"] + pixel_shift
-    v = INTRINSICS["fy"] * (y + ty) / (z + tz) + INTRINSICS["cy"]
+    camera_point = [sum(row[column] * point[column] for column in range(3)) + offset
+                    for row, offset in zip(rotation, TRANSLATION)]
+    u = INTRINSICS["fx"] * camera_point[0] / camera_point[2] + INTRINSICS["cx"] + pixel_shift
+    v = INTRINSICS["fy"] * camera_point[1] / camera_point[2] + INTRINSICS["cy"]
     return {
         "id": f"{set_name}-{index}", "set": set_name,
         "radar": {"frame_num": index + 1, "point_index": index, "x": x, "y": y, "z": z},
@@ -49,15 +52,18 @@ class CalibrateRadarCameraTests(unittest.TestCase):
             "distortion": [0, 0, 0, 0, 0],
         }), encoding="utf-8")
 
-    def run_solver(self, *, validation_shift=0.0, validation_count=2, mount=True):
-        samples = [sample(point, "fit", index) for index, point in enumerate(FIT_POINTS)]
-        samples += [sample(point, "validation", index, pixel_shift=validation_shift)
+    def run_solver(self, *, validation_shift=0.0, validation_count=2, mount=True,
+                   rotation=IDENTITY, mount_xyz=None):
+        samples = [sample(point, "fit", index, rotation=rotation)
+                   for index, point in enumerate(FIT_POINTS)]
+        samples += [sample(point, "validation", index, pixel_shift=validation_shift, rotation=rotation)
                     for index, point in enumerate(VALIDATION_POINTS[:validation_count])]
+        measured = mount_xyz if mount_xyz is not None else tuple(-value for value in TRANSLATION)
         self.session_path.write_text(json.dumps({
             "schema_version": 1, "camera_image_size": IMAGE_SIZE,
             "radar_id": "radar", "camera_id": "camera",
-            "mount_measurement": ({"dx_m": -TRANSLATION[0], "dy_m": -TRANSLATION[1],
-                                   "dz_m": -TRANSLATION[2], "uncertainty_m": 0.01,
+            "mount_measurement": ({"dx_m": measured[0], "dy_m": measured[1],
+                                   "dz_m": measured[2], "uncertainty_m": 0.01,
                                    "reference": "phase centre to optical centre"} if mount else None),
             "samples": samples,
         }), encoding="utf-8")
@@ -89,6 +95,27 @@ class CalibrateRadarCameraTests(unittest.TestCase):
         self.assertLess(report["fit"]["rms_px"], 1e-5)
         self.assertGreater(report["validation"]["p95_px"], 20.0)
         self.assertGreater(report["validation"]["median_px"], 8.0)
+
+    def test_failed_recalibration_removes_prior_runtime_at_same_path(self):
+        first = self.run_solver()
+        self.assertEqual(first.returncode, 0, first.stderr)
+        self.assertTrue(self.output_path.exists())
+        failed = self.run_solver(validation_shift=100.0)
+        self.assertNotEqual(failed.returncode, 0)
+        self.assertFalse(self.output_path.exists())
+        report = json.loads(self.report_path.read_text(encoding="utf-8"))
+        self.assertFalse(report["validation_passed"])
+        self.assertGreater(report["validation"]["p95_px"], 20.0)
+
+    def test_rotated_geometry_reports_camera_center_and_mount_residual(self):
+        result = self.run_solver(rotation=ROTATED, mount_xyz=(0.03, 0.11, -0.2))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(self.report_path.read_text(encoding="utf-8"))
+        for actual, expected in zip(report["camera_center_in_radar_m"], (0.05, 0.1, -0.2)):
+            self.assertAlmostEqual(actual, expected, places=5)
+        for actual, expected in zip(report["mount_comparison"]["residual_m"], (0.02, -0.01, 0.0)):
+            self.assertAlmostEqual(actual, expected, places=5)
+        self.assertLess(report["validation"]["median_px"], 1e-5)
 
     def test_missing_validation_fails_before_solve(self):
         result = self.run_solver(validation_count=0)

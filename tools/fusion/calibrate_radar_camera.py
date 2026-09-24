@@ -100,6 +100,7 @@ def main():
     report_path = args.output.with_suffix(".report.json")
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     if not passed:
+        args.output.unlink(missing_ok=True)
         raise SystemExit("independent validation failed: median must be <= 8 px and P95 <= 20 px")
 
     result = {
