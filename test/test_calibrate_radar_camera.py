@@ -210,6 +210,19 @@ class CalibrateRadarCameraTests(unittest.TestCase):
         self.assertEqual(self.intrinsics_path.read_bytes(), original_intrinsics)
         self.assertFalse(self.output_path.exists())
 
+    def test_rejects_output_and_report_hard_link_without_changing_either(self):
+        original = b"existing calibration"
+
+        def link_outputs():
+            self.output_path.write_bytes(original)
+            self.hard_link_or_skip(self.output_path, self.report_path)
+
+        result = self.run_solver(before_run=link_outputs)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("output and report paths alias each other", result.stderr)
+        self.assertEqual(self.output_path.read_bytes(), original)
+        self.assertEqual(self.report_path.read_bytes(), original)
+
     def test_rotated_geometry_reports_camera_center_and_mount_residual(self):
         result = self.run_solver(rotation=ROTATED, mount_xyz=(0.03, 0.11, -0.2))
         self.assertEqual(result.returncode, 0, result.stderr)

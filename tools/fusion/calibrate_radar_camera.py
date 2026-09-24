@@ -55,6 +55,10 @@ def main():
         raise SystemExit("output path aliases an input")
     if aliases_input(report_path, resolved_report_path):
         raise SystemExit("report path aliases an input")
+    if output_path == resolved_report_path or (
+        args.output.exists() and report_path.exists() and args.output.samefile(report_path)
+    ):
+        raise SystemExit("output and report paths alias each other")
 
     try:
         session = load_session(args.session)
