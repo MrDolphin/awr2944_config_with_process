@@ -18,27 +18,33 @@
 
 ## 3. 在 PC 上求解并审阅候选报告
 
-把导出的会话 JSON 和**单独取得**的相机内参 JSON 放在 PC 的证据目录。下面以已有的 `C:\calibration-case` 目录为例；先把三个路径改成现场实际路径，`$output` 应与两个输入及其衍生报告路径互不相同。OpenCV 和 NumPy 只需装在本地 PC 环境，Pi 运行时不需要它们。
+把导出的会话 JSON 和**单独取得**的相机内参 JSON 放在 PC 的证据目录。下面以已有的 `C:\calibration-case` 目录为例；先把两个输入路径改成现场实际路径。每次运行创建带时间戳的独立证据目录，避免上一次的报告或候选 JSON 被误认成本次结果。`$output` 应与两个输入及其衍生报告路径互不相同。OpenCV 和 NumPy 只需装在本地 PC 环境，Pi 运行时不需要它们。
 
 ```powershell
 $session = 'C:\calibration-case\session.json'
 $intrinsics = 'C:\calibration-case\intrinsics.json'
-$output = 'C:\calibration-case\calibration_candidate.json'
-.\.venv\Scripts\python.exe tools\fusion\calibrate_radar_camera.py $session $intrinsics $output --mount-mode co_rotating
-$solverExit = $LASTEXITCODE
-$report = 'C:\calibration-case\calibration_candidate.report.json'
+$runId = Get-Date -Format 'yyyyMMdd-HHmmss'
+$runDir = Join-Path 'C:\calibration-case\runs' $runId
+New-Item -ItemType Directory -Path $runDir -ErrorAction Stop | Out-Null
+$output = Join-Path $runDir 'calibration_candidate.json'
+$report = Join-Path $runDir 'calibration_candidate.report.json'
 Get-FileHash -Algorithm SHA256 $session
 Get-FileHash -Algorithm SHA256 $intrinsics
+.\.venv\Scripts\python.exe tools\fusion\calibrate_radar_camera.py $session $intrinsics $output --mount-mode co_rotating
+$solverExit = $LASTEXITCODE
 if (Test-Path $report) {
     Get-FileHash -Algorithm SHA256 $report
     Get-Content -Raw -Encoding UTF8 $report | ConvertFrom-Json
 }
 if (Test-Path $output) { Get-FileHash -Algorithm SHA256 $output }
+if ($solverExit -ne 0 -and -not (Test-Path $report)) {
+    throw "求解器在生成本次候选报告前失败，退出码 $solverExit；不得读取其他运行目录中的旧文件。"
+}
 ```
 
 `co_rotating` 只适用于雷达和相机随同一刚性支架一起转动的安装；实际安装不同，应先核对服务支持的安装模式。求解器只用 `fit` 组调用 `solvePnP`，单独投影 `validation` 组。成功求解后，无论独立误差是否过门，都会写出 `$output` 的 `.report.json` 同名报告，即本例的 `calibration_candidate.report.json`。如果输入无效或输出/报告路径与输入或彼此指向同一文件，求解会提前拒绝，此时可能没有候选报告。
 
-检查 `$solverExit`、报告中的样本数、`fit.rms_px`、`validation.median_px`、`validation.p95_px` 和 `validation.max_px`。**只有** `validation.median_px ≤ 8 px` 且 `validation.p95_px ≤ 20 px`，求解器才写出可供进一步审查的运行时 `$output` JSON；未通过时退出非零、保留候选报告并移除该安全独立输出路径上的旧运行时 JSON。不要把 `fit` 误差或浏览器模拟结果代替独立验证，也不要放宽门限掩盖错误关联。报告及运行时 JSON 的路径、SHA-256、求解器提交号和退出码都写入验收记录。
+只审阅本次 `$runDir` 中的文件，并先记录 `$solverExit`。若退出非零且本次目录没有报告，说明求解在生成候选报告前失败，应修正输入后用新的 `$runId` 重跑，不能读取其他运行目录中的旧文件。报告存在时，检查其中的样本数、`fit.rms_px`、`validation.median_px`、`validation.p95_px` 和 `validation.max_px`。**只有** `validation.median_px ≤ 8 px` 且 `validation.p95_px ≤ 20 px`，求解器才写出可供进一步审查的运行时 `$output` JSON；未通过时退出非零、保留本次候选报告并移除该安全独立输出路径上的运行时 JSON。不要把 `fit` 误差或浏览器模拟结果代替独立验证，也不要放宽门限掩盖错误关联。运行目录、报告及运行时 JSON 的路径、SHA-256、求解器提交号和退出码都写入验收记录。
 
 报告的 `camera_center_in_radar_m = -R^T t` 是**相机光心在雷达坐标系中的求解位置**，可与测得的 `dx_m/dy_m/dz_m` 比较；`mount_comparison.residual_m` 是“求解值减测量值”，未提供安装测量时为 `null`。运行时 `radar_to_camera.translation_m` 在**相机坐标系**中，不能直接当成安装测量。机械残差只用于复核，不是替代独立像素误差的自动门限。若残差或像素误差异常，复查原始 Z 证明、内参分辨率、目标关联、刚性安装和验证点覆盖。
 
