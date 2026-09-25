@@ -1,6 +1,7 @@
 """PC-only integration tests for independent radar-camera calibration validation."""
 
 import errno
+import hashlib
 import json
 import os
 import stat
@@ -53,6 +54,7 @@ class CalibrateRadarCameraTests(unittest.TestCase):
         self.intrinsics_path = self.path / "intrinsics.json"
         self.output_path = self.path / "calibration.json"
         self.report_path = self.output_path.with_suffix(".report.json")
+        self.complete_path = self.output_path.with_suffix(".complete.json")
         self.intrinsics_path.write_text(json.dumps({
             "camera_matrix": INTRINSICS, "image_size": IMAGE_SIZE,
             "distortion": [0, 0, 0, 0, 0],
@@ -103,9 +105,24 @@ class CalibrateRadarCameraTests(unittest.TestCase):
             raise
 
     def test_pass_writes_report_and_loader_compatible_runtime(self):
+        from tools.fusion.calibrate_radar_camera import verify_completion
+
         result = self.run_solver()
         self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(str(self.complete_path), result.stdout)
         report = json.loads(self.report_path.read_text(encoding="utf-8"))
+        runtime = json.loads(self.output_path.read_text(encoding="utf-8"))
+        complete = json.loads(self.complete_path.read_text(encoding="utf-8"))
+        self.assertEqual(complete["schema"], "radar_camera_calibration_completion")
+        self.assertEqual(complete["schema_version"], 1)
+        self.assertTrue(complete["validation_passed"])
+        self.assertEqual(runtime["artifact_id"], report["artifact_id"])
+        self.assertEqual(complete["artifact_id"], runtime["artifact_id"])
+        self.assertEqual(complete["runtime_filename"], self.output_path.name)
+        self.assertEqual(complete["report_filename"], self.report_path.name)
+        self.assertEqual(complete["runtime_sha256"], hashlib.sha256(self.output_path.read_bytes()).hexdigest())
+        self.assertEqual(complete["report_sha256"], hashlib.sha256(self.report_path.read_bytes()).hexdigest())
+        self.assertTrue(verify_completion(self.output_path))
         self.assertEqual(report["fit"]["pair_count"], 6)
         self.assertEqual(report["validation"]["pair_count"], 2)
         for name in ("rms_px", "median_px", "p95_px", "max_px"):
@@ -211,26 +228,157 @@ class CalibrateRadarCameraTests(unittest.TestCase):
         self.assertEqual(self.report_path.read_bytes(), b"foreign report")
 
     def test_bad_validation_writes_report_but_no_runtime(self):
+        from tools.fusion.calibrate_radar_camera import verify_completion
+
         result = self.run_solver(validation_shift=100.0)
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(self.output_path.exists())
+        self.assertFalse(self.complete_path.exists())
+        self.assertFalse(verify_completion(self.output_path))
         report = json.loads(self.report_path.read_text(encoding="utf-8"))
         self.assertFalse(report["validation_passed"])
         self.assertLess(report["fit"]["rms_px"], 1e-5)
         self.assertGreater(report["validation"]["p95_px"], 20.0)
         self.assertGreater(report["validation"]["median_px"], 8.0)
 
+    def test_existing_completion_blocks_run_without_touching_inputs_or_other_products(self):
+        foreign = b'{"operator_note":"keep this manifest name"}'
+        self.complete_path.write_bytes(foreign)
+        rejected = self.run_solver(validation_count=0)
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn("completion path already exists", rejected.stderr)
+        self.assertEqual(self.complete_path.read_bytes(), foreign)
+        self.assertFalse(self.output_path.exists())
+        self.assertFalse(self.report_path.exists())
+        self.assertEqual(self.session_path.read_bytes(), self.session_bytes)
+
+    def test_completion_reservation_race_preserves_foreign_manifest(self):
+        from tools.fusion import calibrate_radar_camera as solver
+
+        prepared = self.run_solver(output_path=self.path / "setup.json")
+        self.assertEqual(prepared.returncode, 0, prepared.stderr)
+        argv = [str(SOLVER), str(self.session_path), str(self.intrinsics_path), str(self.output_path)]
+        original_open = Path.open
+
+        def compete_for_completion(path, mode="r", *args, **kwargs):
+            if path == self.complete_path and mode == "x+b":
+                with original_open(path, "xb") as stream:
+                    stream.write(b"foreign manifest")
+            return original_open(path, mode, *args, **kwargs)
+
+        with mock.patch.object(sys, "argv", argv), mock.patch.object(
+            Path, "open", autospec=True, side_effect=compete_for_completion
+        ), self.assertRaisesRegex(SystemExit, "completion path already exists"):
+            solver.main()
+
+        self.assertFalse(self.output_path.exists())
+        self.assertFalse(self.report_path.exists())
+        self.assertEqual(self.complete_path.read_bytes(), b"foreign manifest")
+
+    def test_completion_verifier_rejects_tampered_or_missing_products(self):
+        from tools.fusion.calibrate_radar_camera import verify_completion
+
+        completed = self.run_solver()
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertTrue(verify_completion(self.output_path))
+        for path in (self.output_path, self.report_path):
+            original = path.read_bytes()
+            with self.subTest(path=path.name, change="tampered"):
+                path.write_bytes(original + b" ")
+                self.assertFalse(verify_completion(self.output_path))
+            path.write_bytes(original)
+            with self.subTest(path=path.name, change="missing"):
+                path.unlink()
+                self.assertFalse(verify_completion(self.output_path))
+            path.write_bytes(original)
+        original_manifest = self.complete_path.read_bytes()
+        self.complete_path.write_bytes(b"{malformed")
+        self.assertFalse(verify_completion(self.output_path))
+        self.complete_path.unlink()
+        self.assertFalse(verify_completion(self.output_path))
+        self.complete_path.write_bytes(original_manifest)
+        report = json.loads(self.report_path.read_text(encoding="utf-8"))
+        report["artifact_id"] = "different-run"
+        self.report_path.write_text(json.dumps(report), encoding="utf-8")
+        manifest = json.loads(self.complete_path.read_text(encoding="utf-8"))
+        manifest["report_sha256"] = hashlib.sha256(self.report_path.read_bytes()).hexdigest()
+        self.complete_path.write_text(json.dumps(manifest), encoding="utf-8")
+        self.assertFalse(verify_completion(self.output_path))
+
+    def test_late_report_error_and_cleanup_failure_cannot_prove_completion(self):
+        from tools.fusion import calibrate_radar_camera as solver
+
+        prepared = self.run_solver(output_path=self.path / "setup.json")
+        self.assertEqual(prepared.returncode, 0, prepared.stderr)
+        argv = [str(SOLVER), str(self.session_path), str(self.intrinsics_path), str(self.output_path)]
+        original_write = solver._ReservedProduct.write
+        original_discard = solver._ReservedProduct.discard
+
+        def fail_after_report_bytes(product, value):
+            original_write(product, value)
+            if product.kind == "report":
+                raise OSError("synthetic late report error")
+
+        def fail_report_cleanup(product):
+            if product.kind == "report":
+                product.close()
+                raise OSError("synthetic report cleanup failure")
+            return original_discard(product)
+
+        with mock.patch.object(sys, "argv", argv), mock.patch.object(
+            solver._ReservedProduct, "write", fail_after_report_bytes
+        ), mock.patch.object(solver._ReservedProduct, "discard", fail_report_cleanup), self.assertRaisesRegex(
+            SystemExit, "could not clean reserved paths"
+        ):
+            solver.main()
+
+        self.assertTrue(json.loads(self.report_path.read_text(encoding="utf-8"))["validation_passed"])
+        self.assertFalse(self.output_path.exists())
+        self.assertFalse(self.complete_path.exists())
+        self.assertFalse(solver.verify_completion(self.output_path))
+
+    def test_late_completion_error_can_only_prove_intact_pair(self):
+        from tools.fusion import calibrate_radar_camera as solver
+
+        prepared = self.run_solver(output_path=self.path / "setup.json")
+        self.assertEqual(prepared.returncode, 0, prepared.stderr)
+        argv = [str(SOLVER), str(self.session_path), str(self.intrinsics_path), str(self.output_path)]
+        original_write = solver._ReservedProduct.write
+
+        def fail_after_manifest_bytes(product, value):
+            written = original_write(product, value)
+            if product.kind == "completion":
+                raise OSError("synthetic late manifest error")
+            return written
+
+        def fail_all_cleanup(product):
+            product.close()
+            raise OSError("synthetic cleanup failure")
+
+        with mock.patch.object(sys, "argv", argv), mock.patch.object(
+            solver._ReservedProduct, "write", fail_after_manifest_bytes
+        ), mock.patch.object(solver._ReservedProduct, "discard", fail_all_cleanup), self.assertRaisesRegex(
+            SystemExit, "could not clean reserved paths"
+        ):
+            solver.main()
+
+        self.assertTrue(solver.verify_completion(self.output_path))
+        self.output_path.write_bytes(self.output_path.read_bytes() + b" ")
+        self.assertFalse(solver.verify_completion(self.output_path))
+
     def test_success_then_reuse_same_path_rejects_and_preserves_old_pair(self):
         first = self.run_solver()
         self.assertEqual(first.returncode, 0, first.stderr)
         old_runtime = self.output_path.read_bytes()
         old_report = self.report_path.read_bytes()
+        old_completion = self.complete_path.read_bytes()
 
         rejected = self.run_solver(validation_count=0)
         self.assertNotEqual(rejected.returncode, 0)
         self.assertIn("choose a new output path/run directory", rejected.stderr)
         self.assertEqual(self.output_path.read_bytes(), old_runtime)
         self.assertEqual(self.report_path.read_bytes(), old_report)
+        self.assertEqual(self.complete_path.read_bytes(), old_completion)
 
     def test_report_only_from_failed_validation_blocks_reuse(self):
         first = self.run_solver(validation_shift=100.0)
@@ -416,6 +564,7 @@ class CalibrateRadarCameraTests(unittest.TestCase):
         self.assertNotEqual(failed.returncode, 0)
         self.assertFalse(self.output_path.exists())
         self.assertFalse(self.report_path.exists())
+        self.assertFalse(self.complete_path.exists())
         self.assertEqual(self.intrinsics_path.read_bytes(), bad_intrinsics)
         self.assertEqual(self.session_path.read_bytes(), self.session_bytes)
 
@@ -538,6 +687,15 @@ class CalibrateRadarCameraTests(unittest.TestCase):
         self.assertEqual(self.intrinsics_path.read_bytes(), original_intrinsics)
         self.assertFalse(self.output_path.exists())
 
+    def test_rejects_completion_hard_link_to_session(self):
+        result = self.run_solver(before_run=lambda: self.hard_link_or_skip(
+            self.session_path, self.complete_path))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("completion path aliases an input", result.stderr)
+        self.assertEqual(self.session_path.read_bytes(), self.session_bytes)
+        self.assertFalse(self.output_path.exists())
+        self.assertFalse(self.report_path.exists())
+
     def test_rejects_output_and_report_hard_link_without_changing_either(self):
         original = b"existing calibration"
 
@@ -567,6 +725,7 @@ class CalibrateRadarCameraTests(unittest.TestCase):
         self.assertIn("at least one validation", result.stderr)
         self.assertFalse(self.report_path.exists())
         self.assertFalse(self.output_path.exists())
+        self.assertFalse(self.complete_path.exists())
 
     def test_no_mount_keeps_comparison_optional(self):
         result = self.run_solver(mount=False)

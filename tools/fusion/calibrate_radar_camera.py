@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from uuid import uuid4
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -29,6 +31,39 @@ def error_metrics(projected, observed, np):
         "p95_px": float(np.percentile(errors, 95)),
         "max_px": float(np.max(errors)),
     }
+
+
+def verify_completion(output_path: Path) -> bool:
+    """Trust a passing calibration only when its completion proof matches both files."""
+    output_path = Path(output_path)
+    report_path = output_path.with_suffix(".report.json")
+    completion_path = output_path.with_suffix(".complete.json")
+    try:
+        paths = (output_path, report_path, completion_path)
+        if any(path.is_symlink() or not path.is_file() for path in paths):
+            return False
+        runtime_bytes = output_path.read_bytes()
+        report_bytes = report_path.read_bytes()
+        completion = json.loads(completion_path.read_text(encoding="utf-8"))
+        runtime = json.loads(runtime_bytes)
+        report = json.loads(report_bytes)
+    except (OSError, UnicodeError, ValueError, TypeError):
+        return False
+    if not all(isinstance(value, dict) for value in (completion, runtime, report)):
+        return False
+    artifact_id = completion.get("artifact_id")
+    return (
+        completion.get("schema") == "radar_camera_calibration_completion"
+        and completion.get("schema_version") == 1
+        and completion.get("validation_passed") is True
+        and report.get("validation_passed") is True
+        and isinstance(artifact_id, str) and bool(artifact_id)
+        and runtime.get("artifact_id") == report.get("artifact_id") == artifact_id
+        and completion.get("runtime_filename") == output_path.name
+        and completion.get("report_filename") == report_path.name
+        and completion.get("runtime_sha256") == hashlib.sha256(runtime_bytes).hexdigest()
+        and completion.get("report_sha256") == hashlib.sha256(report_bytes).hexdigest()
+    )
 
 
 class _ReservedProduct:
@@ -58,10 +93,16 @@ class _ReservedProduct:
             if not self._owns_path():
                 raise OSError("reserved path was replaced")
             encoded = json.dumps(value, ensure_ascii=False, indent=2).encode("utf-8")
-            self.stream.write(encoded)
+            if self.stream.write(encoded) != len(encoded):
+                raise OSError("short write")
             self.stream.flush()
+            os.fsync(self.stream.fileno())
             if not self._owns_path():
                 raise OSError("reserved path was replaced")
+            actual = self.path.read_bytes()
+            if actual != encoded:
+                raise OSError("published bytes differ from serialized data")
+            return actual
         except Exception as error:
             raise SystemExit(f"could not publish {self.kind}: {error}") from error
 
@@ -90,15 +131,16 @@ def main():
     )
     parser.add_argument("session", type=Path, help="exported calibration session JSON")
     parser.add_argument("intrinsics", type=Path, help="validated camera intrinsics JSON")
-    parser.add_argument("output", type=Path, help="new runtime calibration JSON path; report path must also be unused")
+    parser.add_argument("output", type=Path, help="new runtime JSON path; report and completion paths must also be unused")
     parser.add_argument("--mount-mode", choices=("co_rotating", "fixed_camera"), default="co_rotating")
     args = parser.parse_args()
 
     report_path = args.output.with_suffix(".report.json")
+    completion_path = args.output.with_suffix(".complete.json")
     input_paths = (args.session, args.intrinsics)
     resolved_inputs = {path.resolve() for path in input_paths}
-    output_path = args.output.resolve()
-    resolved_report_path = report_path.resolve()
+    products = (("output", args.output), ("report", report_path), ("completion", completion_path))
+    resolved_products = tuple((kind, path, path.resolve()) for kind, path in products)
 
     def aliases_input(candidate, resolved_candidate):
         return resolved_candidate in resolved_inputs or (
@@ -107,16 +149,20 @@ def main():
             )
         )
 
-    if aliases_input(args.output, output_path):
-        raise SystemExit("output path aliases an input; choose a new output path/run directory")
-    if aliases_input(report_path, resolved_report_path):
-        raise SystemExit("report path aliases an input; choose a new output path/run directory")
-    if output_path == resolved_report_path or (
-        args.output.exists() and report_path.exists() and args.output.samefile(report_path)
-    ):
-        raise SystemExit("output and report paths alias each other; choose a new output path/run directory")
+    for kind, path, resolved in resolved_products:
+        if aliases_input(path, resolved):
+            raise SystemExit(f"{kind} path aliases an input; choose a new output path/run directory")
+    for index, (first_kind, first_path, first_resolved) in enumerate(resolved_products):
+        for second_kind, second_path, second_resolved in resolved_products[index + 1:]:
+            if first_resolved == second_resolved or (
+                first_path.exists() and second_path.exists() and first_path.samefile(second_path)
+            ):
+                raise SystemExit(
+                    f"{first_kind} and {second_kind} paths alias each other; "
+                    "choose a new output path/run directory"
+                )
 
-    for kind, path in (("output", args.output), ("report", report_path)):
+    for kind, path in products:
         try:
             occupied = path.exists() or path.is_symlink()
         except OSError as error:
@@ -130,12 +176,19 @@ def main():
         reserved.append(output_product)
         report_product = _ReservedProduct(report_path, "report")
         reserved.append(report_product)
-        validation_failure = _solve_and_publish(args, output_product, report_product)
+        completion_product = _ReservedProduct(completion_path, "completion")
+        reserved.append(completion_product)
+        artifact_id = uuid4().hex
+        validation_failure = _solve_and_publish(
+            args, output_product, report_product, completion_product, artifact_id
+        )
         for product in reserved:
             try:
                 product.close()
             except OSError as close_error:
                 raise SystemExit(f"could not publish {product.kind}: {close_error}") from close_error
+        if not validation_failure and not verify_completion(args.output):
+            raise SystemExit("completion manifest does not verify against runtime and report")
     except BaseException as error:
         cleanup_errors = []
         for product in reserved:
@@ -148,9 +201,10 @@ def main():
         raise
     if validation_failure:
         raise SystemExit(validation_failure)
+    print(f"completion manifest: {completion_path}")
 
 
-def _solve_and_publish(args, output_product, report_product):
+def _solve_and_publish(args, output_product, report_product, completion_product, artifact_id):
     try:
         session = load_session(args.session)
     except SessionError as error:
@@ -204,6 +258,7 @@ def _solve_and_publish(args, output_product, report_product):
     }
     passed = validation["median_px"] <= 8.0 and validation["p95_px"] <= 20.0
     report = {
+        "artifact_id": artifact_id,
         "fit": fit,
         "validation": validation,
         "validation_passed": passed,
@@ -212,11 +267,13 @@ def _solve_and_publish(args, output_product, report_product):
     }
     if not passed:
         output_product.discard()
+        completion_product.discard()
         report_product.write(report)
         return "independent validation failed: median must be <= 8 px and P95 <= 20 px"
 
     result = {
         "schema_version": 1,
+        "artifact_id": artifact_id,
         "image_size": image_size,
         "camera_matrix": matrix,
         "distortion": distortion,
@@ -226,8 +283,18 @@ def _solve_and_publish(args, output_product, report_product):
         "rms_reprojection_error_px": fit["rms_px"],
         "validation": validation,
     }
-    output_product.write(result)
-    report_product.write(report)
+    runtime_bytes = output_product.write(result)
+    report_bytes = report_product.write(report)
+    completion_product.write({
+        "schema": "radar_camera_calibration_completion",
+        "schema_version": 1,
+        "artifact_id": artifact_id,
+        "runtime_filename": output_product.path.name,
+        "runtime_sha256": hashlib.sha256(runtime_bytes).hexdigest(),
+        "report_filename": report_product.path.name,
+        "report_sha256": hashlib.sha256(report_bytes).hexdigest(),
+        "validation_passed": True,
+    })
     return None
 
 
