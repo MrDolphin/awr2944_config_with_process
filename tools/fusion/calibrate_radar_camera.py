@@ -6,6 +6,7 @@ import argparse
 import json
 import math
 import sys
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -126,6 +127,36 @@ def _preflight_product(path, kind, recognizer):
     return True
 
 
+def _clear_solver_products(products):
+    """Clear official names together, restoring earlier names if quarantine fails."""
+    quarantined = []
+    for kind, path in products:
+        quarantine = path.with_name(f".{path.name}.quarantine-{uuid.uuid4().hex}")
+        while quarantine.exists() or quarantine.is_symlink():
+            quarantine = path.with_name(f".{path.name}.quarantine-{uuid.uuid4().hex}")
+        try:
+            path.rename(quarantine)
+        except OSError as error:
+            rollback_errors = []
+            for original, moved in reversed(quarantined):
+                try:
+                    moved.rename(original)
+                except OSError as rollback_error:
+                    rollback_errors.append(f"{original}: {rollback_error}")
+            detail = f"; rollback failed for {', '.join(rollback_errors)}" if rollback_errors else ""
+            raise SystemExit(f"could not quarantine {kind}: {error}{detail}") from error
+        quarantined.append((path, quarantine))
+
+    delete_errors = []
+    for _, quarantine in quarantined:
+        try:
+            quarantine.unlink()
+        except OSError as error:
+            delete_errors.append(f"{quarantine}: {error}")
+    if delete_errors:
+        raise SystemExit(f"could not delete solver quarantine: {'; '.join(delete_errors)}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Fit radar-to-camera extrinsics from a calibration session.")
     parser.add_argument("session", type=Path, help="exported calibration session JSON")
@@ -158,10 +189,11 @@ def main():
 
     old_output = _preflight_product(args.output, "output", _runtime_product)
     old_report = _preflight_product(report_path, "report", _report_product)
-    if old_output:
-        args.output.unlink()
-    if old_report:
-        report_path.unlink()
+    _clear_solver_products([
+        (kind, path) for kind, path, present in (
+            ("output", args.output, old_output), ("report", report_path, old_report)
+        ) if present
+    ])
 
     try:
         session = load_session(args.session)

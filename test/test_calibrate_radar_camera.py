@@ -3,6 +3,7 @@
 import errno
 import json
 import os
+import stat
 import subprocess
 import sys
 import tempfile
@@ -136,9 +137,86 @@ class CalibrateRadarCameraTests(unittest.TestCase):
         self.assertIn("at least one validation", failed.stderr)
         self.assertFalse(self.output_path.exists())
         self.assertFalse(self.report_path.exists())
+        self.assertFalse(list(self.path.glob(".*.quarantine-*")))
         self.assertTrue(stale_report)
         self.assertEqual(self.session_path.read_bytes(), self.session_bytes)
         self.assertTrue(self.intrinsics_path.exists())
+
+    def test_read_only_report_never_leaves_only_one_old_official_artifact(self):
+        first = self.run_solver()
+        self.assertEqual(first.returncode, 0, first.stderr)
+        old_runtime = self.output_path.read_bytes()
+        old_report = self.report_path.read_bytes()
+
+        def restore_writable():
+            for path in self.path.iterdir():
+                if path.is_file():
+                    os.chmod(path, stat.S_IREAD | stat.S_IWRITE)
+
+        self.addCleanup(restore_writable)
+        os.chmod(self.report_path, stat.S_IREAD)
+        failed = self.run_solver(validation_count=0)
+        self.assertNotEqual(failed.returncode, 0)
+
+        official = (self.output_path.exists(), self.report_path.exists())
+        self.assertIn(official, ((True, True), (False, False)))
+        if official == (True, True):
+            self.assertEqual(self.output_path.read_bytes(), old_runtime)
+            self.assertEqual(self.report_path.read_bytes(), old_report)
+        else:
+            quarantines = list(self.path.glob(".*.quarantine-*"))
+            self.assertTrue(any(path.read_bytes() == old_report for path in quarantines))
+
+    def test_report_rename_failure_rolls_back_runtime_quarantine(self):
+        from tools.fusion.calibrate_radar_camera import main
+
+        first = self.run_solver()
+        self.assertEqual(first.returncode, 0, first.stderr)
+        old_runtime = self.output_path.read_bytes()
+        old_report = self.report_path.read_bytes()
+        session = json.loads(self.session_path.read_text(encoding="utf-8"))
+        session["samples"] = [sample for sample in session["samples"] if sample["set"] == "fit"]
+        self.session_path.write_text(json.dumps(session), encoding="utf-8")
+        argv = [str(SOLVER), str(self.session_path), str(self.intrinsics_path), str(self.output_path)]
+        original_rename = Path.rename
+
+        def fail_report_rename(path, target):
+            if path == self.report_path:
+                raise PermissionError("synthetic locked report")
+            return original_rename(path, target)
+
+        with mock.patch.object(sys, "argv", argv), mock.patch.object(Path, "rename", fail_report_rename):
+            with self.assertRaisesRegex(SystemExit, "quarantine report"):
+                main()
+
+        self.assertEqual(self.output_path.read_bytes(), old_runtime)
+        self.assertEqual(self.report_path.read_bytes(), old_report)
+        self.assertFalse(list(self.path.glob(".*.quarantine-*")))
+
+    def test_quarantine_delete_failure_leaves_no_stale_official_paths(self):
+        from tools.fusion.calibrate_radar_camera import main
+
+        first = self.run_solver()
+        self.assertEqual(first.returncode, 0, first.stderr)
+        old_report = self.report_path.read_bytes()
+        argv = [str(SOLVER), str(self.session_path), str(self.intrinsics_path), str(self.output_path)]
+        original_unlink = Path.unlink
+
+        def fail_report_quarantine_delete(path, *args, **kwargs):
+            if path.name.startswith(f".{self.report_path.name}.quarantine-"):
+                raise PermissionError("synthetic read-only quarantine")
+            return original_unlink(path, *args, **kwargs)
+
+        with mock.patch.object(sys, "argv", argv), mock.patch.object(
+            Path, "unlink", fail_report_quarantine_delete
+        ), self.assertRaisesRegex(SystemExit, "delete solver quarantine"):
+            main()
+
+        self.assertFalse(self.output_path.exists())
+        self.assertFalse(self.report_path.exists())
+        quarantines = list(self.path.glob(".*.quarantine-*"))
+        self.assertEqual(len(quarantines), 1)
+        self.assertEqual(quarantines[0].read_bytes(), old_report)
 
     def test_unrelated_output_is_preserved_before_invalid_session(self):
         output_path = self.path / "operator_notes.txt"
