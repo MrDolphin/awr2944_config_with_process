@@ -39,7 +39,8 @@ class RadarCameraCalibrationDocsTests(unittest.TestCase):
             "$solverExit = $LASTEXITCODE", "Get-FileHash -Algorithm SHA256 $report",
             "Get-FileHash -Algorithm SHA256 $output", "$runId = Get-Date",
             "New-Item -ItemType Directory", "只审阅本次 `$runDir`",
-            "不得读取其他运行目录中的旧文件",
+            "不得读取其他运行目录中的旧文件", "都必须不存在",
+            "不会覆盖或清理任何已有路径",
         ):
             with self.subTest(required=required):
                 self.assertIn(required, text)
