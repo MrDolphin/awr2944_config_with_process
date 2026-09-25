@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,6 +29,58 @@ def error_metrics(projected, observed, np):
         "p95_px": float(np.percentile(errors, 95)),
         "max_px": float(np.max(errors)),
     }
+
+
+class _ReservedProduct:
+    """Hold exclusive ownership of a new official path until publication ends."""
+
+    def __init__(self, path: Path, kind: str):
+        self.path = path
+        self.kind = kind
+        try:
+            self.stream = path.open("x+b")
+        except FileExistsError as error:
+            raise SystemExit(f"{kind} path already exists; choose a new output path/run directory") from error
+        except OSError as error:
+            raise SystemExit(f"could not reserve {kind} path: {error}") from error
+        identity = os.fstat(self.stream.fileno())
+        self.identity = (identity.st_dev, identity.st_ino)
+        self.removed = False
+
+    def _owns_path(self):
+        if self.path.is_symlink():
+            return False
+        current = self.path.stat()
+        return (current.st_dev, current.st_ino) == self.identity
+
+    def write(self, value):
+        try:
+            if not self._owns_path():
+                raise OSError("reserved path was replaced")
+            encoded = json.dumps(value, ensure_ascii=False, indent=2).encode("utf-8")
+            self.stream.write(encoded)
+            self.stream.flush()
+            if not self._owns_path():
+                raise OSError("reserved path was replaced")
+        except Exception as error:
+            raise SystemExit(f"could not publish {self.kind}: {error}") from error
+
+    def close(self):
+        if not self.stream.closed:
+            self.stream.close()
+
+    def discard(self):
+        if self.removed:
+            return
+        self.close()  # Windows cannot unlink an open file.
+        try:
+            if self._owns_path():
+                self.path.unlink()
+            elif self.path.exists() or self.path.is_symlink():
+                raise OSError("reserved path was replaced; refusing to remove it")
+        except FileNotFoundError:
+            pass
+        self.removed = True
 
 
 def main():
@@ -71,6 +124,33 @@ def main():
         if occupied:
             raise SystemExit(f"{kind} path already exists; choose a new output path/run directory")
 
+    reserved = []
+    try:
+        output_product = _ReservedProduct(args.output, "output")
+        reserved.append(output_product)
+        report_product = _ReservedProduct(report_path, "report")
+        reserved.append(report_product)
+        validation_failure = _solve_and_publish(args, output_product, report_product)
+        for product in reserved:
+            try:
+                product.close()
+            except OSError as close_error:
+                raise SystemExit(f"could not publish {product.kind}: {close_error}") from close_error
+    except BaseException as error:
+        cleanup_errors = []
+        for product in reserved:
+            try:
+                product.discard()
+            except OSError as cleanup_error:
+                cleanup_errors.append(f"{product.kind}: {cleanup_error}")
+        if cleanup_errors:
+            raise SystemExit(f"{error}; could not clean reserved paths: {', '.join(cleanup_errors)}") from error
+        raise
+    if validation_failure:
+        raise SystemExit(validation_failure)
+
+
+def _solve_and_publish(args, output_product, report_product):
     try:
         session = load_session(args.session)
     except SessionError as error:
@@ -130,13 +210,10 @@ def main():
         "camera_center_in_radar_m": list(solved_center),
         "mount_comparison": mount_comparison,
     }
-    try:
-        with report_path.open("x", encoding="utf-8") as stream:
-            stream.write(json.dumps(report, ensure_ascii=False, indent=2))
-    except FileExistsError as error:
-        raise SystemExit("report path already exists; choose a new output path/run directory") from error
     if not passed:
-        raise SystemExit("independent validation failed: median must be <= 8 px and P95 <= 20 px")
+        output_product.discard()
+        report_product.write(report)
+        return "independent validation failed: median must be <= 8 px and P95 <= 20 px"
 
     result = {
         "schema_version": 1,
@@ -149,11 +226,9 @@ def main():
         "rms_reprojection_error_px": fit["rms_px"],
         "validation": validation,
     }
-    try:
-        with args.output.open("x", encoding="utf-8") as stream:
-            stream.write(json.dumps(result, ensure_ascii=False, indent=2))
-    except FileExistsError as error:
-        raise SystemExit("output path already exists; choose a new output path/run directory") from error
+    output_product.write(result)
+    report_product.write(report)
+    return None
 
 
 if __name__ == "__main__":

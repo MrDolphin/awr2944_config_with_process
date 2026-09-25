@@ -116,11 +116,106 @@ class CalibrateRadarCameraTests(unittest.TestCase):
         self.assertAlmostEqual(calibration.translation_radar_to_camera_m[0], TRANSLATION[0], places=5)
         self.assertAlmostEqual(calibration.rms_reprojection_error_px, report["fit"]["rms_px"])
 
+    def test_competitor_cannot_occupy_output_during_report_publication(self):
+        from tools.fusion import calibrate_radar_camera as solver
+
+        prepared = self.run_solver(output_path=self.path / "setup.json")
+        self.assertEqual(prepared.returncode, 0, prepared.stderr)
+        argv = [str(SOLVER), str(self.session_path), str(self.intrinsics_path), str(self.output_path)]
+        original_dumps = json.dumps
+        attempts = []
+
+        def compete_when_report_serializes(value, *args, **kwargs):
+            if isinstance(value, dict) and "validation_passed" in value and not attempts:
+                try:
+                    with self.output_path.open("x", encoding="utf-8") as stream:
+                        stream.write("foreign output")
+                except FileExistsError:
+                    attempts.append("blocked")
+                else:
+                    attempts.append("occupied")
+            return original_dumps(value, *args, **kwargs)
+
+        with mock.patch.object(sys, "argv", argv), mock.patch.object(
+            solver.json, "dumps", side_effect=compete_when_report_serializes
+        ):
+            solver.main()
+
+        self.assertEqual(attempts, ["blocked"])
+        self.assertTrue(json.loads(self.report_path.read_text(encoding="utf-8"))["validation_passed"])
+        self.assertNotEqual(self.output_path.read_bytes(), b"foreign output")
+        self.assertEqual(load_calibration(self.output_path).image_width, IMAGE_SIZE[0])
+
+    def test_runtime_publication_failure_removes_both_owned_products(self):
+        from tools.fusion import calibrate_radar_camera as solver
+
+        prepared = self.run_solver(output_path=self.path / "setup.json")
+        self.assertEqual(prepared.returncode, 0, prepared.stderr)
+        argv = [str(SOLVER), str(self.session_path), str(self.intrinsics_path), str(self.output_path)]
+        original_dumps = json.dumps
+
+        def fail_runtime_json(value, *args, **kwargs):
+            if isinstance(value, dict) and "radar_to_camera" in value:
+                raise OSError("synthetic runtime publication failure")
+            return original_dumps(value, *args, **kwargs)
+
+        with mock.patch.object(sys, "argv", argv), mock.patch.object(
+            solver.json, "dumps", side_effect=fail_runtime_json
+        ), self.assertRaisesRegex(SystemExit, "could not publish output"):
+            solver.main()
+
+        self.assertFalse(self.output_path.exists())
+        self.assertFalse(self.report_path.exists())
+
+    def test_report_publication_failure_removes_written_runtime_and_report(self):
+        from tools.fusion import calibrate_radar_camera as solver
+
+        prepared = self.run_solver(output_path=self.path / "setup.json")
+        self.assertEqual(prepared.returncode, 0, prepared.stderr)
+        argv = [str(SOLVER), str(self.session_path), str(self.intrinsics_path), str(self.output_path)]
+        original_dumps = json.dumps
+
+        def fail_report_json(value, *args, **kwargs):
+            if isinstance(value, dict) and "validation_passed" in value:
+                raise OSError("synthetic report publication failure")
+            return original_dumps(value, *args, **kwargs)
+
+        with mock.patch.object(sys, "argv", argv), mock.patch.object(
+            solver.json, "dumps", side_effect=fail_report_json
+        ), self.assertRaisesRegex(SystemExit, "could not publish report"):
+            solver.main()
+
+        self.assertFalse(self.output_path.exists())
+        self.assertFalse(self.report_path.exists())
+
+    def test_report_reservation_race_preserves_foreign_report_and_cleans_output(self):
+        from tools.fusion import calibrate_radar_camera as solver
+
+        prepared = self.run_solver(output_path=self.path / "setup.json")
+        self.assertEqual(prepared.returncode, 0, prepared.stderr)
+        argv = [str(SOLVER), str(self.session_path), str(self.intrinsics_path), str(self.output_path)]
+        original_open = Path.open
+
+        def compete_for_report(path, mode="r", *args, **kwargs):
+            if path == self.report_path and mode == "x+b":
+                with original_open(path, "xb") as stream:
+                    stream.write(b"foreign report")
+            return original_open(path, mode, *args, **kwargs)
+
+        with mock.patch.object(sys, "argv", argv), mock.patch.object(
+            Path, "open", autospec=True, side_effect=compete_for_report
+        ), self.assertRaisesRegex(SystemExit, "report path already exists"):
+            solver.main()
+
+        self.assertFalse(self.output_path.exists())
+        self.assertEqual(self.report_path.read_bytes(), b"foreign report")
+
     def test_bad_validation_writes_report_but_no_runtime(self):
         result = self.run_solver(validation_shift=100.0)
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(self.output_path.exists())
         report = json.loads(self.report_path.read_text(encoding="utf-8"))
+        self.assertFalse(report["validation_passed"])
         self.assertLess(report["fit"]["rms_px"], 1e-5)
         self.assertGreater(report["validation"]["p95_px"], 20.0)
         self.assertGreater(report["validation"]["median_px"], 8.0)
