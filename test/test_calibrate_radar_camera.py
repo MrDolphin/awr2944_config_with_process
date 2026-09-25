@@ -140,6 +140,95 @@ class CalibrateRadarCameraTests(unittest.TestCase):
         self.assertEqual(self.session_path.read_bytes(), self.session_bytes)
         self.assertTrue(self.intrinsics_path.exists())
 
+    def test_unrelated_output_is_preserved_before_invalid_session(self):
+        output_path = self.path / "operator_notes.txt"
+        notes = b"keep these operator notes"
+        output_path.write_bytes(notes)
+
+        failed = self.run_solver(validation_count=0, output_path=output_path)
+        self.assertNotEqual(failed.returncode, 0)
+        self.assertIn("unsafe existing output", failed.stderr)
+        self.assertEqual(output_path.read_bytes(), notes)
+        self.assertFalse(output_path.with_suffix(".report.json").exists())
+        self.assertEqual(self.session_path.read_bytes(), self.session_bytes)
+
+    def test_directory_output_preserves_recognized_old_report(self):
+        first = self.run_solver()
+        self.assertEqual(first.returncode, 0, first.stderr)
+        old_report = self.report_path.read_bytes()
+        self.output_path.unlink()
+        self.output_path.mkdir()
+
+        failed = self.run_solver(validation_count=0)
+        self.assertNotEqual(failed.returncode, 0)
+        self.assertIn("unsafe existing output", failed.stderr)
+        self.assertTrue(self.output_path.is_dir())
+        self.assertEqual(self.report_path.read_bytes(), old_report)
+
+    def test_unrelated_report_preserves_recognized_old_runtime(self):
+        first = self.run_solver()
+        self.assertEqual(first.returncode, 0, first.stderr)
+        old_runtime = self.output_path.read_bytes()
+        unrelated = b'{"note":"not a calibration report"}'
+        self.report_path.write_bytes(unrelated)
+
+        failed = self.run_solver(validation_count=0)
+        self.assertNotEqual(failed.returncode, 0)
+        self.assertIn("unsafe existing report", failed.stderr)
+        self.assertEqual(self.output_path.read_bytes(), old_runtime)
+        self.assertEqual(self.report_path.read_bytes(), unrelated)
+
+    def test_malformed_output_preserves_recognized_old_report(self):
+        first = self.run_solver()
+        self.assertEqual(first.returncode, 0, first.stderr)
+        old_report = self.report_path.read_bytes()
+        malformed = b"{bad json"
+        self.output_path.write_bytes(malformed)
+
+        failed = self.run_solver(validation_count=0)
+        self.assertNotEqual(failed.returncode, 0)
+        self.assertIn("unsafe existing output", failed.stderr)
+        self.assertEqual(self.output_path.read_bytes(), malformed)
+        self.assertEqual(self.report_path.read_bytes(), old_report)
+
+    def test_unknown_json_output_preserves_recognized_old_report(self):
+        first = self.run_solver()
+        self.assertEqual(first.returncode, 0, first.stderr)
+        old_report = self.report_path.read_bytes()
+        unrelated = b'{"schema_version":1,"operator_note":"keep"}'
+        self.output_path.write_bytes(unrelated)
+
+        failed = self.run_solver(validation_count=0)
+        self.assertNotEqual(failed.returncode, 0)
+        self.assertIn("unsafe existing output", failed.stderr)
+        self.assertEqual(self.output_path.read_bytes(), unrelated)
+        self.assertEqual(self.report_path.read_bytes(), old_report)
+
+    def test_malformed_report_preserves_recognized_old_runtime(self):
+        first = self.run_solver()
+        self.assertEqual(first.returncode, 0, first.stderr)
+        old_runtime = self.output_path.read_bytes()
+        malformed = b"{bad json"
+        self.report_path.write_bytes(malformed)
+
+        failed = self.run_solver(validation_count=0)
+        self.assertNotEqual(failed.returncode, 0)
+        self.assertIn("unsafe existing report", failed.stderr)
+        self.assertEqual(self.output_path.read_bytes(), old_runtime)
+        self.assertEqual(self.report_path.read_bytes(), malformed)
+
+    def test_recognized_failed_validation_report_is_removed_before_invalid_session(self):
+        first = self.run_solver(validation_shift=100.0)
+        self.assertNotEqual(first.returncode, 0)
+        self.assertFalse(self.output_path.exists())
+        self.assertTrue(self.report_path.exists())
+
+        failed = self.run_solver(validation_count=0)
+        self.assertNotEqual(failed.returncode, 0)
+        self.assertIn("at least one validation", failed.stderr)
+        self.assertFalse(self.output_path.exists())
+        self.assertFalse(self.report_path.exists())
+
     def test_bad_intrinsics_after_success_removes_stale_runtime_and_report(self):
         first = self.run_solver()
         self.assertEqual(first.returncode, 0, first.stderr)

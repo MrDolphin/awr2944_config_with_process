@@ -162,6 +162,14 @@ def load_session(path: Path) -> CalibrationSession:
         (_frame_identity(sample.radar_frame_num), sample.radar_point_index)
         for sample in samples if sample.set_name == "fit"
     }
+    fit_capture_pairs = {
+        (_frame_identity(sample.radar_frame_num), _frame_identity(sample.camera_frame_id))
+        for sample in samples if sample.set_name == "fit"
+    }
+    fit_coordinates = {
+        (sample.x, sample.y, sample.z)
+        for sample in samples if sample.set_name == "fit"
+    }
     fit_pairs = {
         (sample.x, sample.y, sample.z, sample.u, sample.v)
         for sample in samples if sample.set_name == "fit"
@@ -174,10 +182,19 @@ def load_session(path: Path) -> CalibrationSession:
             raise SessionError(
                 f"fit and validation samples reuse radar frame and point_index: {sample.sample_id}"
             )
+        capture_key = (_frame_identity(sample.radar_frame_num), _frame_identity(sample.camera_frame_id))
+        if capture_key in fit_capture_pairs:
+            raise SessionError(
+                f"fit and validation samples reuse matched capture pair: {sample.sample_id}"
+            )
         pair_key = (sample.x, sample.y, sample.z, sample.u, sample.v)
         if pair_key in fit_pairs:
             raise SessionError(
                 f"fit and validation samples reuse exact point and camera pairing: {sample.sample_id}"
+            )
+        if (sample.x, sample.y, sample.z) in fit_coordinates:
+            raise SessionError(
+                f"fit and validation samples reuse radar coordinates: {sample.sample_id}"
             )
 
     raw_mount = root.get("mount_measurement")

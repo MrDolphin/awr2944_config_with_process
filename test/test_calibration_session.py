@@ -113,17 +113,45 @@ class CalibrationSessionTests(unittest.TestCase):
         with self.assertRaisesRegex(SessionError, "fit.*validation.*point.*camera"):
             load_session(path)
 
-    def test_distinct_samples_can_share_frame_or_point_with_different_correspondence(self):
+    def test_distinct_capture_pairs_and_coordinates_can_share_one_frame_identifier(self):
         path = write_session()
         self.paths = [path]
         payload = json.loads(path.read_text(encoding="utf-8"))
         fit, validation = payload["samples"][0], payload["samples"][-1]
         validation["radar"]["frame_num"] = fit["radar"]["frame_num"]
         validation["radar"]["point_index"] = fit["radar"]["point_index"] + 1
-        validation["radar"]["x"] = fit["radar"]["x"]
         path.write_text(json.dumps(payload), encoding="utf-8")
 
         self.assertEqual(len(load_session(path).validation_pairs()), 1)
+
+    def test_validation_rejects_same_capture_pair_with_different_point_and_pixel(self):
+        path = write_session()
+        self.paths = [path]
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        fit, validation = payload["samples"][0], payload["samples"][-1]
+        validation["radar"]["frame_num"] = fit["radar"]["frame_num"]
+        validation["camera"]["frame_id"] = fit["camera"]["frame_id"]
+        self.assertNotEqual(validation["radar"]["point_index"], fit["radar"]["point_index"])
+        self.assertNotEqual(validation["camera"]["u"], fit["camera"]["u"])
+        path.write_text(json.dumps(payload), encoding="utf-8")
+
+        with self.assertRaisesRegex(SessionError, "fit.*validation.*capture pair"):
+            load_session(path)
+
+    def test_validation_rejects_same_radar_coordinates_with_edited_frames_and_pixel(self):
+        path = write_session()
+        self.paths = [path]
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        fit, validation = payload["samples"][0], payload["samples"][-1]
+        for field in ("x", "y", "z"):
+            validation["radar"][field] = fit["radar"][field]
+        self.assertNotEqual(validation["radar"]["frame_num"], fit["radar"]["frame_num"])
+        self.assertNotEqual(validation["camera"]["frame_id"], fit["camera"]["frame_id"])
+        self.assertNotEqual(validation["camera"]["u"], fit["camera"]["u"])
+        path.write_text(json.dumps(payload), encoding="utf-8")
+
+        with self.assertRaisesRegex(SessionError, "fit.*validation.*radar coordinates"):
+            load_session(path)
 
     def test_session_rejects_schema_dimensions_fit_count_and_identifiers(self):
         for changes, message in (
