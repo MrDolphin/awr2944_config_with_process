@@ -93,6 +93,15 @@ class CalibrateRadarCameraTests(unittest.TestCase):
                 self.skipTest(f"hard links unavailable: {error}")
             raise
 
+    def symlink_or_skip(self, target, link):
+        try:
+            os.symlink(target, link)
+        except OSError as error:
+            if error.errno in {errno.EPERM, errno.EACCES, errno.ENOTSUP, errno.ENOSYS} or \
+                    getattr(error, "winerror", None) in {50, 1314}:
+                self.skipTest(f"symbolic links unavailable: {error}")
+            raise
+
     def test_pass_writes_report_and_loader_compatible_runtime(self):
         result = self.run_solver()
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -116,33 +125,39 @@ class CalibrateRadarCameraTests(unittest.TestCase):
         self.assertGreater(report["validation"]["p95_px"], 20.0)
         self.assertGreater(report["validation"]["median_px"], 8.0)
 
-    def test_failed_recalibration_removes_prior_runtime_at_same_path(self):
+    def test_success_then_reuse_same_path_rejects_and_preserves_old_pair(self):
         first = self.run_solver()
         self.assertEqual(first.returncode, 0, first.stderr)
-        self.assertTrue(self.output_path.exists())
-        failed = self.run_solver(validation_shift=100.0)
-        self.assertNotEqual(failed.returncode, 0)
+        old_runtime = self.output_path.read_bytes()
+        old_report = self.report_path.read_bytes()
+
+        rejected = self.run_solver(validation_count=0)
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn("choose a new output path/run directory", rejected.stderr)
+        self.assertEqual(self.output_path.read_bytes(), old_runtime)
+        self.assertEqual(self.report_path.read_bytes(), old_report)
+
+    def test_report_only_from_failed_validation_blocks_reuse(self):
+        first = self.run_solver(validation_shift=100.0)
+        self.assertNotEqual(first.returncode, 0)
         self.assertFalse(self.output_path.exists())
-        report = json.loads(self.report_path.read_text(encoding="utf-8"))
-        self.assertFalse(report["validation_passed"])
-        self.assertGreater(report["validation"]["p95_px"], 20.0)
+        old_report = self.report_path.read_bytes()
 
-    def test_invalid_session_after_success_removes_stale_runtime_and_report(self):
-        first = self.run_solver()
-        self.assertEqual(first.returncode, 0, first.stderr)
-        stale_report = self.report_path.read_bytes()
-
-        failed = self.run_solver(validation_count=0)
-        self.assertNotEqual(failed.returncode, 0)
-        self.assertIn("at least one validation", failed.stderr)
+        rejected = self.run_solver(validation_count=0)
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn("choose a new output path/run directory", rejected.stderr)
         self.assertFalse(self.output_path.exists())
-        self.assertFalse(self.report_path.exists())
-        self.assertFalse(list(self.path.glob(".*.quarantine-*")))
-        self.assertTrue(stale_report)
-        self.assertEqual(self.session_path.read_bytes(), self.session_bytes)
-        self.assertTrue(self.intrinsics_path.exists())
+        self.assertEqual(self.report_path.read_bytes(), old_report)
 
-    def test_read_only_report_never_leaves_only_one_old_official_artifact(self):
+    def test_help_requires_a_new_output_path(self):
+        result = subprocess.run(
+            [sys.executable, str(SOLVER), "--help"], cwd=ROOT,
+            capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("new output path/run directory", result.stdout)
+
+    def test_read_only_report_rejects_and_preserves_old_pair(self):
         first = self.run_solver()
         self.assertEqual(first.returncode, 0, first.stderr)
         old_runtime = self.output_path.read_bytes()
@@ -155,162 +170,152 @@ class CalibrateRadarCameraTests(unittest.TestCase):
 
         self.addCleanup(restore_writable)
         os.chmod(self.report_path, stat.S_IREAD)
-        failed = self.run_solver(validation_count=0)
-        self.assertNotEqual(failed.returncode, 0)
-
-        official = (self.output_path.exists(), self.report_path.exists())
-        self.assertIn(official, ((True, True), (False, False)))
-        if official == (True, True):
-            self.assertEqual(self.output_path.read_bytes(), old_runtime)
-            self.assertEqual(self.report_path.read_bytes(), old_report)
-        else:
-            quarantines = list(self.path.glob(".*.quarantine-*"))
-            self.assertTrue(any(path.read_bytes() == old_report for path in quarantines))
-
-    def test_report_rename_failure_rolls_back_runtime_quarantine(self):
-        from tools.fusion.calibrate_radar_camera import main
-
-        first = self.run_solver()
-        self.assertEqual(first.returncode, 0, first.stderr)
-        old_runtime = self.output_path.read_bytes()
-        old_report = self.report_path.read_bytes()
-        session = json.loads(self.session_path.read_text(encoding="utf-8"))
-        session["samples"] = [sample for sample in session["samples"] if sample["set"] == "fit"]
-        self.session_path.write_text(json.dumps(session), encoding="utf-8")
-        argv = [str(SOLVER), str(self.session_path), str(self.intrinsics_path), str(self.output_path)]
-        original_rename = Path.rename
-
-        def fail_report_rename(path, target):
-            if path == self.report_path:
-                raise PermissionError("synthetic locked report")
-            return original_rename(path, target)
-
-        with mock.patch.object(sys, "argv", argv), mock.patch.object(Path, "rename", fail_report_rename):
-            with self.assertRaisesRegex(SystemExit, "quarantine report"):
-                main()
-
+        rejected = self.run_solver(validation_count=0)
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn("choose a new output path/run directory", rejected.stderr)
         self.assertEqual(self.output_path.read_bytes(), old_runtime)
         self.assertEqual(self.report_path.read_bytes(), old_report)
-        self.assertFalse(list(self.path.glob(".*.quarantine-*")))
-
-    def test_quarantine_delete_failure_leaves_no_stale_official_paths(self):
-        from tools.fusion.calibrate_radar_camera import main
-
-        first = self.run_solver()
-        self.assertEqual(first.returncode, 0, first.stderr)
-        old_report = self.report_path.read_bytes()
-        argv = [str(SOLVER), str(self.session_path), str(self.intrinsics_path), str(self.output_path)]
-        original_unlink = Path.unlink
-
-        def fail_report_quarantine_delete(path, *args, **kwargs):
-            if path.name.startswith(f".{self.report_path.name}.quarantine-"):
-                raise PermissionError("synthetic read-only quarantine")
-            return original_unlink(path, *args, **kwargs)
-
-        with mock.patch.object(sys, "argv", argv), mock.patch.object(
-            Path, "unlink", fail_report_quarantine_delete
-        ), self.assertRaisesRegex(SystemExit, "delete solver quarantine"):
-            main()
-
-        self.assertFalse(self.output_path.exists())
-        self.assertFalse(self.report_path.exists())
-        quarantines = list(self.path.glob(".*.quarantine-*"))
-        self.assertEqual(len(quarantines), 1)
-        self.assertEqual(quarantines[0].read_bytes(), old_report)
 
     def test_unrelated_output_is_preserved_before_invalid_session(self):
         output_path = self.path / "operator_notes.txt"
         notes = b"keep these operator notes"
         output_path.write_bytes(notes)
 
-        failed = self.run_solver(validation_count=0, output_path=output_path)
-        self.assertNotEqual(failed.returncode, 0)
-        self.assertIn("unsafe existing output", failed.stderr)
+        rejected = self.run_solver(validation_count=0, output_path=output_path)
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn("output path already exists", rejected.stderr)
         self.assertEqual(output_path.read_bytes(), notes)
         self.assertFalse(output_path.with_suffix(".report.json").exists())
         self.assertEqual(self.session_path.read_bytes(), self.session_bytes)
 
-    def test_directory_output_preserves_recognized_old_report(self):
+    def test_output_hard_link_to_unrelated_file_is_preserved(self):
+        target = self.path / "operator_notes.json"
+        notes = b'{"operator_note":"keep"}'
+        target.write_bytes(notes)
+        self.hard_link_or_skip(target, self.output_path)
+
+        rejected = self.run_solver(validation_count=0)
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn("output path already exists", rejected.stderr)
+        self.assertEqual(self.output_path.read_bytes(), notes)
+        self.assertEqual(target.read_bytes(), notes)
+        self.assertFalse(self.report_path.exists())
+
+    def test_directory_output_preserves_old_report(self):
         first = self.run_solver()
         self.assertEqual(first.returncode, 0, first.stderr)
         old_report = self.report_path.read_bytes()
         self.output_path.unlink()
         self.output_path.mkdir()
 
-        failed = self.run_solver(validation_count=0)
-        self.assertNotEqual(failed.returncode, 0)
-        self.assertIn("unsafe existing output", failed.stderr)
+        rejected = self.run_solver(validation_count=0)
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn("output path already exists", rejected.stderr)
         self.assertTrue(self.output_path.is_dir())
         self.assertEqual(self.report_path.read_bytes(), old_report)
 
-    def test_unrelated_report_preserves_recognized_old_runtime(self):
+    def test_directory_report_blocks_fresh_output(self):
+        self.report_path.mkdir()
+        rejected = self.run_solver(validation_count=0)
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn("report path already exists", rejected.stderr)
+        self.assertFalse(self.output_path.exists())
+        self.assertTrue(self.report_path.is_dir())
+
+    def test_output_symlink_to_unrelated_file_is_preserved(self):
+        target = self.path / "operator_notes.json"
+        notes = b'{"operator_note":"keep"}'
+        target.write_bytes(notes)
+        self.symlink_or_skip(target, self.output_path)
+
+        rejected = self.run_solver(validation_count=0)
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn("output path already exists", rejected.stderr)
+        self.assertTrue(self.output_path.is_symlink())
+        self.assertEqual(target.read_bytes(), notes)
+        self.assertFalse(self.report_path.exists())
+
+    def test_broken_report_symlink_blocks_fresh_output(self):
+        self.symlink_or_skip(self.path / "missing-report.json", self.report_path)
+        self.assertFalse(self.report_path.exists())
+
+        rejected = self.run_solver(validation_count=0)
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn("report path already exists", rejected.stderr)
+        self.assertTrue(self.report_path.is_symlink())
+        self.assertFalse(self.output_path.exists())
+
+    def test_broken_report_symlink_check_precedes_invalid_session(self):
+        from tools.fusion.calibrate_radar_camera import main
+
+        self.run_solver(validation_count=0, output_path=self.path / "setup.json")
+        argv = [str(SOLVER), str(self.session_path), str(self.intrinsics_path), str(self.output_path)]
+        original_is_symlink = Path.is_symlink
+
+        def simulate_broken_report_link(path):
+            return path == self.report_path or original_is_symlink(path)
+
+        with mock.patch.object(sys, "argv", argv), mock.patch.object(
+            Path, "is_symlink", simulate_broken_report_link
+        ), self.assertRaisesRegex(SystemExit, "report path already exists"):
+            main()
+
+        self.assertFalse(self.output_path.exists())
+        self.assertFalse(self.report_path.exists())
+
+    def test_unrelated_report_preserves_old_runtime(self):
         first = self.run_solver()
         self.assertEqual(first.returncode, 0, first.stderr)
         old_runtime = self.output_path.read_bytes()
         unrelated = b'{"note":"not a calibration report"}'
         self.report_path.write_bytes(unrelated)
 
-        failed = self.run_solver(validation_count=0)
-        self.assertNotEqual(failed.returncode, 0)
-        self.assertIn("unsafe existing report", failed.stderr)
+        rejected = self.run_solver(validation_count=0)
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn("choose a new output path/run directory", rejected.stderr)
         self.assertEqual(self.output_path.read_bytes(), old_runtime)
         self.assertEqual(self.report_path.read_bytes(), unrelated)
 
-    def test_malformed_output_preserves_recognized_old_report(self):
+    def test_malformed_output_preserves_old_report(self):
         first = self.run_solver()
         self.assertEqual(first.returncode, 0, first.stderr)
         old_report = self.report_path.read_bytes()
         malformed = b"{bad json"
         self.output_path.write_bytes(malformed)
 
-        failed = self.run_solver(validation_count=0)
-        self.assertNotEqual(failed.returncode, 0)
-        self.assertIn("unsafe existing output", failed.stderr)
+        rejected = self.run_solver(validation_count=0)
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn("output path already exists", rejected.stderr)
         self.assertEqual(self.output_path.read_bytes(), malformed)
         self.assertEqual(self.report_path.read_bytes(), old_report)
 
-    def test_unknown_json_output_preserves_recognized_old_report(self):
+    def test_unknown_json_output_preserves_old_report(self):
         first = self.run_solver()
         self.assertEqual(first.returncode, 0, first.stderr)
         old_report = self.report_path.read_bytes()
         unrelated = b'{"schema_version":1,"operator_note":"keep"}'
         self.output_path.write_bytes(unrelated)
 
-        failed = self.run_solver(validation_count=0)
-        self.assertNotEqual(failed.returncode, 0)
-        self.assertIn("unsafe existing output", failed.stderr)
+        rejected = self.run_solver(validation_count=0)
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn("output path already exists", rejected.stderr)
         self.assertEqual(self.output_path.read_bytes(), unrelated)
         self.assertEqual(self.report_path.read_bytes(), old_report)
 
-    def test_malformed_report_preserves_recognized_old_runtime(self):
+    def test_malformed_report_preserves_old_runtime(self):
         first = self.run_solver()
         self.assertEqual(first.returncode, 0, first.stderr)
         old_runtime = self.output_path.read_bytes()
         malformed = b"{bad json"
         self.report_path.write_bytes(malformed)
 
-        failed = self.run_solver(validation_count=0)
-        self.assertNotEqual(failed.returncode, 0)
-        self.assertIn("unsafe existing report", failed.stderr)
+        rejected = self.run_solver(validation_count=0)
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn("choose a new output path/run directory", rejected.stderr)
         self.assertEqual(self.output_path.read_bytes(), old_runtime)
         self.assertEqual(self.report_path.read_bytes(), malformed)
 
-    def test_recognized_failed_validation_report_is_removed_before_invalid_session(self):
-        first = self.run_solver(validation_shift=100.0)
-        self.assertNotEqual(first.returncode, 0)
-        self.assertFalse(self.output_path.exists())
-        self.assertTrue(self.report_path.exists())
-
-        failed = self.run_solver(validation_count=0)
-        self.assertNotEqual(failed.returncode, 0)
-        self.assertIn("at least one validation", failed.stderr)
-        self.assertFalse(self.output_path.exists())
-        self.assertFalse(self.report_path.exists())
-
-    def test_bad_intrinsics_after_success_removes_stale_runtime_and_report(self):
-        first = self.run_solver()
-        self.assertEqual(first.returncode, 0, first.stderr)
-
+    def test_bad_intrinsics_on_fresh_paths_leaves_no_products(self):
         bad_intrinsics = b"{bad json"
         failed = self.run_solver(before_run=lambda: self.intrinsics_path.write_bytes(bad_intrinsics))
         self.assertNotEqual(failed.returncode, 0)
@@ -319,10 +324,7 @@ class CalibrateRadarCameraTests(unittest.TestCase):
         self.assertEqual(self.intrinsics_path.read_bytes(), bad_intrinsics)
         self.assertEqual(self.session_path.read_bytes(), self.session_bytes)
 
-    def test_size_mismatch_after_success_removes_stale_runtime_and_report(self):
-        first = self.run_solver()
-        self.assertEqual(first.returncode, 0, first.stderr)
-
+    def test_size_mismatch_on_fresh_paths_leaves_no_products(self):
         def mismatch():
             source = json.loads(self.intrinsics_path.read_text(encoding="utf-8"))
             source["image_size"] = [640, 480]
@@ -336,12 +338,12 @@ class CalibrateRadarCameraTests(unittest.TestCase):
         self.assertEqual(json.loads(self.intrinsics_path.read_text(encoding="utf-8"))["image_size"], [640, 480])
         self.assertEqual(self.session_path.read_bytes(), self.session_bytes)
 
-    def test_solve_error_after_success_removes_stale_runtime_and_report(self):
+    def test_solve_error_on_fresh_paths_leaves_no_products(self):
         import cv2
         from tools.fusion.calibrate_radar_camera import main
 
-        first = self.run_solver()
-        self.assertEqual(first.returncode, 0, first.stderr)
+        prepared = self.run_solver(output_path=self.path / "setup.json")
+        self.assertEqual(prepared.returncode, 0, prepared.stderr)
         argv = [str(SOLVER), str(self.session_path), str(self.intrinsics_path), str(self.output_path)]
 
         with mock.patch.object(sys, "argv", argv), mock.patch.object(
