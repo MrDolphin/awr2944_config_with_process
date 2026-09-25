@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from tools.fusion.calibration import load_calibration
 
@@ -34,7 +35,9 @@ def sample(point, set_name, index, *, pixel_shift=0.0, rotation=IDENTITY):
     v = INTRINSICS["fy"] * camera_point[1] / camera_point[2] + INTRINSICS["cy"]
     return {
         "id": f"{set_name}-{index}", "set": set_name,
-        "radar": {"frame_num": index + 1, "point_index": index, "x": x, "y": y, "z": z},
+        "radar": {"frame_num": index + (1 if set_name == "fit" else 101),
+                  "point_index": index + (0 if set_name == "fit" else 100),
+                  "x": x, "y": y, "z": z},
         "camera": {"frame_id": f"camera-{index}", "u": u, "v": v},
         "sync_offset_ms": 0.5, "timestamp": "2026-09-23T00:00:00Z",
     }
@@ -122,6 +125,67 @@ class CalibrateRadarCameraTests(unittest.TestCase):
         report = json.loads(self.report_path.read_text(encoding="utf-8"))
         self.assertFalse(report["validation_passed"])
         self.assertGreater(report["validation"]["p95_px"], 20.0)
+
+    def test_invalid_session_after_success_removes_stale_runtime_and_report(self):
+        first = self.run_solver()
+        self.assertEqual(first.returncode, 0, first.stderr)
+        stale_report = self.report_path.read_bytes()
+
+        failed = self.run_solver(validation_count=0)
+        self.assertNotEqual(failed.returncode, 0)
+        self.assertIn("at least one validation", failed.stderr)
+        self.assertFalse(self.output_path.exists())
+        self.assertFalse(self.report_path.exists())
+        self.assertTrue(stale_report)
+        self.assertEqual(self.session_path.read_bytes(), self.session_bytes)
+        self.assertTrue(self.intrinsics_path.exists())
+
+    def test_bad_intrinsics_after_success_removes_stale_runtime_and_report(self):
+        first = self.run_solver()
+        self.assertEqual(first.returncode, 0, first.stderr)
+
+        bad_intrinsics = b"{bad json"
+        failed = self.run_solver(before_run=lambda: self.intrinsics_path.write_bytes(bad_intrinsics))
+        self.assertNotEqual(failed.returncode, 0)
+        self.assertFalse(self.output_path.exists())
+        self.assertFalse(self.report_path.exists())
+        self.assertEqual(self.intrinsics_path.read_bytes(), bad_intrinsics)
+        self.assertEqual(self.session_path.read_bytes(), self.session_bytes)
+
+    def test_size_mismatch_after_success_removes_stale_runtime_and_report(self):
+        first = self.run_solver()
+        self.assertEqual(first.returncode, 0, first.stderr)
+
+        def mismatch():
+            source = json.loads(self.intrinsics_path.read_text(encoding="utf-8"))
+            source["image_size"] = [640, 480]
+            self.intrinsics_path.write_text(json.dumps(source), encoding="utf-8")
+
+        failed = self.run_solver(before_run=mismatch)
+        self.assertNotEqual(failed.returncode, 0)
+        self.assertIn("image size differs", failed.stderr)
+        self.assertFalse(self.output_path.exists())
+        self.assertFalse(self.report_path.exists())
+        self.assertEqual(json.loads(self.intrinsics_path.read_text(encoding="utf-8"))["image_size"], [640, 480])
+        self.assertEqual(self.session_path.read_bytes(), self.session_bytes)
+
+    def test_solve_error_after_success_removes_stale_runtime_and_report(self):
+        import cv2
+        from tools.fusion.calibrate_radar_camera import main
+
+        first = self.run_solver()
+        self.assertEqual(first.returncode, 0, first.stderr)
+        argv = [str(SOLVER), str(self.session_path), str(self.intrinsics_path), str(self.output_path)]
+
+        with mock.patch.object(sys, "argv", argv), mock.patch.object(
+            cv2, "solvePnP", side_effect=cv2.error("synthetic solve failure")
+        ), self.assertRaisesRegex(cv2.error, "synthetic solve failure"):
+            main()
+
+        self.assertFalse(self.output_path.exists())
+        self.assertFalse(self.report_path.exists())
+        self.assertEqual(self.session_path.read_bytes(), self.session_bytes)
+        self.assertTrue(self.intrinsics_path.exists())
 
     def test_failed_validation_rejects_output_aliasing_session(self):
         result = self.run_solver(validation_shift=100.0, output_path=self.session_path)

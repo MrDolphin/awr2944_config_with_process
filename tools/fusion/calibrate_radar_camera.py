@@ -60,6 +60,9 @@ def main():
     ):
         raise SystemExit("output and report paths alias each other")
 
+    args.output.unlink(missing_ok=True)
+    report_path.unlink(missing_ok=True)
+
     try:
         session = load_session(args.session)
     except SessionError as error:
@@ -121,7 +124,6 @@ def main():
     }
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     if not passed:
-        args.output.unlink(missing_ok=True)
         raise SystemExit("independent validation failed: median must be <= 8 px and P95 <= 20 px")
 
     result = {

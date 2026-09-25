@@ -88,6 +88,12 @@ def _optional_vector(source: Mapping[str, Any], keys: Sequence[str], where: str)
     return tuple(_finite(source[key], f"{where}.{key}") for key in keys)
 
 
+def _frame_identity(frame: int | str) -> str:
+    """Treat numeric frame identifiers consistently across JSON string/int edits."""
+    value = str(frame).strip()
+    return (value.lstrip("0") or "0") if value.isascii() and value.isdecimal() else value
+
+
 def load_session(path: Path) -> CalibrationSession:
     """Load and validate a schema 1 calibration session JSON document."""
     try:
@@ -151,6 +157,28 @@ def load_session(path: Path) -> CalibrationSession:
         raise SessionError("at least six fit samples are required")
     if validation_count < 1:
         raise SessionError("at least one validation sample is required")
+
+    fit_radar = {
+        (_frame_identity(sample.radar_frame_num), sample.radar_point_index)
+        for sample in samples if sample.set_name == "fit"
+    }
+    fit_pairs = {
+        (sample.x, sample.y, sample.z, sample.u, sample.v)
+        for sample in samples if sample.set_name == "fit"
+    }
+    for sample in samples:
+        if sample.set_name != "validation":
+            continue
+        radar_key = (_frame_identity(sample.radar_frame_num), sample.radar_point_index)
+        if radar_key in fit_radar:
+            raise SessionError(
+                f"fit and validation samples reuse radar frame and point_index: {sample.sample_id}"
+            )
+        pair_key = (sample.x, sample.y, sample.z, sample.u, sample.v)
+        if pair_key in fit_pairs:
+            raise SessionError(
+                f"fit and validation samples reuse exact point and camera pairing: {sample.sample_id}"
+            )
 
     raw_mount = root.get("mount_measurement")
     mount = None

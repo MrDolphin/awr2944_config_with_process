@@ -15,12 +15,13 @@ def write_session(*, fit_count=6, validation_count=1, mount_dz=-0.10, **changes)
     samples = []
     for set_name, count in (("fit", fit_count), ("validation", validation_count)):
         for index in range(count):
+            sample_index = index if set_name == "fit" else index + 100
             samples.append({
                 "id": f"{set_name}-{index}",
                 "set": set_name,
-                "radar": {"frame_num": index + 1, "point_index": index,
-                          "x": float(index), "y": 2.0, "z": 3.0},
-                "camera": {"frame_id": f"camera-{index}", "u": 100.0, "v": 200.0},
+                "radar": {"frame_num": sample_index + 1, "point_index": sample_index,
+                          "x": float(sample_index), "y": 2.0, "z": 3.0},
+                "camera": {"frame_id": f"camera-{sample_index}", "u": 100.0 + sample_index, "v": 200.0},
                 "sync_offset_ms": 0.5,
                 "timestamp": "2026-09-23T00:00:00Z",
             })
@@ -71,6 +72,58 @@ class CalibrationSessionTests(unittest.TestCase):
         self.paths.append(path)
         with self.assertRaisesRegex(SessionError, "finite"):
             load_session(path)
+
+    def test_validation_rejects_reused_radar_frame_and_point_despite_edited_values(self):
+        path = write_session()
+        self.paths = [path]
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        fit, validation = payload["samples"][0], payload["samples"][-1]
+        validation["radar"]["frame_num"] = fit["radar"]["frame_num"]
+        validation["radar"]["point_index"] = fit["radar"]["point_index"]
+        validation["radar"]["x"] += 0.01
+        validation["camera"]["u"] += 0.01
+        path.write_text(json.dumps(payload), encoding="utf-8")
+
+        with self.assertRaisesRegex(SessionError, "fit.*validation.*radar frame.*point_index"):
+            load_session(path)
+
+    def test_validation_rejects_numeric_string_alias_of_fit_frame(self):
+        path = write_session()
+        self.paths = [path]
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        fit, validation = payload["samples"][0], payload["samples"][-1]
+        validation["radar"]["frame_num"] = f"00{fit['radar']['frame_num']}"
+        validation["radar"]["point_index"] = fit["radar"]["point_index"]
+        path.write_text(json.dumps(payload), encoding="utf-8")
+
+        with self.assertRaisesRegex(SessionError, "fit.*validation.*radar frame.*point_index"):
+            load_session(path)
+
+    def test_validation_rejects_reused_point_and_pixel_despite_edited_ids(self):
+        path = write_session()
+        self.paths = [path]
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        fit, validation = payload["samples"][0], payload["samples"][-1]
+        for field in ("x", "y", "z"):
+            validation["radar"][field] = fit["radar"][field]
+        for field in ("u", "v"):
+            validation["camera"][field] = fit["camera"][field]
+        path.write_text(json.dumps(payload), encoding="utf-8")
+
+        with self.assertRaisesRegex(SessionError, "fit.*validation.*point.*camera"):
+            load_session(path)
+
+    def test_distinct_samples_can_share_frame_or_point_with_different_correspondence(self):
+        path = write_session()
+        self.paths = [path]
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        fit, validation = payload["samples"][0], payload["samples"][-1]
+        validation["radar"]["frame_num"] = fit["radar"]["frame_num"]
+        validation["radar"]["point_index"] = fit["radar"]["point_index"] + 1
+        validation["radar"]["x"] = fit["radar"]["x"]
+        path.write_text(json.dumps(payload), encoding="utf-8")
+
+        self.assertEqual(len(load_session(path).validation_pairs()), 1)
 
     def test_session_rejects_schema_dimensions_fit_count_and_identifiers(self):
         for changes, message in (
