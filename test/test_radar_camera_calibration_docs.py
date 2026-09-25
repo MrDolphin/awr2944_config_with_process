@@ -40,7 +40,8 @@ class RadarCameraCalibrationDocsTests(unittest.TestCase):
             "Get-FileHash -Algorithm SHA256 $output", "$runId = Get-Date",
             "New-Item -ItemType Directory", "只审阅本次 `$runDir`",
             "不得读取其他运行目录中的旧文件", "都必须不存在",
-            "不会覆盖或清理任何已有路径",
+            "不会覆盖或清理任何已有路径", "verify_completion",
+            "$verifyExit", "calibration_candidate.complete.json", "artifact_id",
         ):
             with self.subTest(required=required):
                 self.assertIn(required, text)
@@ -56,7 +57,8 @@ class RadarCameraCalibrationDocsTests(unittest.TestCase):
             "内参路径", "内参 SHA-256", "fit 样本数", "validation 样本数",
             "fit RMS", "validation median_px", "validation p95_px",
             "camera_center_in_radar_m", "residual_m", ".report.json",
-            "标定 JSON SHA-256", "部署提交", "部署校验和",
+            "标定 JSON SHA-256", ".complete.json", "verify_completion",
+            "部署提交", "部署校验和",
         ):
             with self.subTest(required=required):
                 self.assertIn(required, section)
