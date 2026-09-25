@@ -1,6 +1,8 @@
 import base64
 import json
+import struct
 import unittest
+import zlib
 from pathlib import Path
 
 from tools.fusion.calibration_session import load_session
@@ -16,6 +18,15 @@ CHROME_EXECUTABLE = Path(r"C:\Program Files\Google\Chrome\Application\chrome.exe
 CAMERA_IMAGE = base64.b64decode(
     "R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
 )
+
+
+def camera_png(width, height):
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+
+    rows = (b"\x00" + b"\x30\x60\x90" * width) * height
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">2I5B", width, height, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(rows)) + chunk(b"IEND", b""))
 
 
 class RadarAppMarkupTests(unittest.TestCase):
@@ -194,9 +205,9 @@ class RadarAppTests(unittest.TestCase):
                 "http://synthetic-camera/**",
                 lambda route: route.fulfill(
                     status=200,
-                    body=CAMERA_IMAGE,
+                    body=camera_png(1280, 720),
                     headers={
-                        "content-type": "image/gif",
+                        "content-type": "image/png",
                         "access-control-allow-origin": "*",
                         "access-control-expose-headers": "X-Camera-Frame-Id",
                         "X-Camera-Frame-Id": "7",
@@ -238,12 +249,157 @@ class RadarAppTests(unittest.TestCase):
             self.assertTrue(page.evaluate("canvas.toDataURL() === window.frozenPpiDataUrl"))
             self.assertEqual(page.evaluate("calibrationSnapshot.radarFrameNum"), 88)
             saved = page.evaluate("calibrationSession.samples[0]")
-            self.assertEqual(saved["radar"], {"frame_num": 88, "point_index": 0,
-                                               "x": 1, "y": 2, "z": 0.3})
+            self.assertEqual(saved["radar"]["frame_num"], 88)
+            self.assertEqual(saved["radar"]["point_index"], 0)
+            self.assertEqual([saved["radar"][axis] for axis in ("x", "y", "z")], [1, 2, 0.3])
             self.assertEqual(saved["camera"], {"frame_id": 7, "u": 640, "v": 360})
             self.assertEqual(saved["set"], "fit")
             self.assertEqual(saved["sync_offset_ms"], 12)
             self.assertEqual(page.evaluate("displayedCameraFrameId"), 7)
+            browser.close()
+
+    def test_calibration_uses_native_640_by_480_pixels_through_scaled_display_and_export(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900}, accept_downloads=True)
+            page.route("http://synthetic-camera/**", lambda route: route.fulfill(
+                status=200, body=camera_png(640, 480), headers={
+                    "content-type": "image/png", "access-control-allow-origin": "*",
+                    "access-control-expose-headers": "X-Camera-Frame-Id", "X-Camera-Frame-Id": "7"}))
+            page.goto(page_url, wait_until="networkidle")
+            page.evaluate("""renderRadarFrame({frame_num: 88, points: [{x: 1, y: 2, z: 0.3}],
+                camera_sync: {status: 'matched', frame_id: 7,
+                    frame_url: 'http://synthetic-camera/camera/frame/7.jpg', time_offset_ms: 12}})""")
+            page.wait_for_function("displayedCameraFrameId === 7")
+            display = page.evaluate("""() => {
+                document.getElementById('cameraOverlayEnabled').checked = true;
+                drawCameraProjection({status: 'valid', points: [{u: 320, v: 240}]});
+                const rect = cameraCanvas.getBoundingClientRect();
+                return {image: [cameraCanvas.width, cameraCanvas.height],
+                    overlay: [cameraOverlayCanvas.width, cameraOverlayCanvas.height],
+                    displayRatio: rect.width / rect.height,
+                    projectedAlpha: cameraOverlayCtx.getImageData(320, 240, 1, 1).data[3]};
+            }""")
+            self.assertEqual(display["image"], [640, 480])
+            self.assertEqual(display["overlay"], [640, 480])
+            self.assertAlmostEqual(display["displayRatio"], 4 / 3, places=2)
+            self.assertGreater(display["projectedAlpha"], 0)
+            self.assertTrue(page.evaluate("freezeCalibrationSnapshot()"))
+            picked = page.evaluate("""() => {
+                selectCalibrationRadarPoint(calibrationSnapshot.rawPoints[0], 0);
+                const rect = cameraCanvas.getBoundingClientRect();
+                selectCalibrationImagePixel({clientX: rect.left + rect.width / 4,
+                    clientY: rect.top + rect.height / 2});
+                return {snapshotSize: calibrationSnapshot.cameraImageSize,
+                    pixel: calibrationImageSelection};
+            }""")
+            self.assertEqual(picked, {"snapshotSize": [640, 480], "pixel": {"u": 160, "v": 240}})
+            self.assertTrue(page.evaluate("saveCalibrationSample()"))
+            with page.expect_download() as download_info:
+                self.assertTrue(page.evaluate("downloadCalibrationSession()"))
+            exported = json.loads(Path(download_info.value.path()).read_text(encoding="utf-8"))
+            self.assertEqual(exported["camera_image_size"], [640, 480])
+            self.assertEqual(exported["samples"][0]["camera"], {"frame_id": 7, "u": 160, "v": 240})
+            browser.close()
+
+    def test_calibration_raw_point_details_are_visible_and_exported_without_invented_values(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(accept_downloads=True)
+            page.goto(page_url, wait_until="networkidle")
+            details = page.evaluate("""() => {
+                const ppiPixels = document.createElement('canvas');
+                ppiPixels.width = canvas.width; ppiPixels.height = canvas.height;
+                calibrationSnapshot = {radarFrameNum: 88, cameraFrameId: 7,
+                    cameraImageSize: [1280, 720], syncOffsetMs: 12,
+                    timestamp: '2026-09-23T00:00:00Z', ppiPixels,
+                    rawPoints: [{x: 3, y: 4, z: 12, v: 0, snr: 18.5, noise: 7.2}],
+                    pointPixels: [{px: 400, py: 300}]};
+                selectCalibrationRadarPoint(calibrationSnapshot.rawPoints[0], 0);
+                return document.getElementById('calibrationStatus').textContent;
+            }""")
+            for marker in ("x=3", "y=4", "z=12", "13", "v=0", "SNR 18.5", "Noise 7.2"):
+                self.assertIn(marker, details)
+            self.assertIn("x=3", page.locator("#calibrationPointSelection").inner_text())
+            page.evaluate("""() => {
+                const rect = cameraCanvas.getBoundingClientRect();
+                selectCalibrationImagePixel({clientX: rect.left + rect.width / 2,
+                    clientY: rect.top + rect.height / 2});
+            }""")
+            self.assertIn("x=3", page.locator("#calibrationStatus").inner_text())
+            self.assertTrue(page.evaluate("saveCalibrationSample()"))
+            table = page.locator("#calibrationSampleList").inner_text()
+            for marker in ("3", "4", "12", "13", "18.5", "7.2"):
+                self.assertIn(marker, table)
+            page.evaluate("""() => {
+                calibrationSnapshot.radarFrameNum = 89;
+                calibrationSnapshot.cameraFrameId = 8;
+                calibrationSnapshot.rawPoints = [{x: 1, y: 2, z: 0}];
+                selectCalibrationRadarPoint(calibrationSnapshot.rawPoints[0], 0);
+                calibrationImageSelection = {u: 641, v: 360};
+            }""")
+            self.assertTrue(page.evaluate("saveCalibrationSample()"))
+            page.evaluate("""() => {
+                const template = calibrationSession.samples[0];
+                for (let index = 2; index < 7; index++) {
+                    calibrationSession.samples.push({
+                        ...template, id: `audit-fixture-${index}`,
+                        set: index === 6 ? 'validation' : 'fit',
+                        radar: {...template.radar, frame_num: 88 + index,
+                            point_index: index, raw_index: index, x: 10 + index},
+                        camera: {...template.camera, frame_id: 7 + index, u: 100 + index}
+                    });
+                }
+            }""")
+            with page.expect_download() as download_info:
+                self.assertTrue(page.evaluate("downloadCalibrationSession()"))
+            exported = json.loads(Path(download_info.value.path()).read_text(encoding="utf-8"))
+            self.assertEqual(len(load_session(Path(download_info.value.path())).samples), 7)
+            radar = exported["samples"][0]["radar"]
+            self.assertEqual(radar, {"frame_num": 88, "point_index": 0, "raw_index": 0,
+                                     "x": 3, "y": 4, "z": 12, "range_m": 13,
+                                     "velocity_mps": 0, "snr": 18.5, "noise": 7.2})
+            missing = exported["samples"][1]["radar"]
+            self.assertEqual(missing["frame_num"], 89)
+            self.assertEqual(missing["point_index"], 0)
+            self.assertIsNone(missing["velocity_mps"])
+            self.assertIsNone(missing["snr"])
+            self.assertIsNone(missing["noise"])
+            browser.close()
+
+    def test_calibration_session_rejects_mixed_native_image_sizes(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page()
+            page.goto(page_url, wait_until="networkidle")
+            result = page.evaluate("""() => {
+                const ppiPixels = document.createElement('canvas');
+                ppiPixels.width = canvas.width; ppiPixels.height = canvas.height;
+                calibrationSnapshot = {radarFrameNum: 88, cameraFrameId: 7,
+                    cameraImageSize: [640, 480], syncOffsetMs: 12,
+                    timestamp: '2026-09-23T00:00:00Z', ppiPixels,
+                    rawPoints: [{x: 1, y: 2, z: 3}], pointPixels: [{px: 400, py: 300}]};
+                selectCalibrationRadarPoint(calibrationSnapshot.rawPoints[0], 0);
+                calibrationImageSelection = {u: 160, v: 240};
+                const first = saveCalibrationSample();
+                calibrationSnapshot.radarFrameNum = 89;
+                calibrationSnapshot.cameraFrameId = 8;
+                calibrationSnapshot.cameraImageSize = [1280, 720];
+                selectCalibrationRadarPoint(calibrationSnapshot.rawPoints[0], 0);
+                calibrationImageSelection = {u: 320, v: 360};
+                const second = saveCalibrationSample();
+                return {first, second, size: calibrationSession.camera_image_size,
+                    count: calibrationSession.samples.length,
+                    status: document.getElementById('calibrationStatus').textContent};
+            }""")
+            self.assertTrue(result["first"])
+            self.assertFalse(result["second"])
+            self.assertEqual(result["size"], [640, 480])
+            self.assertEqual(result["count"], 1)
+            self.assertIn("分辨率", result["status"])
             browser.close()
 
     def test_calibration_rejects_duplicate_pairs_and_requires_new_validation_frame(self):
@@ -305,8 +461,8 @@ class RadarAppTests(unittest.TestCase):
             page.evaluate("""() => {
                 calibrationSession.samples = Array.from({length: 7}, (_, index) => ({
                     id: `fixture-${index}`, set: index === 6 ? 'validation' : 'fit',
-                    radar: {frame_num: 88, point_index: index, x: 1, y: 2, z: 0.3},
-                    camera: {frame_id: 7, u: 640, v: 360},
+                    radar: {frame_num: 88 + index, point_index: index, x: 1 + index, y: 2, z: 0.3},
+                    camera: {frame_id: 7 + index, u: 640 + index, v: 360},
                     sync_offset_ms: 12, timestamp: '2026-09-23T00:00:00Z', note: ''
                 }));
             }""")

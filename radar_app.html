@@ -1266,6 +1266,7 @@
                         <button id="calibrationExportBtn" type="button">下载 JSON</button>
                     </div>
                     <div id="calibrationStatus" role="status">等待匹配的雷达与相机帧。</div>
+                    <div id="calibrationPointSelection">尚未选择雷达原始点。</div>
                     <div class="calibration-fields">
                         <label>样本集<select id="calibrationSampleSet"><option value="fit">拟合 fit</option><option value="validation">独立验证 validation</option></select></label>
                         <label>样本备注<input id="calibrationNoteInput" type="text" placeholder="反射器位置 / 环境"></label>
@@ -1333,6 +1334,23 @@
             document.getElementById('calibrationStatus').textContent = message;
         }
 
+        function optionalRadarMetric(point, key) {
+            return typeof point[key] === 'number' && Number.isFinite(point[key]) ? point[key] : null;
+        }
+
+        function calibrationPointDetails(point, rawIndex) {
+            const metric = (value, digits, unit) => value === null ? '--' : `${value.toFixed(digits)}${unit}`;
+            return `原始点 #${rawIndex}: x=${point.x.toFixed(2)} m, y=${point.y.toFixed(2)} m, ` +
+                `z=${point.z.toFixed(2)} m, range=${Math.hypot(point.x, point.y, point.z).toFixed(2)} m, ` +
+                `v=${metric(optionalRadarMetric(point, 'v'), 2, ' m/s')}, ` +
+                `SNR ${metric(optionalRadarMetric(point, 'snr'), 1, ' dB')}, ` +
+                `Noise ${metric(optionalRadarMetric(point, 'noise'), 1, ' dB')}`;
+        }
+
+        function clearCalibrationPointSelection() {
+            document.getElementById('calibrationPointSelection').textContent = '尚未选择雷达原始点。';
+        }
+
         function freezeCalibrationSnapshot() {
             const sync = lastCameraSync;
             const radar = latestCalibrationRadarFrame;
@@ -1347,6 +1365,17 @@
                 setCalibrationStatus('无法冻结：需要当前雷达帧与已绘制的同 ID 匹配相机帧。');
                 return false;
             }
+            const imageSize = displayedCameraMetadata && displayedCameraMetadata.imageSize;
+            if (!imageSize || imageSize[0] !== cameraCanvas.width || imageSize[1] !== cameraCanvas.height) {
+                setCalibrationStatus('无法冻结：相机源图像尺寸与画布不一致。');
+                return false;
+            }
+            if (calibrationSession.samples.length &&
+                (calibrationSession.camera_image_size[0] !== imageSize[0] ||
+                    calibrationSession.camera_image_size[1] !== imageSize[1])) {
+                setCalibrationStatus('无法冻结：当前相机分辨率与已保存样本不同；请完成当前会话后再采集。');
+                return false;
+            }
             const points = Array.isArray(radar.points) ? JSON.parse(JSON.stringify(radar.points)) : [];
             const cameraPixels = document.createElement('canvas');
             cameraPixels.width = cameraCanvas.width;
@@ -1359,7 +1388,7 @@
             calibrationSnapshot = {
                 radarFrameNum: radar.frame_num,
                 cameraFrameId: matchedId,
-                cameraImageSize: [cameraCanvas.width, cameraCanvas.height],
+                cameraImageSize: [...imageSize],
                 syncOffsetMs: offset,
                 captureMonotonicNs: displayedCameraMetadata && displayedCameraMetadata.captureMonotonicNs,
                 captureWallTimeNs: displayedCameraMetadata && displayedCameraMetadata.captureWallTimeNs,
@@ -1372,6 +1401,8 @@
             };
             calibrationRadarSelection = null;
             calibrationImageSelection = null;
+            clearCalibrationPointSelection();
+            if (!calibrationSession.samples.length) calibrationSession.camera_image_size = [...imageSize];
             document.getElementById('calibrationFreezeBtn').textContent = '继续实时画面';
             setCalibrationStatus(`已冻结雷达 #${radar.frame_num} / 相机 #${matchedId}；选择原始点和像素。`);
             drawCameraProjection(lastCameraProjection);
@@ -1383,6 +1414,7 @@
             calibrationSnapshot = null;
             calibrationRadarSelection = null;
             calibrationImageSelection = null;
+            clearCalibrationPointSelection();
             document.getElementById('calibrationFreezeBtn').textContent = '冻结匹配帧';
             setCalibrationStatus('已恢复实时画面。等待下一组匹配帧。');
             if (lastCameraSync) requestCameraFrame(lastCameraSync);
@@ -1393,7 +1425,9 @@
             const raw = calibrationSnapshot.rawPoints[rawIndex];
             if (!raw || raw !== point || ![raw.x, raw.y, raw.z].every(Number.isFinite)) return false;
             calibrationRadarSelection = {point: {...raw}, rawIndex};
-            setCalibrationStatus(`原始点 #${rawIndex} 已选；请在冻结相机画面点选反射器中心。`);
+            const details = calibrationPointDetails(raw, rawIndex);
+            document.getElementById('calibrationPointSelection').textContent = details;
+            setCalibrationStatus(`${details}；请在冻结相机画面点选反射器中心。`);
             drawCalibrationPpi();
             return true;
         }
@@ -1432,7 +1466,9 @@
             if (!Number.isFinite(u) || !Number.isFinite(v) || u < 0 || v < 0 ||
                 u >= cameraCanvas.width || v >= cameraCanvas.height) return false;
             calibrationImageSelection = {u, v};
-            setCalibrationStatus(`相机像素 (${u.toFixed(1)}, ${v.toFixed(1)}) 已选；可以保存样本。`);
+            const details = calibrationRadarSelection
+                ? calibrationPointDetails(calibrationRadarSelection.point, calibrationRadarSelection.rawIndex) + '；' : '';
+            setCalibrationStatus(`${details}相机像素 (${u.toFixed(1)}, ${v.toFixed(1)}) 已选；可以保存样本。`);
             drawCameraProjection(lastCameraProjection);
             return true;
         }
@@ -1460,6 +1496,13 @@
             const snapshot = calibrationSnapshot;
             const point = calibrationRadarSelection.point;
             const pixel = calibrationImageSelection;
+            const imageSize = snapshot.cameraImageSize || [cameraCanvas.width, cameraCanvas.height];
+            if (calibrationSession.samples.length &&
+                (calibrationSession.camera_image_size[0] !== imageSize[0] ||
+                    calibrationSession.camera_image_size[1] !== imageSize[1])) {
+                setCalibrationStatus('无法保存：相机分辨率与已保存样本不同。');
+                return false;
+            }
             const setName = document.getElementById('calibrationSampleSet').value;
             const sameFrame = sample => String(sample.radar.frame_num) === String(snapshot.radarFrameNum) &&
                 String(sample.camera.frame_id) === String(snapshot.cameraFrameId);
@@ -1478,15 +1521,20 @@
                 id: `sample-${Date.now()}-${calibrationSession.samples.length + 1}`,
                 set: setName,
                 radar: Object.freeze({frame_num: snapshot.radarFrameNum, point_index: calibrationRadarSelection.rawIndex,
-                    x: point.x, y: point.y, z: point.z}),
+                    raw_index: calibrationRadarSelection.rawIndex, x: point.x, y: point.y, z: point.z,
+                    range_m: Math.hypot(point.x, point.y, point.z),
+                    velocity_mps: optionalRadarMetric(point, 'v'),
+                    snr: optionalRadarMetric(point, 'snr'), noise: optionalRadarMetric(point, 'noise')}),
                 camera: Object.freeze({frame_id: snapshot.cameraFrameId, u: pixel.u, v: pixel.v}),
                 sync_offset_ms: snapshot.syncOffsetMs,
                 timestamp: snapshot.timestamp,
                 note: document.getElementById('calibrationNoteInput').value.trim(),
             });
+            if (!calibrationSession.samples.length) calibrationSession.camera_image_size = [...imageSize];
             calibrationSession.samples.push(sample);
             calibrationRadarSelection = null;
             calibrationImageSelection = null;
+            clearCalibrationPointSelection();
             drawCalibrationPpi();
             drawCameraProjection(lastCameraProjection);
             renderCalibrationSamples();
@@ -1502,13 +1550,18 @@
             list.replaceChildren();
             const table = document.createElement('table');
             const header = document.createElement('tr');
-            for (const title of ['#', '集', '雷达帧/点', '相机帧', 'u,v']) {
+            for (const title of ['#', '集', '雷达帧/点', 'x/y/z (m)', 'range (m)', 'v (m/s)', 'SNR/Noise (dB)', '相机帧', 'u,v']) {
                 const cell = document.createElement('th'); cell.textContent = title; header.appendChild(cell);
             }
             table.appendChild(header);
             calibrationSession.samples.forEach((sample, index) => {
                 const row = document.createElement('tr');
-                for (const value of [index + 1, sample.set, `${sample.radar.frame_num}/${sample.radar.point_index}`,
+                const radar = sample.radar;
+                const show = (value, digits = 1) => typeof value === 'number' && Number.isFinite(value)
+                    ? value.toFixed(digits) : '--';
+                for (const value of [index + 1, sample.set, `${radar.frame_num}/${radar.point_index}`,
+                    `${show(radar.x)} / ${show(radar.y)} / ${show(radar.z)}`, show(radar.range_m),
+                    show(radar.velocity_mps), `${show(radar.snr)} / ${show(radar.noise)}`,
                     sample.camera.frame_id, `${sample.camera.u.toFixed(1)}, ${sample.camera.v.toFixed(1)}`]) {
                     const cell = document.createElement('td'); cell.textContent = value; row.appendChild(cell);
                 }
@@ -1609,16 +1662,26 @@
 
         function drawCameraFrame(frame) {
             if (calibrationSnapshot) { frame.bitmap.close(); return; }
+            const imageWidth = frame.bitmap.width;
+            const imageHeight = frame.bitmap.height;
             try {
+                if (cameraCanvas.width !== imageWidth || cameraCanvas.height !== imageHeight) {
+                    cameraCanvas.width = imageWidth;
+                    cameraCanvas.height = imageHeight;
+                    cameraOverlayCanvas.width = imageWidth;
+                    cameraOverlayCanvas.height = imageHeight;
+                }
+                cameraCanvas.parentElement.style.aspectRatio = `${imageWidth} / ${imageHeight}`;
                 cameraCtx.clearRect(0, 0, cameraCanvas.width, cameraCanvas.height);
-                cameraCtx.drawImage(frame.bitmap, 0, 0, cameraCanvas.width, cameraCanvas.height);
+                cameraCtx.drawImage(frame.bitmap, 0, 0);
             } finally {
                 frame.bitmap.close();
             }
             document.getElementById('cameraFrameId').innerText =
                 `#${Number.isFinite(frame.frameId) ? frame.frameId : '--'} / ${formatCameraWallTime(frame.captureWallTimeNs)}`;
             displayedCameraFrameId = frame.frameId;
-            displayedCameraMetadata = {captureMonotonicNs: frame.captureMonotonicNs, captureWallTimeNs: frame.captureWallTimeNs};
+            displayedCameraMetadata = {captureMonotonicNs: frame.captureMonotonicNs,
+                captureWallTimeNs: frame.captureWallTimeNs, imageSize: [imageWidth, imageHeight]};
             cameraOverlayCtx.clearRect(0, 0, cameraOverlayCanvas.width, cameraOverlayCanvas.height);
             drawCameraProjection(lastCameraProjection);
         }
