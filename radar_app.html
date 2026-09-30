@@ -529,6 +529,25 @@
         .calibration-fields label { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
         .calibration-fields input, .calibration-fields select { width: 100%; box-sizing: border-box; }
         .calibration-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 9px 0; }
+        .calibration-point-candidates {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 6px;
+            max-height: 190px;
+            margin: 8px 0;
+            overflow-y: auto;
+        }
+        .calibration-point-candidates button {
+            padding: 6px 8px;
+            text-align: left;
+            font: 11px/1.35 monospace;
+            border-color: rgba(143, 238, 255, 0.55);
+        }
+        .calibration-point-candidates button.selected {
+            color: #080c14;
+            background: #ffdf70;
+            border-color: #ffdf70;
+        }
         .calibration-samples { max-height: 160px; overflow: auto; font: 11px/1.5 monospace; }
         .calibration-samples table { width: 100%; border-collapse: collapse; }
         .calibration-samples th, .calibration-samples td { border-bottom: 1px solid rgba(53, 230, 255, 0.2); text-align: left; padding: 3px; }
@@ -1269,6 +1288,8 @@
                     </div>
                     <div id="calibrationStatus" role="status">等待匹配的雷达与相机帧。</div>
                     <div id="calibrationPointSelection">尚未选择雷达原始点。</div>
+                    <div class="analysis-section-title">冻结帧可选原始点</div>
+                    <div id="calibrationPointCandidates" class="calibration-point-candidates">冻结匹配帧后显示；只列出该帧真实可选点，不包含余辉和历史轨迹。</div>
                     <div class="calibration-fields">
                         <label>样本集<select id="calibrationSampleSet"><option value="fit">拟合 fit</option><option value="validation">独立验证 validation</option></select></label>
                         <label>样本备注<input id="calibrationNoteInput" type="text" placeholder="反射器位置 / 环境"></label>
@@ -1383,10 +1404,6 @@
             cameraPixels.width = cameraCanvas.width;
             cameraPixels.height = cameraCanvas.height;
             cameraPixels.getContext('2d').drawImage(cameraCanvas, 0, 0);
-            const ppiPixels = document.createElement('canvas');
-            ppiPixels.width = canvas.width;
-            ppiPixels.height = canvas.height;
-            ppiPixels.getContext('2d').drawImage(canvas, 0, 0);
             calibrationSnapshot = {
                 radarFrameNum: radar.frame_num,
                 cameraFrameId: matchedId,
@@ -1399,7 +1416,6 @@
                 pointPixels: points.map(point => [point.x, point.y, point.z].every(Number.isFinite)
                     ? mapToCanvas(point.x, point.y) : null),
                 cameraPixels,
-                ppiPixels,
             };
             calibrationRadarSelection = null;
             calibrationImageSelection = null;
@@ -1419,6 +1435,7 @@
             clearCalibrationPointSelection();
             document.getElementById('calibrationFreezeBtn').textContent = '冻结匹配帧';
             setCalibrationStatus('已恢复实时画面。等待下一组匹配帧。');
+            renderCalibrationPointCandidates();
             if (lastCameraSync) requestCameraFrame(lastCameraSync);
         }
 
@@ -1434,29 +1451,63 @@
             return true;
         }
 
+        function renderCalibrationPointCandidates() {
+            const container = document.getElementById('calibrationPointCandidates');
+            container.replaceChildren();
+            if (!calibrationSnapshot) {
+                container.textContent = '冻结匹配帧后显示；只列出该帧真实可选点，不包含余辉和历史轨迹。';
+                return;
+            }
+            calibrationSnapshot.rawPoints.forEach((point, rawIndex) => {
+                if (![point.x, point.y, point.z].every(Number.isFinite)) return;
+                const range = Math.hypot(point.x, point.y, point.z);
+                const azimuth = Math.atan2(point.x, point.y) * 180 / Math.PI;
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.dataset.rawIndex = String(rawIndex);
+                button.classList.toggle('selected', calibrationRadarSelection?.rawIndex === rawIndex);
+                button.textContent = `#${rawIndex} · ${range.toFixed(2)} m · ${azimuth >= 0 ? '右' : '左'}${Math.abs(azimuth).toFixed(1)}° · ` +
+                    `x ${point.x.toFixed(2)} / y ${point.y.toFixed(2)} / z ${point.z.toFixed(2)}`;
+                button.addEventListener('click', () => selectCalibrationRadarPoint(point, rawIndex));
+                container.appendChild(button);
+            });
+            if (!container.children.length) container.textContent = '本冻结帧没有有效三维原始点，请继续实时画面后重新冻结。';
+        }
+
         function drawCalibrationPpi() {
             if (!calibrationSnapshot) return;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(calibrationSnapshot.ppiPixels, 0, 0);
+            ctx.fillStyle = '#080c14';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            drawGrid();
             ctx.save();
             ctx.fillStyle = '#8feeff';
-            calibrationSnapshot.pointPixels.forEach(mapped => {
+            ctx.strokeStyle = '#032f39';
+            ctx.lineWidth = 2;
+            ctx.font = 'bold 12px monospace';
+            calibrationSnapshot.pointPixels.forEach((mapped, rawIndex) => {
                 if (!mapped || mapped.px < 0 || mapped.px >= canvas.width ||
                     mapped.py < 0 || mapped.py >= canvas.height) return;
                 ctx.beginPath();
-                ctx.arc(mapped.px, mapped.py, 3, 0, Math.PI * 2);
+                ctx.arc(mapped.px, mapped.py, 7, 0, Math.PI * 2);
                 ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(`#${rawIndex}`, mapped.px + 10, mapped.py - 8);
+                ctx.fillStyle = '#8feeff';
             });
             ctx.restore();
-            if (!calibrationRadarSelection) return;
-            const {px, py} = calibrationSnapshot.pointPixels[calibrationRadarSelection.rawIndex];
-            ctx.save();
-            ctx.strokeStyle = '#ffdf70';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(px, py, 11, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.restore();
+            if (calibrationRadarSelection) {
+                const {px, py} = calibrationSnapshot.pointPixels[calibrationRadarSelection.rawIndex];
+                ctx.save();
+                ctx.strokeStyle = '#ffdf70';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(px, py, 14, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            }
+            renderCalibrationPointCandidates();
         }
 
         function selectCalibrationImagePixel(event) {
@@ -1828,6 +1879,7 @@
         let replaySpatialAnalysis = { frame: null, points: [], clusters: [], selectedClusterId: null, selectedPoint: null };
         let replayClusterTracks = [];
         const LIVE_POINT_PICK_RADIUS_PX = 15;
+        const CALIBRATION_POINT_PICK_RADIUS_PX = 26;
         const LIVE_CLUSTER_RADIUS_M = 0.28;
         const LIVE_CLUSTER_MIN_POINTS = 3;
         const LIVE_STABLE_CLUSTER_MATCH_GATE_M = 0.45;
@@ -3452,14 +3504,18 @@
                 const px = (event.clientX - bounds.left) * canvas.width / bounds.width;
                 const py = (event.clientY - bounds.top) * canvas.height / bounds.height;
                 let closestIndex = -1;
-                let closestDistance = LIVE_POINT_PICK_RADIUS_PX;
+                let closestDistance = CALIBRATION_POINT_PICK_RADIUS_PX;
                 calibrationSnapshot.rawPoints.forEach((point, index) => {
                     if (![point.x, point.y, point.z].every(Number.isFinite)) return;
                     const mapped = calibrationSnapshot.pointPixels[index];
                     const distance = Math.hypot(mapped.px - px, mapped.py - py);
                     if (distance < closestDistance) { closestIndex = index; closestDistance = distance; }
                 });
-                if (closestIndex >= 0) selectCalibrationRadarPoint(calibrationSnapshot.rawPoints[closestIndex], closestIndex);
+                if (closestIndex >= 0) {
+                    selectCalibrationRadarPoint(calibrationSnapshot.rawPoints[closestIndex], closestIndex);
+                } else {
+                    setCalibrationStatus('点击位置附近没有冻结帧原始点。余辉和历史轨迹不可选；请点击带 #编号的亮点，或使用右侧“冻结帧可选原始点”列表。');
+                }
                 return;
             }
             if (replayState.active || !liveSpatialAnalysis.displayPoints.length) return;
