@@ -963,6 +963,8 @@
                 <button id="trailToggleBtn" style="border-color: #ffaa00; color: #ffaa00;">目标追踪: 关</button>
                 <button id="clearTrailsBtn" style="border-color: #ffaa00; color: #ffaa00; display: none;"
                     title="手动清除所有黄色轨迹和当前动态目标">清除轨迹</button>
+                <button id="calibrationShortcutBtn" style="border-color: #ffbd6b; color: #ffbd6b;"
+                    title="展开点云分析工作台并打开手动角反射器标定">手动标定</button>
                 <button id="connectBtn">连接雷达</button>
             </div>
             <div id="statusIndicator" class="status-dot"></div>
@@ -4536,8 +4538,19 @@
             }
         }
 
+        function openCalibrationWorkspace() {
+            const panel = document.getElementById('configPanel');
+            panel.style.display = 'block';
+            panel.classList.remove('collapsed');
+            setPanelMode('analysis');
+            const workspace = document.getElementById('calibrationWorkspace');
+            workspace.open = true;
+            workspace.scrollIntoView({block: 'nearest'});
+        }
+
         document.getElementById('configPanel').addEventListener('click', togglePanel);
         document.getElementById('panelToggleBtn').addEventListener('click', togglePanel);
+        document.getElementById('calibrationShortcutBtn').addEventListener('click', openCalibrationWorkspace);
         document.getElementById('configModeBtn').addEventListener('click', () => setPanelMode('config'));
         document.getElementById('analysisModeBtn').addEventListener('click', () => {
             setPanelMode('analysis');

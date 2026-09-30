@@ -724,6 +724,23 @@ class RadarAppTests(unittest.TestCase):
             self.assertEqual(page.locator("#sidebarToggleBtn").inner_text(), "控制栏: 展开")
             browser.close()
 
+    def test_manual_calibration_shortcut_opens_hidden_analysis_workspace(self):
+        """Calibration must remain discoverable when the configuration panel is collapsed."""
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1920, "height": 1080})
+            page.goto(page_url)
+            page.evaluate("document.getElementById('configPanel').classList.add('collapsed')")
+
+            page.click("#calibrationShortcutBtn")
+
+            self.assertFalse(page.locator("#configPanel").evaluate("node => node.classList.contains('collapsed')"))
+            self.assertEqual(page.locator("#panelHeading").inner_text(), "点云分析工作台")
+            self.assertTrue(page.locator("#analysisContent").is_visible())
+            self.assertTrue(page.locator("#calibrationWorkspace").evaluate("node => node.open"))
+            browser.close()
+
     def test_live_panels_keep_their_bottom_edges_aligned_with_the_workspace(self):
         """The Range Profile and camera panel should visually finish at the workspace bottom."""
         page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
