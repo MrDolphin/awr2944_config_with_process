@@ -273,8 +273,8 @@ class RadarAppTests(unittest.TestCase):
                     radarFrameNum: 88, cameraFrameId: 7, cameraImageSize: [1280, 720],
                     syncOffsetMs: 12, timestamp: '2026-09-23T00:00:00Z', ppiPixels,
                     rawPoints: [
-                        {x: -1.18, y: 0.72, z: -0.20, v: 0.12},
-                        {x: 0.25, y: 2.80, z: 0.10, v: 0.00}
+                        {x: -1.18, y: 0.72, z: -0.20, v: 0.12, snr: 12.0, noise: 5.0},
+                        {x: 0.25, y: 2.80, z: 0.10, v: 0.00, snr: 25.0, noise: 7.0}
                     ]
                 };
                 calibrationSnapshot.pointPixels = calibrationSnapshot.rawPoints.map(
@@ -286,21 +286,42 @@ class RadarAppTests(unittest.TestCase):
                 handleLiveCanvasClick({clientX: rect.left + 12 * rect.width / canvas.width,
                     clientY: rect.top + 12 * rect.height / canvas.height});
                 const noHitStatus = document.getElementById('calibrationStatus').textContent;
-                buttons[1].click();
+                buttons[0].click();
                 return {
                     ghostPixel: [...ctx.getImageData(50, 50, 1, 1).data],
                     labels: buttons.map(button => button.textContent),
                     selected: calibrationRadarSelection.rawIndex,
-                    noHitStatus
+                    noHitStatus,
+                    assistance: document.getElementById('calibrationCandidateAssist').textContent
                 };
             }""")
             self.assertNotEqual(result["ghostPixel"][:3], [255, 0, 0])
             self.assertEqual(len(result["labels"]), 2)
-            self.assertIn("#0", result["labels"][0])
-            self.assertIn("1.40", result["labels"][0])
-            self.assertIn("#1", result["labels"][1])
+            self.assertIn("#1", result["labels"][0])
+            self.assertIn("SNR 25.0", result["labels"][0])
+            self.assertIn("高SNR候选", result["labels"][0])
+            self.assertIn("#0", result["labels"][1])
             self.assertEqual(result["selected"], 1)
             self.assertIn("余辉和历史轨迹不可选", result["noHitStatus"])
+            self.assertIn("按 SNR 从高到低", result["assistance"])
+            browser.close()
+
+    def test_calibration_candidate_assistance_is_explicit_when_side_info_is_missing(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page()
+            page.goto(page_url, wait_until="networkidle")
+            assistance = page.evaluate("""() => {
+                calibrationSnapshot = {
+                    rawPoints: [{x: 0, y: 2, z: 0, v: 0}],
+                    pointPixels: [mapToCanvas(0, 2)]
+                };
+                renderCalibrationPointCandidates();
+                return document.getElementById('calibrationCandidateAssist').textContent;
+            }""")
+            self.assertIn("未提供 SNR/Noise Side Info", assistance)
+            self.assertIn("不能自动确认", assistance)
             browser.close()
 
     def test_calibration_uses_native_640_by_480_pixels_through_scaled_display_and_export(self):

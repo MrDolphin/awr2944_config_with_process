@@ -548,6 +548,15 @@
             background: #ffdf70;
             border-color: #ffdf70;
         }
+        .calibration-candidate-assist {
+            margin: 6px 0 8px;
+            padding: 7px 8px;
+            border-left: 3px solid #ffbd6b;
+            background: rgba(255, 189, 107, 0.08);
+            color: #ffe0ad;
+            font-size: 11px;
+            line-height: 1.45;
+        }
         .calibration-samples { max-height: 160px; overflow: auto; font: 11px/1.5 monospace; }
         .calibration-samples table { width: 100%; border-collapse: collapse; }
         .calibration-samples th, .calibration-samples td { border-bottom: 1px solid rgba(53, 230, 255, 0.2); text-align: left; padding: 3px; }
@@ -1289,6 +1298,7 @@
                     <div id="calibrationStatus" role="status">等待匹配的雷达与相机帧。</div>
                     <div id="calibrationPointSelection">尚未选择雷达原始点。</div>
                     <div class="analysis-section-title">冻结帧可选原始点</div>
+                    <div id="calibrationCandidateAssist" class="calibration-candidate-assist">冻结后显示 SNR 候选辅助；候选排序不会自动确认角反。</div>
                     <div id="calibrationPointCandidates" class="calibration-point-candidates">冻结匹配帧后显示；只列出该帧真实可选点，不包含余辉和历史轨迹。</div>
                     <div class="calibration-fields">
                         <label>样本集<select id="calibrationSampleSet"><option value="fit">拟合 fit</option><option value="validation">独立验证 validation</option></select></label>
@@ -1453,20 +1463,44 @@
 
         function renderCalibrationPointCandidates() {
             const container = document.getElementById('calibrationPointCandidates');
+            const assistance = document.getElementById('calibrationCandidateAssist');
             container.replaceChildren();
             if (!calibrationSnapshot) {
+                assistance.textContent = '冻结后显示 SNR 候选辅助；候选排序不会自动确认角反。';
                 container.textContent = '冻结匹配帧后显示；只列出该帧真实可选点，不包含余辉和历史轨迹。';
                 return;
             }
-            calibrationSnapshot.rawPoints.forEach((point, rawIndex) => {
-                if (![point.x, point.y, point.z].every(Number.isFinite)) return;
+            const candidates = calibrationSnapshot.rawPoints
+                .map((point, rawIndex) => ({
+                    point,
+                    rawIndex,
+                    snr: optionalRadarMetric(point, 'snr'),
+                    noise: optionalRadarMetric(point, 'noise'),
+                }))
+                .filter(candidate => [candidate.point.x, candidate.point.y, candidate.point.z].every(Number.isFinite));
+            const hasSnr = candidates.some(candidate => candidate.snr !== null);
+            if (hasSnr) {
+                candidates.sort((left, right) => {
+                    if (left.snr === null) return 1;
+                    if (right.snr === null) return -1;
+                    return right.snr - left.snr || left.rawIndex - right.rawIndex;
+                });
+                assistance.textContent = '已按 SNR 从高到低排列候选。高 SNR 也可能来自墙面、金属或多径，只用于缩小范围，不能自动确认角反。';
+            } else {
+                assistance.textContent = '当前冻结帧未提供 SNR/Noise Side Info，不能自动确认角反；请结合角度、距离和角反移动前后的点位变化人工选择。';
+            }
+            candidates.forEach((candidate, candidateIndex) => {
+                const {point, rawIndex, snr, noise} = candidate;
                 const range = Math.hypot(point.x, point.y, point.z);
                 const azimuth = Math.atan2(point.x, point.y) * 180 / Math.PI;
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.dataset.rawIndex = String(rawIndex);
                 button.classList.toggle('selected', calibrationRadarSelection?.rawIndex === rawIndex);
-                button.textContent = `#${rawIndex} · ${range.toFixed(2)} m · ${azimuth >= 0 ? '右' : '左'}${Math.abs(azimuth).toFixed(1)}° · ` +
+                const metric = value => value === null ? '--' : value.toFixed(1);
+                const candidateMark = hasSnr && candidateIndex === 0 && snr !== null ? ' · 高SNR候选' : '';
+                button.textContent = `#${rawIndex}${candidateMark} · ${range.toFixed(2)} m · ${azimuth >= 0 ? '右' : '左'}${Math.abs(azimuth).toFixed(1)}° · ` +
+                    `SNR ${metric(snr)} / Noise ${metric(noise)} dB · ` +
                     `x ${point.x.toFixed(2)} / y ${point.y.toFixed(2)} / z ${point.z.toFixed(2)}`;
                 button.addEventListener('click', () => selectCalibrationRadarPoint(point, rawIndex));
                 container.appendChild(button);
@@ -1591,7 +1625,7 @@
             drawCalibrationPpi();
             drawCameraProjection(lastCameraProjection);
             renderCalibrationSamples();
-            setCalibrationStatus(`样本 ${sample.id} 已保存。`);
+            setCalibrationStatus(`样本 ${sample.id} 已保存。请点击“继续实时画面”，移动角反并静止后，再冻结下一组；每组都需要单独保存。`);
             return true;
         }
 
