@@ -227,6 +227,45 @@ class CalibrateRadarCameraTests(unittest.TestCase):
         self.assertFalse(self.output_path.exists())
         self.assertEqual(self.report_path.read_bytes(), b"foreign report")
 
+    def test_reservation_identity_failure_cleans_all_owned_paths_and_allows_retry(self):
+        from tools.fusion import calibrate_radar_camera as solver
+
+        prepared = self.run_solver(output_path=self.path / "setup.json")
+        self.assertEqual(prepared.returncode, 0, prepared.stderr)
+        session_before = self.session_path.read_bytes()
+        intrinsics_before = self.intrinsics_path.read_bytes()
+        original_fstat = os.fstat
+
+        for failed_reservation in range(1, 4):
+            with self.subTest(failed_reservation=failed_reservation):
+                output_path = self.path / f"fstat-{failed_reservation}.json"
+                report_path = output_path.with_suffix(".report.json")
+                completion_path = output_path.with_suffix(".complete.json")
+                argv = [str(SOLVER), str(self.session_path), str(self.intrinsics_path), str(output_path)]
+                calls = 0
+
+                def fail_selected_fstat(file_descriptor):
+                    nonlocal calls
+                    calls += 1
+                    if calls == failed_reservation:
+                        raise OSError("synthetic reservation identity failure")
+                    return original_fstat(file_descriptor)
+
+                with mock.patch.object(sys, "argv", argv), mock.patch.object(
+                    solver.os, "fstat", side_effect=fail_selected_fstat
+                ), self.assertRaisesRegex(SystemExit, "could not reserve"):
+                    solver.main()
+
+                self.assertFalse(output_path.exists())
+                self.assertFalse(report_path.exists())
+                self.assertFalse(completion_path.exists())
+                self.assertEqual(self.session_path.read_bytes(), session_before)
+                self.assertEqual(self.intrinsics_path.read_bytes(), intrinsics_before)
+
+                with mock.patch.object(sys, "argv", argv):
+                    solver.main()
+                self.assertTrue(solver.verify_completion(output_path))
+
     def test_bad_validation_writes_report_but_no_runtime(self):
         from tools.fusion.calibrate_radar_camera import verify_completion
 

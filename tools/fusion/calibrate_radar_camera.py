@@ -72,15 +72,58 @@ class _ReservedProduct:
     def __init__(self, path: Path, kind: str):
         self.path = path
         self.kind = kind
+        self.stream = None
+        self.identity = None
+        self.removed = False
         try:
             self.stream = path.open("x+b")
         except FileExistsError as error:
             raise SystemExit(f"{kind} path already exists; choose a new output path/run directory") from error
         except OSError as error:
             raise SystemExit(f"could not reserve {kind} path: {error}") from error
-        identity = os.fstat(self.stream.fileno())
+        try:
+            identity = os.fstat(self.stream.fileno())
+        except OSError as error:
+            cleanup_error = self._discard_unidentified_reservation()
+            message = f"could not reserve {kind} path: {error}"
+            if cleanup_error is not None:
+                message += f"; could not clean reserved path: {cleanup_error}"
+            raise SystemExit(message) from error
         self.identity = (identity.st_dev, identity.st_ino)
-        self.removed = False
+
+    def _discard_unidentified_reservation(self):
+        """Remove a just-created path only when a private marker still proves ownership."""
+        marker = f"radar-camera-reservation:{uuid4().hex}".encode("ascii")
+        try:
+            self.stream.seek(0)
+            self.stream.truncate()
+            if self.stream.write(marker) != len(marker):
+                raise OSError("short reservation-marker write")
+            self.stream.flush()
+            os.fsync(self.stream.fileno())
+            if self.path.is_symlink() or self.path.read_bytes() != marker:
+                raise OSError("reserved path was replaced; refusing to remove it")
+            before = self.path.stat()
+            self.stream.close()
+            if self.path.is_symlink() or self.path.read_bytes() != marker:
+                raise OSError("reserved path was replaced; refusing to remove it")
+            after = self.path.stat()
+            if (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino):
+                raise OSError("reserved path was replaced; refusing to remove it")
+            self.path.unlink()
+            self.removed = True
+            return None
+        except FileNotFoundError:
+            self.removed = True
+            return None
+        except OSError as cleanup_error:
+            return cleanup_error
+        finally:
+            if self.stream is not None and not self.stream.closed:
+                try:
+                    self.stream.close()
+                except OSError:
+                    pass
 
     def _owns_path(self):
         if self.path.is_symlink():
