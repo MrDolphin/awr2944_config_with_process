@@ -1881,8 +1881,11 @@
         }
 
         // 雷达显示量程配置 (米)：由配置面板里的“最大探测距离”动态驱动。
+        // PPI 网格声明为前向 +/-60° 扇区，因此横向范围必须覆盖量程边缘的 x 分量。
+        const RADAR_PPI_HALF_ANGLE_DEG = 60;
+        const RADAR_PPI_EDGE_PADDING_PX = 14;
         let radarRangeY = 15;
-        let radarRangeX = 10;
+        let radarRangeX = radarRangeY * Math.sin(RADAR_PPI_HALF_ANGLE_DEG * Math.PI / 180);
         const DEFAULT_BLIND_ZONE_M = 0.35; // 近场盲区默认值：过滤天线串扰、雷达罩/支架反射等贴脸鬼点
         const RADAR_BLIND_ZONE_STORAGE_KEY = 'radar_blind_zone_m';
         let blindZoneM = DEFAULT_BLIND_ZONE_M;
@@ -2069,8 +2072,7 @@
             const rawRange = input ? parseFloat(input.value) : radarRangeY;
             const nextRange = Number.isFinite(rawRange) && rawRange > 0 ? rawRange : 15;
             radarRangeY = Math.max(1, Math.min(nextRange, 300));
-            // 保持 X/Y 米-像素比例一致。800x600 默认下，15m 前向对应横向 +/-10m。
-            radarRangeX = radarRangeY * (canvas.width / 2) / canvas.height;
+            radarRangeX = radarRangeY * Math.sin(RADAR_PPI_HALF_ANGLE_DEG * Math.PI / 180);
         }
 
         // --- 静态热力图 (Local Occupancy Grid Map) 相关 ---
@@ -2577,12 +2579,19 @@
         const tracker = new TargetTracker();
         const staticObstacleMapper = new StaticObstacleMapper();
 
+        function radarPpiPixelsPerMetre() {
+            const usableHalfWidth = Math.max(1, canvas.width / 2 - RADAR_PPI_EDGE_PADDING_PX);
+            const usableHeight = Math.max(1, canvas.height - RADAR_PPI_EDGE_PADDING_PX);
+            return Math.min(usableHalfWidth / radarRangeX, usableHeight / radarRangeY);
+        }
+
         function mapToCanvas(x_m, y_m) {
             const cx = canvas.width / 2;
             const cy = canvas.height;
+            const pixelsPerMetre = radarPpiPixelsPerMetre();
             return {
-                px: cx + (x_m / radarRangeX) * cx,
-                py: cy - (y_m / radarRangeY) * cy
+                px: cx + x_m * pixelsPerMetre,
+                py: cy - y_m * pixelsPerMetre
             };
         }
 
@@ -2832,23 +2841,27 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             const cx = canvas.width / 2, cy = canvas.height;
+            const outerRadiusPx = radarRangeY * radarPpiPixelsPerMetre();
+            const halfAngleRad = RADAR_PPI_HALF_ANGLE_DEG * Math.PI / 180;
 
             ctx.strokeStyle = 'rgba(0, 255, 204, 0.15)';
             ctx.lineWidth = 1;
 
-            // 半圆
+            // 只绘制与数据映射一致的前向扇区，避免网格暗示画布能显示被裁掉的侧向区域。
             for (let i = 1; i <= 5; i++) {
-                const r = (cy / 5) * i;
-                ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, 0); ctx.stroke();
+                const r = (outerRadiusPx / 5) * i;
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, Math.PI * 1.5 - halfAngleRad, Math.PI * 1.5 + halfAngleRad);
+                ctx.stroke();
                 ctx.fillStyle = 'rgba(0, 255, 204, 0.4)'; ctx.font = '10px Arial';
                 ctx.fillText((radarRangeY / 5 * i).toFixed(1) + 'm', cx + 5, cy - r + 15);
             }
 
             // 扇形线
             [-60, -30, 0, 30, 60].forEach(deg => {
-                const rad = (90 - deg) * (Math.PI / 180);
+                const rad = deg * Math.PI / 180;
                 ctx.beginPath(); ctx.moveTo(cx, cy);
-                ctx.lineTo(cx - canvas.height * Math.cos(rad), cy - canvas.height * Math.sin(rad));
+                ctx.lineTo(cx + outerRadiusPx * Math.sin(rad), cy - outerRadiusPx * Math.cos(rad));
                 ctx.stroke();
             });
 
@@ -3293,8 +3306,8 @@
             ctx.save();
             clusters.filter(cluster => cluster.isStable || cluster.id === selectedClusterId).forEach(cluster => {
                 const center = mapToCanvas(cluster.center.x, cluster.center.y);
-                const meterPxX = canvas.width / (2 * radarRangeX);
-                const meterPxY = canvas.height / radarRangeY;
+                const meterPxX = radarPpiPixelsPerMetre();
+                const meterPxY = meterPxX;
                 const radiusPx = Math.max(10, cluster.spreadM * meterPxX + 7);
                 const selected = cluster.id === selectedClusterId;
                 ctx.strokeStyle = selected ? '#ffbd6b' : 'rgba(125, 255, 220, 0.76)';
