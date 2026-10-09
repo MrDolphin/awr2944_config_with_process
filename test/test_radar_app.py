@@ -306,7 +306,7 @@ class RadarAppTests(unittest.TestCase):
             self.assertIn("按 SNR 从高到低", result["assistance"])
             browser.close()
 
-    def test_ppi_keeps_high_azimuth_point_inside_the_visible_sixty_degree_sector(self):
+    def test_ppi_uses_loaded_aoa_limits_and_keeps_high_azimuth_points_visible(self):
         page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
         with sync_playwright() as playwright:
             browser = self._new_browser(playwright)
@@ -314,25 +314,50 @@ class RadarAppTests(unittest.TestCase):
             page.goto(page_url, wait_until="networkidle")
             result = page.evaluate("""() => {
                 document.getElementById('f_fovRange').value = '3.5';
+                document.getElementById('f_azimMin').value = '-90';
+                document.getElementById('f_azimMax').value = '90';
                 updateRadarDisplayRange();
                 const origin = mapToCanvas(0, 0);
                 const oneMetreRight = mapToCanvas(1, 0);
                 const oneMetreForward = mapToCanvas(0, 1);
                 return {
-                    point: mapToCanvas(2.52, 1.60),
+                    screenshotPoint: mapToCanvas(2.52, 1.60),
+                    eightyFiveDegreePoint: mapToCanvas(3.45, 0.30),
                     width: canvas.width,
                     height: canvas.height,
                     xPixelsPerMetre: oneMetreRight.px - origin.px,
                     yPixelsPerMetre: origin.py - oneMetreForward.py,
                 };
             }""")
-            self.assertGreaterEqual(result["point"]["px"], 14)
-            self.assertLessEqual(result["point"]["px"], result["width"] - 14)
-            self.assertGreaterEqual(result["point"]["py"], 14)
-            self.assertLessEqual(result["point"]["py"], result["height"] - 14)
+            for point_name in ("screenshotPoint", "eightyFiveDegreePoint"):
+                self.assertGreaterEqual(result[point_name]["px"], 14)
+                self.assertLessEqual(result[point_name]["px"], result["width"] - 14)
+                self.assertGreaterEqual(result[point_name]["py"], 14)
+                self.assertLessEqual(result[point_name]["py"], result["height"] - 14)
             self.assertAlmostEqual(
                 result["xPixelsPerMetre"], result["yPixelsPerMetre"], places=6
             )
+            browser.close()
+
+    def test_ppi_refreshes_azimuth_limits_from_loaded_aoa_config(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page()
+            page.goto(page_url, wait_until="networkidle")
+            result = page.evaluate("""() => {
+                parseCfgToForm('cfarFovCfg -1 0 0 8.0\\naoaFovCfg -1 -70 80 -30 30');
+                return {
+                    azimMinInput: document.getElementById('f_azimMin').value,
+                    azimMaxInput: document.getElementById('f_azimMax').value,
+                    azimMin: radarAzimuthMinDeg,
+                    azimMax: radarAzimuthMaxDeg,
+                };
+            }""")
+            self.assertEqual(result, {
+                "azimMinInput": "-70", "azimMaxInput": "80",
+                "azimMin": -70, "azimMax": 80,
+            })
             browser.close()
 
     def test_calibration_candidate_assistance_is_explicit_when_side_info_is_missing(self):
