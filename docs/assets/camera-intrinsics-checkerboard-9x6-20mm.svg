@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="297mm" height="210mm" viewBox="0 0 297 210">
+  <rect width="297" height="210" fill="#fff"/>
+  <rect x="48.5" y="35" width="200" height="140" fill="#fff" stroke="#000" stroke-width="0.2"/>
+  <rect x="48.5" y="35" width="20" height="20" fill="#000"/>
+  <rect x="88.5" y="35" width="20" height="20" fill="#000"/>
+  <rect x="128.5" y="35" width="20" height="20" fill="#000"/>
+  <rect x="168.5" y="35" width="20" height="20" fill="#000"/>
+  <rect x="208.5" y="35" width="20" height="20" fill="#000"/>
+  <rect x="68.5" y="55" width="20" height="20" fill="#000"/>
+  <rect x="108.5" y="55" width="20" height="20" fill="#000"/>
+  <rect x="148.5" y="55" width="20" height="20" fill="#000"/>
+  <rect x="188.5" y="55" width="20" height="20" fill="#000"/>
+  <rect x="228.5" y="55" width="20" height="20" fill="#000"/>
+  <rect x="48.5" y="75" width="20" height="20" fill="#000"/>
+  <rect x="88.5" y="75" width="20" height="20" fill="#000"/>
+  <rect x="128.5" y="75" width="20" height="20" fill="#000"/>
+  <rect x="168.5" y="75" width="20" height="20" fill="#000"/>
+  <rect x="208.5" y="75" width="20" height="20" fill="#000"/>
+  <rect x="68.5" y="95" width="20" height="20" fill="#000"/>
+  <rect x="108.5" y="95" width="20" height="20" fill="#000"/>
+  <rect x="148.5" y="95" width="20" height="20" fill="#000"/>
+  <rect x="188.5" y="95" width="20" height="20" fill="#000"/>
+  <rect x="228.5" y="95" width="20" height="20" fill="#000"/>
+  <rect x="48.5" y="115" width="20" height="20" fill="#000"/>
+  <rect x="88.5" y="115" width="20" height="20" fill="#000"/>
+  <rect x="128.5" y="115" width="20" height="20" fill="#000"/>
+  <rect x="168.5" y="115" width="20" height="20" fill="#000"/>
+  <rect x="208.5" y="115" width="20" height="20" fill="#000"/>
+  <rect x="68.5" y="135" width="20" height="20" fill="#000"/>
+  <rect x="108.5" y="135" width="20" height="20" fill="#000"/>
+  <rect x="148.5" y="135" width="20" height="20" fill="#000"/>
+  <rect x="188.5" y="135" width="20" height="20" fill="#000"/>
+  <rect x="228.5" y="135" width="20" height="20" fill="#000"/>
+  <rect x="48.5" y="155" width="20" height="20" fill="#000"/>
+  <rect x="88.5" y="155" width="20" height="20" fill="#000"/>
+  <rect x="128.5" y="155" width="20" height="20" fill="#000"/>
+  <rect x="168.5" y="155" width="20" height="20" fill="#000"/>
+  <rect x="208.5" y="155" width="20" height="20" fill="#000"/>
+  <line x1="20" y1="195" x2="120" y2="195" stroke="#000" stroke-width="0.5"/>
+  <line x1="20" y1="192" x2="20" y2="198" stroke="#000" stroke-width="0.5"/>
+  <line x1="120" y1="192" x2="120" y2="198" stroke="#000" stroke-width="0.5"/>
+  <text x="70" y="204" text-anchor="middle" font-family="Arial" font-size="4">100 mm reference - print at 100% / Actual size</text>
+  <text x="285" y="204" text-anchor="end" font-family="Arial" font-size="3.5">9 x 6 inner corners, 20 mm squares</text>
+</svg>
+
