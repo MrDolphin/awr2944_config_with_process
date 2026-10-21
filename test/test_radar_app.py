@@ -30,6 +30,16 @@ def camera_png(width, height):
 
 
 class RadarAppMarkupTests(unittest.TestCase):
+    def test_qd4310_panel_exposes_speed_and_stop_without_pwm_controls(self):
+        app_html = (Path(__file__).resolve().parents[1] / "radar_app.html").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('id="motorRpmInput"', app_html)
+        self.assertIn('id="gimbalScanToggleBtn"', app_html)
+        self.assertIn('id="motorApplyRpmBtn"', app_html)
+        self.assertNotIn('id="motorPwmDutyInput"', app_html)
+        self.assertIn("mode: 'qd4310'", app_html)
+
     def test_manual_calibration_workspace_declares_local_controls(self):
         app_html = (Path(__file__).resolve().parents[1] / "radar_app.html").read_text(
             encoding="utf-8"
@@ -195,6 +205,35 @@ class RadarAppMarkupTests(unittest.TestCase):
 class RadarAppTests(unittest.TestCase):
     def _new_browser(self, playwright):
         return playwright.chromium.launch(headless=True, executable_path=str(CHROME_EXECUTABLE))
+
+    def test_qd4310_panel_sends_validated_start_update_and_stop(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.goto(page_url, wait_until="networkidle")
+            commands = page.evaluate("""() => {
+                const commands = [];
+                ws = {readyState: WebSocket.OPEN, send: raw => commands.push(JSON.parse(raw))};
+                document.getElementById('motorRpmInput').value = '10';
+                document.getElementById('gimbalScanToggleBtn').click();
+                gimbalScanEnabled = true;
+                updateGimbalScanButton();
+                document.getElementById('motorRpmInput').value = '5.5';
+                document.getElementById('motorApplyRpmBtn').click();
+                document.getElementById('gimbalScanToggleBtn').click();
+                renderRadarFrame({frame_num: 12, points: [{x: 1, y: 2, z: 0, v: 0}],
+                    gimbal_scan: {enabled: true, mode: 'qd4310', rpm: 5.5,
+                        status: 'running', port_configured: true}});
+                return commands;
+            }""")
+            self.assertNotIn("360合成", page.locator("#pointsDisplay").inner_text())
+            self.assertIn("5.5 rpm", page.locator("#gimbalScanStatusDisplay").inner_text())
+            browser.close()
+        self.assertEqual([item["action"] for item in commands], ["start", "set_speed", "stop"])
+        self.assertEqual(commands[0]["params"]["mode"], "qd4310")
+        self.assertEqual(commands[0]["params"]["rpm"], 10)
+        self.assertEqual(commands[1]["params"]["rpm"], 5.5)
 
     def test_calibration_freeze_keeps_raw_point_and_native_camera_pixel(self):
         page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()

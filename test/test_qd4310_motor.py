@@ -1,0 +1,189 @@
+import importlib
+import logging
+import sys
+import threading
+import types
+import unittest
+from unittest.mock import patch
+
+
+class FakeSerialPort:
+    def __init__(self):
+        self.writes = []
+        self.closed = False
+
+    def write(self, data):
+        self.writes.append(data)
+        return len(data)
+
+    def close(self):
+        self.closed = True
+
+
+class Qd4310ProtocolTests(unittest.TestCase):
+    def test_start_update_and_stop_use_bounded_ascii_commands(self):
+        from qd4310_motor import Qd4310Motor
+
+        port = FakeSerialPort()
+        with patch("qd4310_motor.serial.Serial", return_value=port) as open_port:
+            motor = Qd4310Motor("/dev/serial/by-id/qd4310-test")
+            motor.start(10)
+            motor.set_speed(5.5)
+            motor.stop()
+
+        open_port.assert_called_once_with(
+            "/dev/serial/by-id/qd4310-test", baudrate=115200,
+            timeout=0.005, write_timeout=0.5,
+        )
+        self.assertEqual(
+            port.writes,
+            [b"enable\n", b"ctrl speed 10\n", b"ctrl speed 5.5\n",
+             b"ctrl speed 0\n", b"disable\n"],
+        )
+        self.assertTrue(port.closed)
+
+    def test_invalid_speed_never_opens_port(self):
+        from qd4310_motor import Qd4310Motor
+
+        with patch("qd4310_motor.serial.Serial") as open_port:
+            motor = Qd4310Motor("/dev/ttyUSB9")
+            for value in (0, -1, 31, float("nan"), "1\nreset"):
+                with self.assertRaises(ValueError):
+                    motor.start(value)
+            open_port.assert_not_called()
+
+    def test_short_serial_write_is_not_reported_as_success(self):
+        from qd4310_motor import Qd4310Motor
+
+        port = FakeSerialPort()
+        port.write = lambda data: len(data) - 1
+        with patch("qd4310_motor.serial.Serial", return_value=port):
+            with self.assertRaises(OSError):
+                Qd4310Motor("/dev/ttyUSB9").start(1)
+        self.assertTrue(port.closed)
+
+    def test_failed_speed_command_still_attempts_both_stop_commands(self):
+        from qd4310_motor import Qd4310Motor
+
+        port = FakeSerialPort()
+
+        def write(data):
+            port.writes.append(data)
+            if data in (b"ctrl speed 1\n", b"ctrl speed 0\n"):
+                raise OSError("serial failure")
+            return len(data)
+
+        port.write = write
+        with patch("qd4310_motor.serial.Serial", return_value=port):
+            with self.assertRaises(OSError):
+                Qd4310Motor("/dev/ttyUSB9").start(1)
+        self.assertEqual(port.writes, [b"enable\n", b"ctrl speed 1\n",
+                                       b"ctrl speed 0\n", b"disable\n"])
+        self.assertTrue(port.closed)
+
+
+class Qd4310ServerModeTests(unittest.TestCase):
+    def _import_server(self):
+        previous_serial = sys.modules.get("serial")
+        previous_websockets = sys.modules.get("websockets")
+        sys.modules["serial"] = types.SimpleNamespace(Serial=object, SerialException=OSError)
+        sys.modules["websockets"] = types.SimpleNamespace(
+            exceptions=types.SimpleNamespace(ConnectionClosed=RuntimeError)
+        )
+        sys.modules.pop("radar_server", None)
+        with patch("logging.FileHandler", return_value=logging.NullHandler()), patch("logging.basicConfig"):
+            server = importlib.import_module("radar_server")
+        return server, previous_serial, previous_websockets
+
+    def _restore_modules(self, previous_serial, previous_websockets):
+        sys.modules.pop("radar_server", None)
+        if previous_serial is None:
+            sys.modules.pop("serial", None)
+        else:
+            sys.modules["serial"] = previous_serial
+        if previous_websockets is None:
+            sys.modules.pop("websockets", None)
+        else:
+            sys.modules["websockets"] = previous_websockets
+
+    def test_usb_mode_requires_server_configured_port(self):
+        server, previous_serial, previous_websockets = self._import_server()
+        try:
+            ok, message = server.start_gimbal_scan({
+                "mode": "qd4310", "rpm": 10, "qd4310_port": "/dev/ttyACM0"
+            })
+            self.assertFalse(ok)
+            self.assertIn("port", message.lower())
+            self.assertFalse(server.gimbal_scan["enabled"])
+        finally:
+            self._restore_modules(previous_serial, previous_websockets)
+
+    def test_invalid_usb_rpm_returns_error_without_starting_thread(self):
+        server, previous_serial, previous_websockets = self._import_server()
+        try:
+            server.gimbal_scan["config"]["qd4310_port"] = "/dev/ttyUSB9"
+            with patch.object(server.threading, "Thread") as thread:
+                ok, message = server.start_gimbal_scan({"mode": "qd4310", "rpm": "bad"})
+            self.assertFalse(ok)
+            self.assertIn("rpm", message.lower())
+            thread.assert_not_called()
+        finally:
+            self._restore_modules(previous_serial, previous_websockets)
+
+    def test_configured_usb_mode_selects_driver_and_updates_speed(self):
+        server, previous_serial, previous_websockets = self._import_server()
+        try:
+            server.gimbal_scan["config"]["qd4310_port"] = "/dev/serial/by-id/qd4310-test"
+            created = []
+
+            class FakeThread:
+                def __init__(self, *, target, args, daemon):
+                    created.append((target, args, daemon))
+
+                def start(self):
+                    pass
+
+            with patch.object(server.threading, "Thread", FakeThread):
+                ok, _message = server.start_gimbal_scan({"mode": "qd4310", "rpm": 10})
+            self.assertTrue(ok)
+            self.assertIs(created[0][0], server.qd4310_scan_loop)
+            self.assertEqual(created[0][1][0]["qd4310_port"], "/dev/serial/by-id/qd4310-test")
+            fake_motor = types.SimpleNamespace(set_speed=lambda rpm: created.append(rpm))
+            server.gimbal_scan["motor"] = fake_motor
+            self.assertEqual(server.set_qd4310_speed(5.5), (True, "QD4310 speed updated"))
+            self.assertEqual(created[-1], 5.5)
+            self.assertEqual(server.gimbal_scan["rpm"], 5.5)
+            self.assertFalse(server.set_qd4310_speed(31)[0])
+            self.assertEqual(created[-1], 5.5)
+        finally:
+            self._restore_modules(previous_serial, previous_websockets)
+
+    def test_usb_worker_stops_motor_when_stop_requested(self):
+        server, previous_serial, previous_websockets = self._import_server()
+        try:
+            stop_event = threading.Event()
+            calls = []
+
+            class FakeMotor:
+                def __init__(self, port):
+                    calls.append(("port", port))
+
+                def start(self, rpm):
+                    calls.append(("start", rpm))
+                    stop_event.set()
+
+                def stop(self):
+                    calls.append(("stop",))
+
+            server.gimbal_scan["enabled"] = True
+            with patch.object(server, "Qd4310Motor", FakeMotor):
+                server.qd4310_scan_loop({"qd4310_port": "/dev/ttyUSB9", "rpm": 1}, stop_event)
+            self.assertEqual(calls, [("port", "/dev/ttyUSB9"), ("start", 1), ("stop",)])
+            self.assertFalse(server.gimbal_scan["enabled"])
+            self.assertIsNone(server.gimbal_scan["motor"])
+        finally:
+            self._restore_modules(previous_serial, previous_websockets)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -28,6 +28,7 @@ from tools.camera.camera_config import load_camera_config
 from tools.camera.camera_http import CameraHttpServer
 from tools.fusion.calibration import CalibrationError, load_calibration
 from tools.fusion.projection import project_radar_point
+from qd4310_motor import Qd4310Motor, validate_rpm
 
 # 配置日志：同时输出到文件和控制台
 config_dir = os.path.dirname(os.path.abspath(__file__))
@@ -232,6 +233,8 @@ gimbal_scan = {
     "start_time_s": 0.0,
     "combined_points": [],
     "last_update_s": 0.0,
+    "motor": None,
+    "owner": None,
     "config": {
         "mode": "motor",
         "motor_pwm_gpio": 12,
@@ -251,6 +254,7 @@ gimbal_scan = {
         "scan_approach_window_deg": 15.0,
         "scan_settle_s": 0.25,
         "servo_port": "/dev/ttyUSB0",
+        "qd4310_port": "",
         "baud": 115200,
         "pitch_id": 1,
         "yaw_id": 2,
@@ -368,6 +372,37 @@ def motor_scan_loop(config, stop_event):
                 direction.close()
         except Exception:
             pass
+        gimbal_scan["enabled"] = False
+        if gimbal_scan["status"] != "error":
+            gimbal_scan["status"] = "idle"
+
+
+def qd4310_scan_loop(config, stop_event):
+    """Run the explicitly requested USB motor until a stop event arrives."""
+    motor = Qd4310Motor(config["qd4310_port"])
+    try:
+        if stop_event.is_set():
+            return
+        gimbal_scan["status"] = "opening"
+        motor.start(config["rpm"])
+        gimbal_scan["motor"] = motor
+        gimbal_scan["status"] = "running"
+        gimbal_scan["last_update_s"] = time.time()
+        stop_event.wait()
+        gimbal_scan["status"] = "stopping"
+    except Exception as exc:
+        gimbal_scan["last_error"] = str(exc)
+        gimbal_scan["status"] = "error"
+        logger.error("QD4310 USB control failed: %s", exc)
+    finally:
+        try:
+            motor.stop()
+        except Exception as exc:
+            gimbal_scan["last_error"] = f"QD4310 stop failed: {exc}"
+            gimbal_scan["status"] = "error"
+            logger.error("QD4310 stop failed: %s", exc)
+        gimbal_scan["motor"] = None
+        gimbal_scan["owner"] = None
         gimbal_scan["enabled"] = False
         if gimbal_scan["status"] != "error":
             gimbal_scan["status"] = "idle"
@@ -561,15 +596,21 @@ def start_gimbal_scan(params):
 
     config = dict(gimbal_scan["config"])
     for key in config:
-        if key in params:
+        if key in params and key != "qd4310_port":
             config[key] = params[key]
 
     numeric_int_keys = ["baud", "pitch_id", "yaw_id", "move_ms", "pause_ms", "center_pwm", "min_pwm", "max_pwm", "motor_pwm_gpio", "motor_dir_gpio", "encoder_a_gpio", "encoder_b_gpio", "counts_per_rev"]
     numeric_float_keys = ["pitch_fixed_deg", "yaw0_deg", "yaw180_deg", "us_per_degree", "rpm", "pwm_duty", "frame_period_s", "scan_min_angle_deg", "scan_max_angle_deg", "scan_cruise_duty", "scan_approach_duty", "scan_approach_window_deg", "scan_settle_s"]
     for key in numeric_int_keys:
-        config[key] = int(float(config[key]))
+        try:
+            config[key] = int(float(config[key]))
+        except (TypeError, ValueError, OverflowError) as exc:
+            return False, f"invalid {key}: {exc}"
     for key in numeric_float_keys:
-        config[key] = float(config[key])
+        try:
+            config[key] = float(config[key])
+        except (TypeError, ValueError, OverflowError) as exc:
+            return False, f"invalid {key}: {exc}"
     config["encoder_enabled"] = bool(config.get("encoder_enabled"))
 
     stop_event = threading.Event()
@@ -583,6 +624,15 @@ def start_gimbal_scan(params):
         thread_target = encoder_scan_loop
     elif mode == "servo":
         thread_target = gimbal_scan_loop
+    elif mode == "qd4310":
+        if not config["qd4310_port"]:
+            return False, "QD4310 USB port is not configured on the server"
+        try:
+            config["rpm"] = validate_rpm(config["rpm"])
+        except ValueError as exc:
+            return False, str(exc)
+        config["mode"] = "qd4310"
+        thread_target = qd4310_scan_loop
     else:
         config["mode"] = "motor"
         thread_target = motor_scan_loop
@@ -603,13 +653,38 @@ def start_gimbal_scan(params):
         "last_update_s": 0.0
     })
     thread.start()
+    if config["mode"] == "qd4310":
+        return True, "QD4310 USB motor starting"
     return True, "motor scan started" if config["mode"] == "motor" else "gimbal scan started"
 
 def stop_gimbal_scan():
     ev = gimbal_scan.get("stop_event")
-    if ev:
+    if ev and gimbal_scan["enabled"]:
         ev.set()
+        gimbal_scan["status"] = "stopping"
     return True, "gimbal scan stopping"
+
+
+def set_qd4310_speed(rpm):
+    if not gimbal_scan["enabled"] or gimbal_scan["config"].get("mode") != "qd4310":
+        return False, "QD4310 USB motor is not running"
+    try:
+        rpm = validate_rpm(rpm)
+        motor = gimbal_scan.get("motor")
+        if motor is None:
+            return False, "QD4310 USB motor is still opening"
+        motor.set_speed(rpm)
+    except ValueError as exc:
+        return False, str(exc)
+    except (RuntimeError, OSError, serial.SerialException) as exc:
+        gimbal_scan["last_error"] = str(exc)
+        stop_gimbal_scan()
+        return False, str(exc)
+    gimbal_scan["rpm"] = rpm
+    gimbal_scan["config"]["rpm"] = rpm
+    gimbal_scan["frame_angle_deg"] = rpm * 6.0 * gimbal_scan["config"]["frame_period_s"]
+    gimbal_scan["last_update_s"] = time.time()
+    return True, "QD4310 speed updated"
 
 def get_gimbal_scan_status():
     return {
@@ -622,6 +697,8 @@ def get_gimbal_scan_status():
         "pitch_actual_deg": gimbal_scan["pitch_actual_deg"],
         "direction": gimbal_scan["direction"],
         "rpm": gimbal_scan["rpm"],
+        "mode": gimbal_scan["config"].get("mode"),
+        "port_configured": bool(gimbal_scan["config"].get("qd4310_port")),
         "frame_angle_deg": gimbal_scan["frame_angle_deg"],
         "points": len(gimbal_scan["combined_points"]),
         "last_update_s": gimbal_scan["last_update_s"],
@@ -1165,11 +1242,18 @@ async def handle_client(websocket):
                         params = cmd.get("params") or {}
                         if action == "start":
                             ok, message = start_gimbal_scan(params)
+                            if ok and gimbal_scan["config"].get("mode") == "qd4310":
+                                gimbal_scan["owner"] = websocket
                             payload = get_gimbal_scan_status()
                             payload.update({"success": ok, "message": message})
                             await websocket.send(json.dumps(payload))
                         elif action == "stop":
                             ok, message = stop_gimbal_scan()
+                            payload = get_gimbal_scan_status()
+                            payload.update({"success": ok, "message": message})
+                            await websocket.send(json.dumps(payload))
+                        elif action == "set_speed":
+                            ok, message = set_qd4310_speed(params.get("rpm"))
                             payload = get_gimbal_scan_status()
                             payload.update({"success": ok, "message": message})
                             await websocket.send(json.dumps(payload))
@@ -1185,6 +1269,9 @@ async def handle_client(websocket):
                     logger.error(f"❌ 指令处理解析错误: {e}")
         except websockets.exceptions.ConnectionClosed:
             pass
+        finally:
+            if gimbal_scan.get("owner") is websocket:
+                stop_gimbal_scan()
 
     # 创建一个推流任务
     async def stream_data():
@@ -1218,6 +1305,8 @@ async def handle_client(websocket):
                             "pitch_actual_deg": gimbal_scan["pitch_actual_deg"],
                             "direction": gimbal_scan["direction"],
                             "rpm": gimbal_scan["rpm"],
+                            "mode": gimbal_scan["config"].get("mode"),
+                            "port_configured": bool(gimbal_scan["config"].get("qd4310_port")),
                             "frame_angle_deg": gimbal_scan["frame_angle_deg"],
                             "points": gimbal_scan["combined_points"],
                             "last_update_s": gimbal_scan["last_update_s"],
@@ -1246,6 +1335,10 @@ def run_websocket_server(port):
     except KeyboardInterrupt:
         print("\n中枢已关闭。")
     finally:
+        stop_gimbal_scan()
+        thread = gimbal_scan.get("thread")
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=2.0)
         stop_radar_camera_recording()
         stop_camera_services()
 
@@ -1259,6 +1352,8 @@ if __name__ == "__main__":
     parser.add_argument('--ws_port', type=int, default=8765)
     parser.add_argument('--log_file', type=str, default='')
     parser.add_argument('--gimbal_port', type=str, default='/dev/ttyUSB0')
+    parser.add_argument('--qd4310-port', type=str, default='',
+                        help='QD4310 USB serial device; blank disables USB motor control')
     parser.add_argument('--enable-camera', action='store_true',
                         help='start the optional single-owner camera service')
     parser.add_argument('--camera-config', type=str,
@@ -1271,6 +1366,7 @@ if __name__ == "__main__":
                         help='validated radar-camera calibration JSON; projection remains disabled when omitted')
     ARGS = parser.parse_args()
     gimbal_scan["config"]["servo_port"] = ARGS.gimbal_port
+    gimbal_scan["config"]["qd4310_port"] = ARGS.qd4310_port
     if ARGS.camera_calibration:
         try:
             load_camera_calibration(ARGS.camera_calibration)

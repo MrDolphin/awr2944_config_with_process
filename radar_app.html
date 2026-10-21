@@ -986,8 +986,6 @@
                     title="显示/隐藏实时前方聚合物体 L1/L2 列表和 PPI 边界">实时物体: 开</button>
                 <button id="lineFilterToggleBtn" style="border-color: #ff5533; color: #ff7a55;"
                     title="启用/关闭 线最小长度 与 线长宽比 过滤">线结构: 开</button>
-                <button id="gimbalScanToggleBtn" style="border-color: #35e6ff; color: #35e6ff;"
-                    title="启动 AT8236 电机自转，并按平台角度合成扫描点云">开始扫描</button>
                 <button id="trailToggleBtn" style="border-color: #ffaa00; color: #ffaa00;">目标追踪: 关</button>
                 <button id="clearTrailsBtn" style="border-color: #ffaa00; color: #ffaa00; display: none;"
                     title="手动清除所有黄色轨迹和当前动态目标">清除轨迹</button>
@@ -1071,25 +1069,21 @@
                     </div>
                 </div>
                 <div class="hud-box filter-tune-panel" id="gimbalScanPanel" style="border-left-color: #35e6ff;">
-                    <div class="filter-title" style="color:#35e6ff;">电机扫描调参</div>
-                    <label>当前转向
-                        <select id="motorDirectionInput">
-                            <option value="cw">顺时针</option>
-                            <option value="ccw">逆时针</option>
-                        </select>
-                    </label>
+                    <div class="filter-title" style="color:#35e6ff;">QD4310 USB 电机控制</div>
                     <label>电机转速(rpm)
-                        <input type="number" id="motorRpmInput" value="1" step="0.1" min="0" max="30">
+                        <input type="number" id="motorRpmInput" value="1" step="0.1" min="0.1" max="30">
                     </label>
-                    <label>PWM占空比
-                        <input type="number" id="motorPwmDutyInput" value="0.25" step="0.01" min="0" max="1">
-                    </label>
-                    <label>雷达帧周期(s)
+                    <label>雷达帧周期(s，仅估算)
                         <input type="number" id="motorFramePeriodInput" value="0.656" step="0.001" min="0.01">
                     </label>
-                    <label>平台每帧转角(°)
+                    <label>每帧理论转角(°)
                         <input type="text" id="motorFrameAngleDisplay" value="3.94" readonly>
                     </label>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+                        <button id="gimbalScanToggleBtn" type="button">启动电机</button>
+                        <button id="motorApplyRpmBtn" type="button" disabled>更新转速</button>
+                    </div>
+                    <div style="font-size:11px;color:#8abac5;margin-top:6px;">串口由树莓派服务配置；转角仅按指令转速估算，未接入角度反馈。</div>
                     <div class="value" id="gimbalScanStatusDisplay" style="font-size:13px;color:#bff;">未启动</div>
                 </div>
             </div>
@@ -3103,6 +3097,7 @@
             healthPollTimer = setInterval(() => {
                 if (ws && ws.readyState === WebSocket.OPEN) {
                     ws.send(JSON.stringify({ type: 'system_health' }));
+                    ws.send(JSON.stringify({ type: 'gimbal_scan', action: 'status' }));
                 }
             }, 1000);
         }
@@ -3655,9 +3650,15 @@
             updateCameraPanel(data.camera_sync);
             updateCameraProjection(data.camera_projection);
             latestGimbalScan = data.gimbal_scan || latestGimbalScan;
-            if (data.gimbal_scan && data.gimbal_scan.enabled) {
-                gimbalScanEnabled = true;
-                updateGimbalScanButton();
+            if (data.gimbal_scan) {
+                gimbalScanEnabled = !!data.gimbal_scan.enabled;
+                if (data.gimbal_scan.mode === 'qd4310') {
+                    updateGimbalScanButton(formatQd4310Status(data.gimbal_scan));
+                } else {
+                    updateGimbalScanButton();
+                }
+            }
+            if (data.gimbal_scan && data.gimbal_scan.enabled && data.gimbal_scan.mode !== 'qd4310') {
                 renderGimbalScanFrame(data);
                 return;
             }
@@ -4434,22 +4435,37 @@
 
         function getGimbalScanParams() {
             return {
-                mode: 'motor',
-                motor_pwm_gpio: 12,
-                motor_dir_gpio: 17,
-                direction: document.getElementById('motorDirectionInput').value,
-                rpm: Math.max(0, Number(document.getElementById('motorRpmInput').value) || 0),
-                pwm_duty: Math.max(0, Math.min(1, Number(document.getElementById('motorPwmDutyInput').value) || 0)),
+                mode: 'qd4310',
+                rpm: Number(document.getElementById('motorRpmInput').value),
                 frame_period_s: Math.max(0.01, Number(document.getElementById('motorFramePeriodInput').value) || 0.656)
             };
+        }
+
+        function validMotorRpm() {
+            const rpm = Number(document.getElementById('motorRpmInput').value);
+            if (!Number.isFinite(rpm) || rpm < 0.1 || rpm > 30) {
+                alert('QD4310 转速请输入 0.1–30 rpm。');
+                return null;
+            }
+            return rpm;
+        }
+
+        function formatQd4310Status(scan) {
+            if (scan.last_error) return `故障：${scan.last_error}`;
+            if (!scan.port_configured) return '树莓派服务未配置 QD4310 USB 串口';
+            if (scan.status === 'opening' || scan.status === 'starting') return '串口打开中…';
+            if (scan.status === 'stopping') return '正在停止电机…';
+            if (scan.enabled) return `运转中 · 指令 ${Number(scan.rpm).toFixed(1)} rpm`;
+            return '未启动';
         }
 
         function updateGimbalScanButton(status = '') {
             const btn = document.getElementById('gimbalScanToggleBtn');
             const display = document.getElementById('gimbalScanStatusDisplay');
             if (!btn || !display) return;
-            btn.innerText = gimbalScanEnabled ? '停止扫描' : '开始扫描';
+            btn.innerText = gimbalScanEnabled ? '停止电机' : '启动电机';
             btn.style.backgroundColor = gimbalScanEnabled ? 'rgba(53, 230, 255, 0.20)' : 'transparent';
+            document.getElementById('motorApplyRpmBtn').disabled = !gimbalScanEnabled;
             if (status) display.innerText = status;
         }
 
@@ -4461,8 +4477,16 @@
             if (gimbalScanEnabled) {
                 ws.send(JSON.stringify({ type: 'gimbal_scan', action: 'stop' }));
             } else {
+                if (validMotorRpm() === null) return;
                 ws.send(JSON.stringify({ type: 'gimbal_scan', action: 'start', params: getGimbalScanParams() }));
             }
+        });
+
+        document.getElementById('motorApplyRpmBtn').addEventListener('click', () => {
+            if (!gimbalScanEnabled || !ws || ws.readyState !== WebSocket.OPEN) return;
+            const rpm = validMotorRpm();
+            if (rpm === null) return;
+            ws.send(JSON.stringify({ type: 'gimbal_scan', action: 'set_speed', params: { rpm } }));
         });
 
         document.getElementById('cameraDisplayMode').addEventListener('change', () => {
@@ -4524,6 +4548,8 @@
             };
 
             ws.onclose = () => {
+                gimbalScanEnabled = false;
+                updateGimbalScanButton('连接已断开；请确认电机实际停转');
                 btn.innerText = '连接雷达';
                 btn.style.backgroundColor = '';
                 indicator.classList.remove('connected');
@@ -4911,11 +4937,9 @@
                 console.warn('radar control error:', data);
             } else if (data.type === 'gimbal_scan_status') {
                 gimbalScanEnabled = !!data.enabled;
-                const directionText = data.direction === 'ccw' ? '逆时针' : '顺时针';
-                const rpm = Number(data.rpm || 0).toFixed(1);
-                const frameAngle = Number(data.frame_angle_deg || 0).toFixed(2);
-                const yaw = Number(data.yaw_actual_deg || 0).toFixed(1);
-                updateGimbalScanButton(`${data.status || '--'} ${directionText} ${rpm}rpm 每帧${frameAngle}° 角度:${yaw}°`);
+                updateGimbalScanButton(data.success === false
+                    ? `操作失败：${data.message || '未知错误'}`
+                    : formatQd4310Status(data));
                 if (data.last_error) console.warn('gimbal scan:', data.last_error);
             }
         };

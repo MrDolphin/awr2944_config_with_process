@@ -20,6 +20,8 @@ Install from the checkout with `sudo env APP_DIR=/home/pi/camera_web_fusion bash
 
 The service uses systemd's standalone `$RADAR_CAMERA_ARGS` expansion so each option reaches Python as a separate argument. Keep this variable unbraced in `ExecStart`; `${RADAR_CAMERA_ARGS}` would pass the whole option string as one argument.
 
+For QD4310 USB control, identify its `/dev/serial/by-id/` symlink with `ls -l /dev/serial/by-id/` and add `--qd4310-port <that-path>` to the same `RADAR_CAMERA_ARGS` value. Leave it absent until supervised bench testing. The web panel uses `enable`, `ctrl speed <rpm>`, `ctrl speed 0`, and `disable`; verify the stop behavior with the installed firmware and an independent power cut available. USB is the control link; the motor needs its own XT30 power supply.
+
 ## Rollback
 
 Rollback is one environment edit: removing --enable-camera from `RADAR_CAMERA_ARGS`, then run `sudo systemctl daemon-reload` and `sudo systemctl restart radar.service`. Preserve session data and logs; do not delete them during rollback.
