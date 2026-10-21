@@ -184,6 +184,53 @@ class Qd4310ServerModeTests(unittest.TestCase):
         finally:
             self._restore_modules(previous_serial, previous_websockets)
 
+    def test_radar_port_inventory_excludes_qdrive_usb_device(self):
+        server, previous_serial, previous_websockets = self._import_server()
+        try:
+            qdrive = "/dev/serial/by-id/qdrive-test"
+            paths = ["/dev/ttyACM0", "/dev/ttyACM1", "/dev/ttyACM2"]
+            with patch("glob.glob", return_value=paths), patch.object(
+                server.os.path, "realpath", side_effect=lambda path: "/dev/ttyACM0" if path == qdrive else path
+            ):
+                self.assertEqual(server.list_radar_acm_ports(qdrive), paths[1:])
+        finally:
+            self._restore_modules(previous_serial, previous_websockets)
+
+    def test_explicit_radar_port_cannot_use_motor_device(self):
+        server, previous_serial, previous_websockets = self._import_server()
+        try:
+            qdrive = "/dev/serial/by-id/qdrive-test"
+            args = types.SimpleNamespace(qd4310_port=qdrive, cfg_port="/dev/ttyACM0", data_port="")
+            with patch.object(
+                server.os.path, "realpath", side_effect=lambda path: "/dev/ttyACM0" if path == qdrive else path
+            ):
+                with self.assertRaises(ValueError):
+                    server.validate_radar_ports_not_motor(args)
+        finally:
+            self._restore_modules(previous_serial, previous_websockets)
+
+    def test_motor_only_server_does_not_probe_radar_ports(self):
+        server, previous_serial, previous_websockets = self._import_server()
+        try:
+            args = types.SimpleNamespace(
+                qd4310_port="/dev/serial/by-id/qdrive-test", enable_camera=True,
+                camera_config="camera.cfg", camera_http_host="0.0.0.0",
+                camera_http_port=8081, camera_public_base_url="http://pi:8081",
+                ws_port=8765,
+            )
+            with patch.object(server, "auto_detect_ports") as probe, patch.object(
+                server, "start_camera_services"
+            ) as camera, patch.object(server, "run_websocket_server") as websocket:
+                server.run_motor_only_server(args)
+            probe.assert_not_called()
+            camera.assert_called_once_with("camera.cfg", "0.0.0.0", 8081, "http://pi:8081")
+            websocket.assert_called_once_with(8765)
+            args.qd4310_port = ""
+            with self.assertRaises(ValueError):
+                server.run_motor_only_server(args)
+        finally:
+            self._restore_modules(previous_serial, previous_websockets)
+
 
 if __name__ == "__main__":
     unittest.main()

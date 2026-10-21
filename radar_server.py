@@ -747,9 +747,26 @@ def _sync_recording_status():
         "rows": status["rows"],
     })
 
-def auto_detect_ports():
+def list_radar_acm_ports(qd4310_port=""):
+    """Never probe the configured motor device as a radar CLI/data port."""
     import glob
-    ports = glob.glob('/dev/ttyACM*')
+    motor_target = os.path.realpath(qd4310_port) if qd4310_port else None
+    return [port for port in sorted(glob.glob('/dev/ttyACM*'))
+            if os.path.realpath(port) != motor_target]
+
+
+def validate_radar_ports_not_motor(args):
+    if not args.qd4310_port:
+        return
+    motor_target = os.path.realpath(args.qd4310_port)
+    for name in ("cfg_port", "data_port"):
+        port = getattr(args, name, "")
+        if port and os.path.realpath(port) == motor_target:
+            raise ValueError(f"--{name} points to the configured QD4310 USB motor")
+
+
+def auto_detect_ports(qd4310_port=""):
+    ports = list_radar_acm_ports(qd4310_port)
     cfg_port = None
     data_port = None
     
@@ -1343,6 +1360,21 @@ def run_websocket_server(port):
         stop_camera_services()
 
 
+def run_motor_only_server(args):
+    """Serve the camera and USB motor UI without opening radar serial ports."""
+    if not args.qd4310_port:
+        raise ValueError("--motor-only requires --qd4310-port")
+    logger.warning("Motor-only mode: radar serial detection and radar stream are disabled")
+    if args.enable_camera:
+        start_camera_services(
+            args.camera_config,
+            args.camera_http_host,
+            args.camera_http_port,
+            args.camera_public_base_url,
+        )
+    run_websocket_server(args.ws_port)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="雷达【远程交互版服务器】")
     parser.add_argument('--cfg_port', type=str, default='')
@@ -1354,6 +1386,8 @@ if __name__ == "__main__":
     parser.add_argument('--gimbal_port', type=str, default='/dev/ttyUSB0')
     parser.add_argument('--qd4310-port', type=str, default='',
                         help='QD4310 USB serial device; blank disables USB motor control')
+    parser.add_argument('--motor-only', action='store_true',
+                        help='serve QD4310 and optional camera without probing radar serial ports')
     parser.add_argument('--enable-camera', action='store_true',
                         help='start the optional single-owner camera service')
     parser.add_argument('--camera-config', type=str,
@@ -1400,26 +1434,37 @@ if __name__ == "__main__":
         logger.error("🛑 检测到旧的 radar_server 仍在后台运行（可能是 systemd 守护进程或另一终端）！")
         logger.error("👉 为保护雷达串口状态机，本次启动已被自动拦截。请先彻底 kill 前代进程！")
         sys.exit(1)
+
+    if ARGS.motor_only:
+        try:
+            run_motor_only_server(ARGS)
+        except ValueError as exc:
+            parser.error(str(exc))
+        sys.exit(0)
+
+    try:
+        validate_radar_ports_not_motor(ARGS)
+    except ValueError as exc:
+        parser.error(str(exc))
         
     # 自动探测逻辑集成
     logger.info("⏳ 正在自动识别雷达串口映射...")
-    d_cfg, d_data = auto_detect_ports()
+    d_cfg, d_data = auto_detect_ports(ARGS.qd4310_port)
     
-    import glob
-    sys_ports = sorted(glob.glob('/dev/ttyACM*'))
+    sys_ports = list_radar_acm_ports(ARGS.qd4310_port)
     
     # 智能选择：如果写死的参数不存在，依次降级：
     # 1. 尝试使用全自动探测出的可用端口 (d_cfg / d_data)
     # 2. 如果雷达挂起装死导致探测不到，强制从当前系统中实际插着的 ACM 列表里按顺序认领！
     if ARGS.cfg_port and os.path.exists(ARGS.cfg_port): real_cfg_port = ARGS.cfg_port
     elif d_cfg: real_cfg_port = d_cfg
-    else: real_cfg_port = sys_ports[0] if sys_ports else '/dev/ttyACM0'
+    else: real_cfg_port = sys_ports[0] if sys_ports else ('' if ARGS.qd4310_port else '/dev/ttyACM0')
         
     if ARGS.data_port and os.path.exists(ARGS.data_port): real_data_port = ARGS.data_port
     elif d_data: real_data_port = d_data
     else:
         rem_ports = [p for p in sys_ports if p != real_cfg_port]
-        real_data_port = rem_ports[0] if rem_ports else '/dev/ttyACM1'
+        real_data_port = rem_ports[0] if rem_ports else ('' if ARGS.qd4310_port else '/dev/ttyACM1')
     
     logger.info(f"📍 最终映射确定: Config={real_cfg_port}, Data={real_data_port}")
     # WebSocket 配置下发必须使用自动探测后的真实端口，而不是空的启动参数。
