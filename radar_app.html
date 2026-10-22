@@ -377,6 +377,12 @@
             font-weight: 700;
         }
 
+        .motor-angle-readout {
+            color: #8ff5e4;
+            font: 700 12px/1.3 "Courier New", monospace;
+            text-align: right;
+        }
+
         .hud-chart {
             width: 100%;
             max-width: var(--radar-panel-max-width);
@@ -1070,8 +1076,17 @@
                 </div>
                 <div class="hud-box filter-tune-panel" id="gimbalScanPanel" style="border-left-color: #35e6ff;">
                     <div class="filter-title" style="color:#35e6ff;">QD4310 USB 电机控制</div>
+                    <label>旋转方向
+                        <select id="motorDirectionSelect" aria-label="电机旋转方向">
+                            <option value="ccw">逆时针</option>
+                            <option value="cw">顺时针</option>
+                        </select>
+                    </label>
                     <label>电机转速(rpm)
                         <input type="number" id="motorRpmInput" value="1" step="0.1" min="0.1" max="30">
+                    </label>
+                    <label>电机单圈角度
+                        <output id="motorAngleDisplay" class="motor-angle-readout" aria-live="polite">未获取</output>
                     </label>
                     <label>雷达帧周期(s，仅估算)
                         <input type="number" id="motorFramePeriodInput" value="0.656" step="0.001" min="0.01">
@@ -1083,7 +1098,7 @@
                         <button id="gimbalScanToggleBtn" type="button">启动电机</button>
                         <button id="motorApplyRpmBtn" type="button" disabled>更新转速</button>
                     </div>
-                    <div style="font-size:11px;color:#8abac5;margin-top:6px;">串口由树莓派服务配置；转角仅按指令转速估算，未接入角度反馈。</div>
+                    <div style="font-size:11px;color:#8abac5;margin-top:6px;">方向须先停机再切换。角度来自电机编码器的单圈读数；未标定转台零位或与雷达帧同步，暂不用于 360° 点云拼接。</div>
                     <div class="value" id="gimbalScanStatusDisplay" style="font-size:13px;color:#bff;">未启动</div>
                 </div>
             </div>
@@ -4436,6 +4451,7 @@
         function getGimbalScanParams() {
             return {
                 mode: 'qd4310',
+                direction: document.getElementById('motorDirectionSelect').value,
                 rpm: Number(document.getElementById('motorRpmInput').value),
                 frame_period_s: Math.max(0.01, Number(document.getElementById('motorFramePeriodInput').value) || 0.656)
             };
@@ -4455,8 +4471,26 @@
             if (!scan.port_configured) return '树莓派服务未配置 QD4310 USB 串口';
             if (scan.status === 'opening' || scan.status === 'starting') return '串口打开中…';
             if (scan.status === 'stopping') return '正在停止电机…';
-            if (scan.enabled) return `运转中 · 指令 ${Number(scan.rpm).toFixed(1)} rpm`;
+            if (scan.enabled) {
+                const direction = scan.direction === 'cw' ? '顺时针' : '逆时针';
+                const measured = Number.isFinite(scan.motor_speed_rpm)
+                    ? ` · 反馈 ${Number(scan.motor_speed_rpm).toFixed(1)} rpm` : '';
+                return `运转中 · ${direction} · 指令 ${Number(scan.rpm).toFixed(1)} rpm${measured}`;
+            }
             return '未启动';
+        }
+
+        function updateMotorAngleDisplay(scan) {
+            const display = document.getElementById('motorAngleDisplay');
+            if (!display) return;
+            if (scan && scan.enabled && scan.mode === 'qd4310' &&
+                typeof scan.motor_angle_deg === 'number' && Number.isFinite(scan.motor_angle_deg)) {
+                display.textContent = `${scan.motor_angle_deg.toFixed(2)}°`;
+                display.title = `QD4310 单圈编码器角度 · 数据约 ${Number(scan.motor_angle_age_ms || 0).toFixed(0)} ms 前接收`;
+            } else {
+                display.textContent = scan && scan.enabled ? '无新鲜角度' : '未获取';
+                display.title = '未收到可用的 QD4310 编码器角度';
+            }
         }
 
         function updateGimbalScanButton(status = '') {
@@ -4466,6 +4500,7 @@
             btn.innerText = gimbalScanEnabled ? '停止电机' : '启动电机';
             btn.style.backgroundColor = gimbalScanEnabled ? 'rgba(53, 230, 255, 0.20)' : 'transparent';
             document.getElementById('motorApplyRpmBtn').disabled = !gimbalScanEnabled;
+            document.getElementById('motorDirectionSelect').disabled = gimbalScanEnabled;
             if (status) display.innerText = status;
         }
 
@@ -4486,7 +4521,9 @@
             if (!gimbalScanEnabled || !ws || ws.readyState !== WebSocket.OPEN) return;
             const rpm = validMotorRpm();
             if (rpm === null) return;
-            ws.send(JSON.stringify({ type: 'gimbal_scan', action: 'set_speed', params: { rpm } }));
+            ws.send(JSON.stringify({ type: 'gimbal_scan', action: 'set_speed', params: {
+                rpm, direction: document.getElementById('motorDirectionSelect').value
+            } }));
         });
 
         document.getElementById('cameraDisplayMode').addEventListener('change', () => {
@@ -4550,6 +4587,7 @@
             ws.onclose = () => {
                 gimbalScanEnabled = false;
                 updateGimbalScanButton('连接已断开；请确认电机实际停转');
+                updateMotorAngleDisplay(null);
                 btn.innerText = '连接雷达';
                 btn.style.backgroundColor = '';
                 indicator.classList.remove('connected');
@@ -4937,6 +4975,10 @@
                 console.warn('radar control error:', data);
             } else if (data.type === 'gimbal_scan_status') {
                 gimbalScanEnabled = !!data.enabled;
+                if (data.enabled && (data.direction === 'cw' || data.direction === 'ccw')) {
+                    document.getElementById('motorDirectionSelect').value = data.direction;
+                }
+                updateMotorAngleDisplay(data);
                 updateGimbalScanButton(data.success === false
                     ? `操作失败：${data.message || '未知错误'}`
                     : formatQd4310Status(data));

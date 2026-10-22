@@ -37,6 +37,9 @@ class RadarAppMarkupTests(unittest.TestCase):
         self.assertIn('id="motorRpmInput"', app_html)
         self.assertIn('id="gimbalScanToggleBtn"', app_html)
         self.assertIn('id="motorApplyRpmBtn"', app_html)
+        self.assertIn('id="motorDirectionSelect"', app_html)
+        self.assertIn('id="motorAngleDisplay"', app_html)
+        self.assertIn('电机单圈角度', app_html)
         self.assertNotIn('id="motorPwmDutyInput"', app_html)
         self.assertIn("mode: 'qd4310'", app_html)
 
@@ -234,6 +237,35 @@ class RadarAppTests(unittest.TestCase):
         self.assertEqual(commands[0]["params"]["mode"], "qd4310")
         self.assertEqual(commands[0]["params"]["rpm"], 10)
         self.assertEqual(commands[1]["params"]["rpm"], 5.5)
+
+    def test_qd4310_direction_and_encoder_angle_are_not_inferred_from_rpm(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.goto(page_url, wait_until="networkidle")
+            result = page.evaluate("""() => {
+                const commands = [];
+                ws = {readyState: WebSocket.OPEN, send: raw => commands.push(JSON.parse(raw))};
+                document.getElementById('motorDirectionSelect').value = 'cw';
+                document.getElementById('gimbalScanToggleBtn').click();
+                handleConfigResponse({type: 'gimbal_scan_status', enabled: true,
+                    status: 'running', mode: 'qd4310', direction: 'cw', rpm: 2,
+                    port_configured: true, motor_angle_deg: 49.446,
+                    motor_angle_age_ms: 120, motor_speed_rpm: -1.9});
+                const fresh = document.getElementById('motorAngleDisplay').textContent;
+                const locked = document.getElementById('motorDirectionSelect').disabled;
+                handleConfigResponse({type: 'gimbal_scan_status', enabled: true,
+                    status: 'running', mode: 'qd4310', direction: 'cw', rpm: 2,
+                    port_configured: true, motor_angle_deg: null});
+                const stale = document.getElementById('motorAngleDisplay').textContent;
+                return {commands, fresh, stale, locked};
+            }""")
+            browser.close()
+        self.assertEqual(result["commands"][0]["params"]["direction"], "cw")
+        self.assertTrue(result["locked"])
+        self.assertIn("49.45", result["fresh"])
+        self.assertNotIn("49.45", result["stale"])
 
     def test_calibration_freeze_keeps_raw_point_and_native_camera_pixel(self):
         page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()

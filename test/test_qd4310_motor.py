@@ -21,6 +21,70 @@ class FakeSerialPort:
 
 
 class Qd4310ProtocolTests(unittest.TestCase):
+    def test_direction_uses_signed_speed_without_changing_magnitude(self):
+        from qd4310_motor import Qd4310Motor
+
+        port = FakeSerialPort()
+        with patch("qd4310_motor.serial.Serial", return_value=port):
+            motor = Qd4310Motor("/dev/ttyUSB9")
+            motor.start(2, direction="cw")
+            motor.set_speed(1, direction="cw")
+            motor.stop()
+        self.assertEqual(port.writes[:3],
+                         [b"enable\n", b"ctrl speed -2\n", b"ctrl speed -1\n"])
+
+    def test_invalid_direction_never_opens_motor_port(self):
+        from qd4310_motor import Qd4310Motor
+
+        with patch("qd4310_motor.serial.Serial") as open_port:
+            with self.assertRaises(ValueError):
+                Qd4310Motor("/dev/ttyUSB9").start(1, direction="reverse\nreboot")
+        open_port.assert_not_called()
+
+    def test_status_parser_reads_real_format_as_single_turn_angle(self):
+        from qd4310_motor import parse_qdrive_status
+
+        response = (b"status\r\nMotor Status:\r\n  Status       : enabled\r\n"
+                    b"  Speed        : -2.000 rpm\r\n  Angle        : 6.000 rad\r\n"
+                    b"  Voltage      : 16.118 V\r\n\r\nQDrive:/$ ")
+        telemetry = parse_qdrive_status(response)
+        self.assertTrue(telemetry["enabled"])
+        self.assertAlmostEqual(telemetry["speed_rpm"], -2)
+        self.assertAlmostEqual(telemetry["angle_deg"], 343.774677, places=5)
+        self.assertIsNone(parse_qdrive_status(b"ctrl speed 2\r\nSetting speed = 2 rpm"))
+
+    def test_running_motor_queries_status_on_owned_serial_port(self):
+        from qd4310_motor import Qd4310Motor
+
+        class StatusPort(FakeSerialPort):
+            def __init__(self):
+                super().__init__()
+                self.reply = b""
+
+            def write(self, data):
+                result = super().write(data)
+                if data == b"status\n":
+                    self.reply = (b"Motor Status:\r\n  Status : enabled\r\n"
+                                  b"  Speed : 1.000 rpm\r\n  Angle : 0.863 rad\r\nQDrive:/$ ")
+                return result
+
+            @property
+            def in_waiting(self):
+                return len(self.reply)
+
+            def read(self, amount):
+                data, self.reply = self.reply[:amount], self.reply[amount:]
+                return data
+
+        port = StatusPort()
+        with patch("qd4310_motor.serial.Serial", return_value=port):
+            motor = Qd4310Motor("/dev/ttyUSB9")
+            motor.start(1)
+            telemetry = motor.read_status()
+            motor.stop()
+        self.assertAlmostEqual(telemetry["angle_deg"], 49.446, places=2)
+        self.assertEqual(port.writes[2], b"status\n")
+
     def test_auto_resolves_unique_qdrive_on_each_start(self):
         from qd4310_motor import Qd4310Motor
 
@@ -205,13 +269,13 @@ class Qd4310ServerModeTests(unittest.TestCase):
             self.assertTrue(ok)
             self.assertIs(created[0][0], server.qd4310_scan_loop)
             self.assertEqual(created[0][1][0]["qd4310_port"], "/dev/serial/by-id/qd4310-test")
-            fake_motor = types.SimpleNamespace(set_speed=lambda rpm: created.append(rpm))
+            fake_motor = types.SimpleNamespace(set_speed=lambda rpm, direction="ccw": created.append((rpm, direction)))
             server.gimbal_scan["motor"] = fake_motor
             self.assertEqual(server.set_qd4310_speed(5.5), (True, "QD4310 speed updated"))
-            self.assertEqual(created[-1], 5.5)
+            self.assertEqual(created[-1], (5.5, "ccw"))
             self.assertEqual(server.gimbal_scan["rpm"], 5.5)
             self.assertFalse(server.set_qd4310_speed(31)[0])
-            self.assertEqual(created[-1], 5.5)
+            self.assertEqual(created[-1], (5.5, "ccw"))
         finally:
             self._restore_modules(previous_serial, previous_websockets)
 
@@ -225,8 +289,8 @@ class Qd4310ServerModeTests(unittest.TestCase):
                 def __init__(self, port):
                     calls.append(("port", port))
 
-                def start(self, rpm):
-                    calls.append(("start", rpm))
+                def start(self, rpm, direction="ccw"):
+                    calls.append(("start", rpm, direction))
                     stop_event.set()
 
                 def stop(self):
@@ -235,9 +299,65 @@ class Qd4310ServerModeTests(unittest.TestCase):
             server.gimbal_scan["enabled"] = True
             with patch.object(server, "Qd4310Motor", FakeMotor):
                 server.qd4310_scan_loop({"qd4310_port": "/dev/ttyUSB9", "rpm": 1}, stop_event)
-            self.assertEqual(calls, [("port", "/dev/ttyUSB9"), ("start", 1), ("stop",)])
+            self.assertEqual(calls, [("port", "/dev/ttyUSB9"), ("start", 1, "ccw"), ("stop",)])
             self.assertFalse(server.gimbal_scan["enabled"])
             self.assertIsNone(server.gimbal_scan["motor"])
+        finally:
+            self._restore_modules(previous_serial, previous_websockets)
+
+    def test_qdrive_direction_is_explicit_and_cannot_reverse_while_running(self):
+        server, previous_serial, previous_websockets = self._import_server()
+        try:
+            server.gimbal_scan["config"]["qd4310_port"] = "auto"
+            with patch.object(server.threading, "Thread") as thread:
+                ok, message = server.start_gimbal_scan({"mode": "qd4310", "rpm": 2, "direction": "sideways"})
+            self.assertFalse(ok)
+            self.assertIn("direction", message.lower())
+            thread.assert_not_called()
+            with patch.object(server.threading, "Thread"):
+                ok, _ = server.start_gimbal_scan({"mode": "qd4310", "rpm": 2, "direction": "cw"})
+            self.assertTrue(ok)
+            self.assertEqual(server.gimbal_scan["direction"], "cw")
+            motor = types.SimpleNamespace(set_speed=lambda *args: self.fail("motor must not reverse"))
+            server.gimbal_scan["motor"] = motor
+            ok, message = server.set_qd4310_speed(2, "ccw")
+            self.assertFalse(ok)
+            self.assertIn("stop", message.lower())
+        finally:
+            self._restore_modules(previous_serial, previous_websockets)
+
+    def test_motor_encoder_angle_is_fresh_telemetry_not_radar_yaw(self):
+        server, previous_serial, previous_websockets = self._import_server()
+        try:
+            stop_event = threading.Event()
+
+            class FakeMotor:
+                def __init__(self, port):
+                    pass
+
+                def start(self, rpm, direction="ccw"):
+                    pass
+
+                def read_status(self):
+                    stop_event.set()
+                    return {"angle_deg": 49.446, "speed_rpm": 1.0, "enabled": True}
+
+                def stop(self):
+                    pass
+
+            server.gimbal_scan.update({"enabled": True, "yaw_actual_deg": 0.0})
+            server.gimbal_scan["config"]["mode"] = "qd4310"
+            timeout = threading.Timer(0.5, stop_event.set)
+            timeout.start()
+            try:
+                with patch.object(server, "Qd4310Motor", FakeMotor):
+                    server.qd4310_scan_loop({"qd4310_port": "auto", "rpm": 1, "direction": "ccw"}, stop_event)
+            finally:
+                timeout.cancel()
+            # Stopped samples are retained for diagnostics, never represented as fresh yaw.
+            self.assertAlmostEqual(server.gimbal_scan["motor_angle_deg"], 49.446)
+            self.assertEqual(server.gimbal_scan["yaw_actual_deg"], 0.0)
+            self.assertIsNone(server.get_gimbal_scan_status()["motor_angle_deg"])
         finally:
             self._restore_modules(previous_serial, previous_websockets)
 
