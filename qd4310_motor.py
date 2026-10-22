@@ -1,10 +1,7 @@
-"""QD4310 USB serial speed control.
-
-The operator supplies the device path to the server; importing this module never
-opens a port or enables motion.  A separate motor power supply is still needed.
-"""
+"""QD4310 USB serial speed control; importing never enables motion."""
 
 import math
+import os
 import threading
 
 import serial
@@ -12,6 +9,39 @@ import serial
 
 MIN_RPM = 0.1
 MAX_RPM = 30.0
+
+
+def _comports():
+    from serial.tools import list_ports
+    return list_ports.comports()
+
+
+def list_qdrive_ports():
+    """Find QDrive USB serial devices, without opening or commanding any port."""
+    by_id_dir = "/dev/serial/by-id"
+    aliases = ([f"{by_id_dir}/{name}" for name in os.listdir(by_id_dir)]
+               if os.path.isdir(by_id_dir) else [])
+    matches = []
+    for port in _comports():
+        if port.vid != 0x0483 or port.pid != 0x5741:
+            continue
+        if "qdrive" not in ((port.product or "") + " " + (port.description or "")).lower():
+            continue
+        stable_paths = [alias for alias in aliases
+                        if os.path.realpath(alias) == os.path.realpath(port.device)]
+        matches.append(sorted(stable_paths)[0] if stable_paths else port.device)
+    return sorted(set(matches))
+
+
+def resolve_qd4310_port(port_spec):
+    if port_spec != "auto":
+        return port_spec
+    candidates = list_qdrive_ports()
+    if not candidates:
+        raise RuntimeError("No QD4310 QDrive USB serial device found")
+    if len(candidates) != 1:
+        raise RuntimeError(f"Multiple QD4310 QDrive USB devices found: {candidates}; configure a specific /dev/serial/by-id/ path")
+    return candidates[0]
 
 
 def validate_rpm(value):
@@ -46,9 +76,8 @@ class Qd4310Motor:
         with self._lock:
             if self._serial is not None:
                 raise RuntimeError("QD4310 motor is already enabled")
-            conn = serial.Serial(
-                self.port, baudrate=115200, timeout=0.005, write_timeout=0.5
-            )
+            port = resolve_qd4310_port(self.port)
+            conn = serial.Serial(port, baudrate=115200, timeout=0.005, write_timeout=0.5)
             try:
                 self._write(conn, b"enable\n")
                 self._write(conn, self._speed_command(rpm))

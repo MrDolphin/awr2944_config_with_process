@@ -21,6 +21,63 @@ class FakeSerialPort:
 
 
 class Qd4310ProtocolTests(unittest.TestCase):
+    def test_auto_resolves_unique_qdrive_on_each_start(self):
+        from qd4310_motor import Qd4310Motor
+
+        qdrive = lambda device, serial_number: types.SimpleNamespace(
+            device=device, vid=0x0483, pid=0x5741,
+            product="QDrive ComPort", description="QDrive ComPort",
+            serial_number=serial_number,
+        )
+        xds110 = types.SimpleNamespace(
+            device="/dev/ttyACM0", vid=0x0451, pid=0xBEF3,
+            product="XDS110", description="XDS110", serial_number="RE450055",
+        )
+        motor = Qd4310Motor("auto")
+        with patch("qd4310_motor._comports", side_effect=[
+            [xds110, qdrive("/dev/ttyACM1", "old")],
+            [xds110, qdrive("/dev/ttyACM2", "new")],
+        ]), patch("qd4310_motor.serial.Serial", side_effect=[FakeSerialPort(), FakeSerialPort()]) as open_port:
+            motor.start(1)
+            motor.stop()
+            motor.start(1)
+            motor.stop()
+        self.assertEqual([call.args[0] for call in open_port.call_args_list],
+                         ["/dev/ttyACM1", "/dev/ttyACM2"])
+
+    def test_auto_fails_closed_for_zero_or_multiple_qdrives(self):
+        from qd4310_motor import Qd4310Motor
+
+        qdrive = lambda device: types.SimpleNamespace(
+            device=device, vid=0x0483, pid=0x5741,
+            product="QDrive ComPort", description="QDrive ComPort",
+            serial_number=device,
+        )
+        with patch("qd4310_motor._comports", side_effect=[
+            [], [qdrive("/dev/ttyACM1"), qdrive("/dev/ttyACM2")],
+        ]), patch("qd4310_motor.serial.Serial") as open_port:
+            with self.assertRaisesRegex(RuntimeError, "No QD4310"):
+                Qd4310Motor("auto").start(1)
+            with self.assertRaisesRegex(RuntimeError, "Multiple QD4310"):
+                Qd4310Motor("auto").start(1)
+        open_port.assert_not_called()
+
+    def test_auto_prefers_identity_bound_linux_by_id_path(self):
+        from qd4310_motor import resolve_qd4310_port
+
+        device = types.SimpleNamespace(
+            device="/dev/ttyACM2", vid=0x0483, pid=0x5741,
+            product="QDrive ComPort", description="QDrive ComPort",
+            serial_number="NEW",
+        )
+        alias = "/dev/serial/by-id/usb-STMicroelectronics_QDrive_ComPort_NEW-if00"
+        with patch("qd4310_motor._comports", return_value=[device]), patch(
+            "qd4310_motor.os.path.isdir", return_value=True
+        ), patch("qd4310_motor.os.listdir", return_value=[alias.rsplit("/", 1)[-1]]), patch(
+            "qd4310_motor.os.path.realpath", side_effect=lambda path: "/dev/ttyACM2" if path == alias else path
+        ):
+            self.assertEqual(resolve_qd4310_port("auto"), alias)
+
     def test_start_update_and_stop_use_bounded_ascii_commands(self):
         from qd4310_motor import Qd4310Motor
 
@@ -189,10 +246,24 @@ class Qd4310ServerModeTests(unittest.TestCase):
         try:
             qdrive = "/dev/serial/by-id/qdrive-test"
             paths = ["/dev/ttyACM0", "/dev/ttyACM1", "/dev/ttyACM2"]
-            with patch("glob.glob", return_value=paths), patch.object(
+            with patch.object(server, "list_qdrive_ports", return_value=[]), patch("glob.glob", return_value=paths), patch.object(
                 server.os.path, "realpath", side_effect=lambda path: "/dev/ttyACM0" if path == qdrive else path
             ):
                 self.assertEqual(server.list_radar_acm_ports(qdrive), paths[1:])
+        finally:
+            self._restore_modules(previous_serial, previous_websockets)
+
+    def test_auto_radar_port_inventory_excludes_detected_qdrive(self):
+        server, previous_serial, previous_websockets = self._import_server()
+        try:
+            paths = ["/dev/ttyACM0", "/dev/ttyACM1", "/dev/ttyACM2"]
+            with patch("glob.glob", return_value=paths), patch.object(
+                server, "list_qdrive_ports", return_value=["/dev/ttyACM2"]
+            ):
+                self.assertEqual(server.list_radar_acm_ports("auto"), paths[:2])
+                args = types.SimpleNamespace(qd4310_port="auto", cfg_port="/dev/ttyACM2", data_port="")
+                with self.assertRaises(ValueError):
+                    server.validate_radar_ports_not_motor(args)
         finally:
             self._restore_modules(previous_serial, previous_websockets)
 
@@ -201,7 +272,7 @@ class Qd4310ServerModeTests(unittest.TestCase):
         try:
             qdrive = "/dev/serial/by-id/qdrive-test"
             args = types.SimpleNamespace(qd4310_port=qdrive, cfg_port="/dev/ttyACM0", data_port="")
-            with patch.object(
+            with patch.object(server, "list_qdrive_ports", return_value=[]), patch.object(
                 server.os.path, "realpath", side_effect=lambda path: "/dev/ttyACM0" if path == qdrive else path
             ):
                 with self.assertRaises(ValueError):

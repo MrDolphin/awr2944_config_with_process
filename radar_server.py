@@ -28,7 +28,7 @@ from tools.camera.camera_config import load_camera_config
 from tools.camera.camera_http import CameraHttpServer
 from tools.fusion.calibration import CalibrationError, load_calibration
 from tools.fusion.projection import project_radar_point
-from qd4310_motor import Qd4310Motor, validate_rpm
+from qd4310_motor import Qd4310Motor, list_qdrive_ports, validate_rpm
 
 # 配置日志：同时输出到文件和控制台
 config_dir = os.path.dirname(os.path.abspath(__file__))
@@ -748,21 +748,23 @@ def _sync_recording_status():
     })
 
 def list_radar_acm_ports(qd4310_port=""):
-    """Never probe the configured motor device as a radar CLI/data port."""
+    """Never probe a detected QDrive motor as a radar CLI/data port."""
     import glob
-    motor_target = os.path.realpath(qd4310_port) if qd4310_port else None
+    motor_targets = {os.path.realpath(port) for port in list_qdrive_ports()}
+    if qd4310_port and qd4310_port != "auto":
+        motor_targets.add(os.path.realpath(qd4310_port))
     return [port for port in sorted(glob.glob('/dev/ttyACM*'))
-            if os.path.realpath(port) != motor_target]
+            if os.path.realpath(port) not in motor_targets]
 
 
 def validate_radar_ports_not_motor(args):
-    if not args.qd4310_port:
-        return
-    motor_target = os.path.realpath(args.qd4310_port)
+    motor_targets = {os.path.realpath(port) for port in list_qdrive_ports()}
+    if args.qd4310_port and args.qd4310_port != "auto":
+        motor_targets.add(os.path.realpath(args.qd4310_port))
     for name in ("cfg_port", "data_port"):
         port = getattr(args, name, "")
-        if port and os.path.realpath(port) == motor_target:
-            raise ValueError(f"--{name} points to the configured QD4310 USB motor")
+        if port and os.path.realpath(port) in motor_targets:
+            raise ValueError(f"--{name} points to a QD4310 USB motor")
 
 
 def auto_detect_ports(qd4310_port=""):
@@ -1385,7 +1387,7 @@ if __name__ == "__main__":
     parser.add_argument('--log_file', type=str, default='')
     parser.add_argument('--gimbal_port', type=str, default='/dev/ttyUSB0')
     parser.add_argument('--qd4310-port', type=str, default='',
-                        help='QD4310 USB serial device; blank disables USB motor control')
+                        help='QD4310 USB serial device, auto for one detected QDrive; blank disables USB motor control')
     parser.add_argument('--motor-only', action='store_true',
                         help='serve QD4310 and optional camera without probing radar serial ports')
     parser.add_argument('--enable-camera', action='store_true',
