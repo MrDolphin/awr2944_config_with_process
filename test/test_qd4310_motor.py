@@ -34,7 +34,7 @@ class Qd4310ProtocolTests(unittest.TestCase):
             product="XDS110", description="XDS110", serial_number="RE450055",
         )
         motor = Qd4310Motor("auto")
-        with patch("qd4310_motor._comports", side_effect=[
+        with patch("qd4310_motor.os.path.isdir", return_value=False), patch("qd4310_motor._comports", side_effect=[
             [xds110, qdrive("/dev/ttyACM1", "old")],
             [xds110, qdrive("/dev/ttyACM2", "new")],
         ]), patch("qd4310_motor.serial.Serial", side_effect=[FakeSerialPort(), FakeSerialPort()]) as open_port:
