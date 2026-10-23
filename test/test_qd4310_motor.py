@@ -21,6 +21,14 @@ class FakeSerialPort:
 
 
 class Qd4310ProtocolTests(unittest.TestCase):
+    def test_speed_limit_accepts_120_and_130_but_rejects_above_130(self):
+        from qd4310_motor import validate_rpm
+
+        self.assertEqual(validate_rpm(120), 120)
+        self.assertEqual(validate_rpm(130), 130)
+        with self.assertRaises(ValueError):
+            validate_rpm(130.1)
+
     def test_direction_uses_signed_speed_without_changing_magnitude(self):
         from qd4310_motor import Qd4310Motor
 
@@ -168,7 +176,7 @@ class Qd4310ProtocolTests(unittest.TestCase):
 
         with patch("qd4310_motor.serial.Serial") as open_port:
             motor = Qd4310Motor("/dev/ttyUSB9")
-            for value in (0, -1, 31, float("nan"), "1\nreset"):
+            for value in (0, -1, 130.1, float("nan"), "1\nreset"):
                 with self.assertRaises(ValueError):
                     motor.start(value)
             open_port.assert_not_called()
@@ -274,7 +282,7 @@ class Qd4310ServerModeTests(unittest.TestCase):
             self.assertEqual(server.set_qd4310_speed(5.5), (True, "QD4310 speed updated"))
             self.assertEqual(created[-1], (5.5, "ccw"))
             self.assertEqual(server.gimbal_scan["rpm"], 5.5)
-            self.assertFalse(server.set_qd4310_speed(31)[0])
+            self.assertFalse(server.set_qd4310_speed(130.1)[0])
             self.assertEqual(created[-1], (5.5, "ccw"))
         finally:
             self._restore_modules(previous_serial, previous_websockets)

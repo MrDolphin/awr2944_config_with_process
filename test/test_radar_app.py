@@ -209,6 +209,31 @@ class RadarAppTests(unittest.TestCase):
     def _new_browser(self, playwright):
         return playwright.chromium.launch(headless=True, executable_path=str(CHROME_EXECUTABLE))
 
+    def test_qd4310_rpm_input_allows_120_up_to_130(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page()
+            page.goto(page_url, wait_until="networkidle")
+            result = page.evaluate("""() => {
+                const input = document.getElementById('motorRpmInput');
+                const alerts = [];
+                window.alert = message => alerts.push(message);
+                input.value = '120';
+                const at120 = validMotorRpm();
+                input.value = '130';
+                const at130 = validMotorRpm();
+                input.value = '130.1';
+                const above130 = validMotorRpm();
+                return {at120, at130, above130, max: input.max, alerts};
+            }""")
+            browser.close()
+        self.assertEqual(result["at120"], 120)
+        self.assertEqual(result["at130"], 130)
+        self.assertIsNone(result["above130"])
+        self.assertEqual(result["max"], "130")
+        self.assertIn("130 rpm", result["alerts"][-1])
+
     def test_qd4310_panel_sends_validated_start_update_and_stop(self):
         page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
         with sync_playwright() as playwright:

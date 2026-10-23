@@ -10,7 +10,7 @@ import serial
 
 
 MIN_RPM = 0.1
-MAX_RPM = 30.0
+MAX_RPM = 130.0
 
 
 def validate_direction(value):
