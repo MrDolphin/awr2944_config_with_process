@@ -47,7 +47,7 @@ def analyze_records(records: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
         "max_interval_ms": sorted_intervals[-1] * 1000.0,
         "missing_frame_numbers": missing,
         "duplicate_frame_numbers": duplicate,
-        "time_basis": "host_packet_receive_monotonic",
+        "time_basis": "host_packet_parse_monotonic",
     }
 
 

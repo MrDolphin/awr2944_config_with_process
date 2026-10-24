@@ -1,7 +1,7 @@
 """Pure, conservative encoder-to-radar-frame registration primitives.
 
 The caller must supply monotonic times from the same host clock. Radar packet
-receive time is *not* the RF acquisition time; a registered result based on it
+parse time is *not* the RF acquisition time; a registered result based on it
 remains provisional until device/host latency is measured in the field.
 """
 
@@ -33,11 +33,11 @@ class Registration:
     yaw_deg: float | None = None
     sample_gap_s: float | None = None
     angular_span_deg: float | None = None
-    time_basis: str = "host_packet_receive_monotonic"
+    time_basis: str = "host_packet_parse_monotonic"
 
 
 def estimate_frame_yaw(
-    frame_receive_monotonic_s: float,
+    frame_parse_monotonic_s: float,
     before: AngleSample,
     after: AngleSample,
     *,
@@ -59,7 +59,7 @@ def estimate_frame_yaw(
     if direction not in (-1, 1):
         raise ValueError("direction must be +1 or -1")
     if not all(math.isfinite(value) for value in (
-        frame_receive_monotonic_s, before.query_started_monotonic_s,
+        frame_parse_monotonic_s, before.query_started_monotonic_s,
         before.query_completed_monotonic_s, before.angle_deg,
         after.query_started_monotonic_s, after.query_completed_monotonic_s,
         after.angle_deg, zero_deg, mounting_yaw_deg,
@@ -72,7 +72,7 @@ def estimate_frame_yaw(
         raise ValueError("query completion cannot precede its start")
 
     start_s, end_s = before.midpoint_s, after.midpoint_s
-    if end_s <= start_s or not start_s <= frame_receive_monotonic_s <= end_s:
+    if end_s <= start_s or not start_s <= frame_parse_monotonic_s <= end_s:
         return Registration("unbracketed")
     gap_s = end_s - start_s
     if gap_s > max_gap_s:
@@ -90,7 +90,7 @@ def estimate_frame_yaw(
         return Registration("angular_span", sample_gap_s=gap_s,
                             angular_span_deg=forward_span)
 
-    fraction = (frame_receive_monotonic_s - start_s) / gap_s
+    fraction = (frame_parse_monotonic_s - start_s) / gap_s
     angle = before.angle_deg + direction * forward_span * fraction
     yaw = (angle - zero_deg + mounting_yaw_deg) % 360.0
     return Registration("registered", yaw, gap_s, forward_span)

@@ -39,7 +39,7 @@ class ScanTimingTests(unittest.TestCase):
         self.assertAlmostEqual(result["median_interval_ms"], 100.0)
         self.assertAlmostEqual(result["p95_interval_ms"], 200.0)
         self.assertAlmostEqual(result["effective_received_hz"], 7.5)
-        self.assertEqual(result["time_basis"], "host_packet_receive_monotonic")
+        self.assertEqual(result["time_basis"], "host_packet_parse_monotonic")
 
     def test_requires_monotonic_times_and_sufficient_frames(self):
         with self.assertRaises(ValueError):
