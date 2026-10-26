@@ -43,6 +43,15 @@ class RadarAppMarkupTests(unittest.TestCase):
         self.assertNotIn('id="motorPwmDutyInput"', app_html)
         self.assertIn("mode: 'qd4310'", app_html)
 
+    def test_live_registration_is_opt_in_and_visualises_only_measured_points(self):
+        app_html = (Path(__file__).resolve().parents[1] / "radar_app.html").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('id="liveRegistrationEnabled"', app_html)
+        self.assertIn("live_registration_enabled", app_html)
+        self.assertIn("liveRegistration.state === 'provisional'", app_html)
+        self.assertIn("renderGimbalScanFrame(data)", app_html)
+
     def test_manual_calibration_workspace_declares_local_controls(self):
         app_html = (Path(__file__).resolve().parents[1] / "radar_app.html").read_text(
             encoding="utf-8"
@@ -291,6 +300,58 @@ class RadarAppTests(unittest.TestCase):
         self.assertTrue(result["locked"])
         self.assertIn("49.45", result["fresh"])
         self.assertNotIn("49.45", result["stale"])
+
+    def test_qd4310_live_registration_requires_opt_in_and_can_show_rear_point(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.goto(page_url, wait_until="networkidle")
+            result = page.evaluate("""() => {
+                const commands = [];
+                ws = {readyState: WebSocket.OPEN, send: raw => commands.push(JSON.parse(raw))};
+                const enabled = document.getElementById('liveRegistrationEnabled');
+                const defaultChecked = enabled.checked;
+                enabled.checked = true;
+                document.getElementById('registrationDirectionInput').value = '-1';
+                document.getElementById('registrationZeroInput').value = '12.5';
+                document.getElementById('registrationRollInput').value = '90';
+                document.getElementById('gimbalScanToggleBtn').click();
+                let drawn = [];
+                let scanDrawCalls = 0;
+                drawGimbalScanPoints = points => { drawn = points; scanDrawCalls++; };
+                renderRadarFrame({frame_num: 20, points: [{x: 0, y: 1, z: 0, v: 0}],
+                    gimbal_scan: {enabled: true, mode: 'qd4310', rpm: 1,
+                        status: 'running', port_configured: true,
+                        live_registration: {state: 'provisional', registered_frames: 2},
+                        points: [{x: 0, y: -1, z: 0, v: 0}]}});
+                const provisionalLabel = document.getElementById('pointsDisplay').innerText;
+                const provisionalStatus = document.getElementById('liveRegistrationStatusDisplay').innerText;
+                const provisionalDrawCalls = scanDrawCalls;
+                renderRadarFrame({frame_num: 21, points: [{x: 0, y: 1, z: 0, v: 0}],
+                    gimbal_scan: {enabled: true, mode: 'qd4310', rpm: 1,
+                        status: 'running', port_configured: true,
+                        live_registration: {state: 'stale', registered_frames: 2},
+                        points: [{x: 0, y: -1, z: 0, v: 0}]}});
+                return {defaultChecked, command: commands[0], drawn, provisionalDrawCalls,
+                    provisionalLabel, provisionalStatus,
+                    staleDrawCalls: scanDrawCalls,
+                    label: document.getElementById('pointsDisplay').innerText,
+                    liveStatus: document.getElementById('liveRegistrationStatusDisplay').innerText};
+            }""")
+            browser.close()
+        self.assertFalse(result["defaultChecked"])
+        self.assertTrue(result["command"]["params"]["live_registration_enabled"])
+        self.assertEqual(result["command"]["params"]["registration_direction"], -1)
+        self.assertEqual(result["command"]["params"]["registration_zero_deg"], 12.5)
+        self.assertEqual(result["command"]["params"]["registration_mounting_roll_deg"], 90)
+        self.assertEqual(result["drawn"][0]["y"], -1)
+        self.assertIn("实测角度", result["provisionalLabel"])
+        self.assertIn("2 帧", result["provisionalStatus"])
+        self.assertEqual(result["provisionalDrawCalls"], 1)
+        self.assertEqual(result["staleDrawCalls"], 1)
+        self.assertNotIn("实测角度", result["label"])
+        self.assertIn("等待有效编码器角度", result["liveStatus"])
 
     def test_calibration_freeze_keeps_raw_point_and_native_camera_pixel(self):
         page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()

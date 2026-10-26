@@ -2,6 +2,7 @@ import importlib
 import logging
 import sys
 import threading
+import time
 import types
 import unittest
 from unittest.mock import patch
@@ -346,9 +347,12 @@ class Qd4310ServerModeTests(unittest.TestCase):
                 def start(self, rpm, direction="ccw"):
                     pass
 
-                def read_status(self):
+                def read_status_timed(self):
                     stop_event.set()
-                    return {"angle_deg": 49.446, "speed_rpm": 1.0, "enabled": True}
+                    now = time.monotonic()
+                    return {"angle_deg": 49.446, "speed_rpm": 1.0, "enabled": True,
+                            "query_started_monotonic_s": now,
+                            "query_completed_monotonic_s": now}
 
                 def stop(self):
                     pass
@@ -366,6 +370,60 @@ class Qd4310ServerModeTests(unittest.TestCase):
             self.assertAlmostEqual(server.gimbal_scan["motor_angle_deg"], 49.446)
             self.assertEqual(server.gimbal_scan["yaw_actual_deg"], 0.0)
             self.assertIsNone(server.get_gimbal_scan_status()["motor_angle_deg"])
+        finally:
+            self._restore_modules(previous_serial, previous_websockets)
+
+    def test_live_registration_requires_explicit_opt_in_and_valid_calibration(self):
+        server, previous_serial, previous_websockets = self._import_server()
+        try:
+            self.assertEqual(server.get_live_scan_snapshot()["state"], "disabled")
+            server.gimbal_scan["config"]["qd4310_port"] = "auto"
+            with patch.object(server.threading, "Thread") as thread:
+                ok, message = server.start_gimbal_scan({
+                    "mode": "qd4310", "rpm": 1,
+                    "live_registration_enabled": True,
+                    "registration_direction": 0,
+                })
+                self.assertFalse(ok, message)
+                thread.assert_not_called()
+                ok, message = server.start_gimbal_scan({
+                    "mode": "qd4310", "rpm": 1,
+                    "live_registration_enabled": True,
+                    "registration_direction": 1,
+                    "registration_zero_deg": 12.5,
+                    "registration_mounting_roll_deg": 90,
+                })
+            self.assertTrue(ok, message)
+            self.assertEqual(server.get_live_scan_snapshot()["state"], "stale")
+        finally:
+            self._restore_modules(previous_serial, previous_websockets)
+
+    def test_live_frame_uses_bracketing_measured_angles_without_motor_commands(self):
+        server, previous_serial, previous_websockets = self._import_server()
+        try:
+            config = dict(server.gimbal_scan["config"])
+            config["live_registration_enabled"] = True
+            server.configure_live_scan(config)
+            server.add_live_motor_sample({
+                "angle_deg": 0.0,
+                "query_started_monotonic_s": 100.000,
+                "query_completed_monotonic_s": 100.002,
+            })
+            server.add_live_radar_frame({
+                "frame_num": 7, "host_monotonic_s": 100.021,
+                "points": [{"x": 0.0, "y": 1.0, "z": 0.0, "v": 0.0}],
+            })
+            server.add_live_motor_sample({
+                "angle_deg": 5.0,
+                "query_started_monotonic_s": 100.040,
+                "query_completed_monotonic_s": 100.042,
+            })
+            with patch.object(server.time, "monotonic", return_value=100.043):
+                snapshot = server.get_live_scan_snapshot()
+            self.assertEqual(snapshot["state"], "provisional")
+            self.assertEqual(snapshot["registered_frames"], 1)
+            self.assertEqual(snapshot["map_frames"], 1)
+            self.assertEqual(len(snapshot["points"]), 1)
         finally:
             self._restore_modules(previous_serial, previous_websockets)
 

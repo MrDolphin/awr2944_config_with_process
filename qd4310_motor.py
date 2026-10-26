@@ -128,12 +128,13 @@ class Qd4310Motor:
                 raise RuntimeError("QD4310 motor is not running")
             self._write(self._serial, self._speed_command(rpm, direction))
 
-    def read_status(self):
-        """Query read-only single-turn encoder status on the owned USB port."""
+    def read_status_timed(self):
+        """Query status with host monotonic timestamps around the USB round-trip."""
         with self._lock:
             if self._serial is None:
                 raise RuntimeError("QD4310 motor is not running")
             conn = self._serial
+            query_start = time.monotonic()
             if conn.in_waiting:
                 conn.read(conn.in_waiting)
             self._write(conn, b"status\n")
@@ -143,7 +144,22 @@ class Qd4310Motor:
                 response.extend(conn.read(min(conn.in_waiting or 1, 4096 - len(response))))
                 if b"QDrive:/$" in response:
                     break
-            return parse_qdrive_status(bytes(response))
+            query_end = time.monotonic()
+            telemetry = parse_qdrive_status(bytes(response))
+            if telemetry is None:
+                return None
+            return {
+                **telemetry,
+                "query_started_monotonic_s": query_start,
+                "query_completed_monotonic_s": query_end,
+            }
+
+    def read_status(self):
+        """Retain the original read-only single-turn status interface."""
+        sample = self.read_status_timed()
+        if sample is None:
+            return None
+        return {key: sample[key] for key in ("angle_deg", "speed_rpm", "enabled")}
 
     def stop(self):
         with self._lock:

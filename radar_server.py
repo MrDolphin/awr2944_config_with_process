@@ -29,6 +29,7 @@ from tools.camera.camera_http import CameraHttpServer
 from tools.fusion.calibration import CalibrationError, load_calibration
 from tools.fusion.projection import project_radar_point
 from qd4310_motor import Qd4310Motor, list_qdrive_ports, validate_direction, validate_rpm
+from live_scan import LiveScanAssembler
 
 # 配置日志：同时输出到文件和控制台
 config_dir = os.path.dirname(os.path.abspath(__file__))
@@ -81,6 +82,7 @@ active_calibration_id = None
 capture_catalog = CaptureCatalog(capture_root)
 config_manager = RadarConfigManager(Path(config_dir) / "Config")
 radar_health = RadarHealthMonitor()
+live_scan_assembler = None
 
 camera_services = {"enabled": False, "runtime": None, "http": None, "buffer": None, "config": None, "public_base_url": "", "last_error": ""}
 
@@ -258,6 +260,15 @@ gimbal_scan = {
         "scan_settle_s": 0.25,
         "servo_port": "/dev/ttyUSB0",
         "qd4310_port": "",
+        "live_registration_enabled": False,
+        "registration_direction": 1,
+        "registration_zero_deg": 0.0,
+        "registration_mounting_yaw_deg": 0.0,
+        "registration_mounting_roll_deg": 0.0,
+        "registration_max_gap_s": 0.1,
+        "registration_max_query_duration_s": 0.05,
+        "registration_max_span_deg": 10.0,
+        "registration_stale_after_s": 1.0,
         "baud": 115200,
         "pitch_id": 1,
         "yaw_id": 2,
@@ -392,14 +403,15 @@ def qd4310_scan_loop(config, stop_event):
         gimbal_scan["status"] = "running"
         gimbal_scan["last_update_s"] = time.time()
         while not stop_event.is_set():
-            telemetry = motor.read_status()
-            if telemetry is not None:
-                if not telemetry["enabled"]:
+            sample = motor.read_status_timed()
+            if sample is not None:
+                if not sample["enabled"]:
                     raise RuntimeError("QD4310 controller became disabled while running")
-                gimbal_scan["motor_angle_deg"] = telemetry["angle_deg"]
-                gimbal_scan["motor_speed_rpm"] = telemetry["speed_rpm"]
-                gimbal_scan["motor_angle_sample_monotonic_s"] = time.monotonic()
-            stop_event.wait(0.2)
+                gimbal_scan["motor_angle_deg"] = sample["angle_deg"]
+                gimbal_scan["motor_speed_rpm"] = sample["speed_rpm"]
+                gimbal_scan["motor_angle_sample_monotonic_s"] = sample["query_completed_monotonic_s"]
+                add_live_motor_sample(sample)
+            stop_event.wait(0.02 if live_scan_assembler is not None else 0.2)
         gimbal_scan["status"] = "stopping"
     except Exception as exc:
         gimbal_scan["last_error"] = str(exc)
@@ -610,8 +622,8 @@ def start_gimbal_scan(params):
         if key in params and key != "qd4310_port":
             config[key] = params[key]
 
-    numeric_int_keys = ["baud", "pitch_id", "yaw_id", "move_ms", "pause_ms", "center_pwm", "min_pwm", "max_pwm", "motor_pwm_gpio", "motor_dir_gpio", "encoder_a_gpio", "encoder_b_gpio", "counts_per_rev"]
-    numeric_float_keys = ["pitch_fixed_deg", "yaw0_deg", "yaw180_deg", "us_per_degree", "rpm", "pwm_duty", "frame_period_s", "scan_min_angle_deg", "scan_max_angle_deg", "scan_cruise_duty", "scan_approach_duty", "scan_approach_window_deg", "scan_settle_s"]
+    numeric_int_keys = ["baud", "pitch_id", "yaw_id", "move_ms", "pause_ms", "center_pwm", "min_pwm", "max_pwm", "motor_pwm_gpio", "motor_dir_gpio", "encoder_a_gpio", "encoder_b_gpio", "counts_per_rev", "registration_direction"]
+    numeric_float_keys = ["pitch_fixed_deg", "yaw0_deg", "yaw180_deg", "us_per_degree", "rpm", "pwm_duty", "frame_period_s", "scan_min_angle_deg", "scan_max_angle_deg", "scan_cruise_duty", "scan_approach_window_deg", "scan_settle_s", "registration_zero_deg", "registration_mounting_yaw_deg", "registration_mounting_roll_deg", "registration_max_gap_s", "registration_max_query_duration_s", "registration_max_span_deg", "registration_stale_after_s"]
     for key in numeric_int_keys:
         try:
             config[key] = int(float(config[key]))
@@ -623,6 +635,7 @@ def start_gimbal_scan(params):
         except (TypeError, ValueError, OverflowError) as exc:
             return False, f"invalid {key}: {exc}"
     config["encoder_enabled"] = bool(config.get("encoder_enabled"))
+    config["live_registration_enabled"] = config.get("live_registration_enabled") is True
 
     stop_event = threading.Event()
     frame_angle_deg = abs(float(config["rpm"]) * 6.0 * float(config["frame_period_s"]))
@@ -644,10 +657,16 @@ def start_gimbal_scan(params):
         except ValueError as exc:
             return False, str(exc)
         config["mode"] = "qd4310"
+        try:
+            configure_live_scan(config)
+        except ValueError as exc:
+            return False, str(exc)
         thread_target = qd4310_scan_loop
     else:
         config["mode"] = "motor"
         thread_target = motor_scan_loop
+    if mode != "qd4310":
+        configure_live_scan(None)
     thread = threading.Thread(target=thread_target, args=(config, stop_event), daemon=True)
     gimbal_scan.update({
         "enabled": True,
@@ -709,6 +728,8 @@ def get_gimbal_scan_status():
     age_ms = max(0.0, (time.monotonic() - sample_time) * 1000) if sample_time is not None else None
     angle_fresh = (gimbal_scan["enabled"] and gimbal_scan["config"].get("mode") == "qd4310"
                    and age_ms is not None and age_ms <= 1000)
+    live_status = get_live_scan_snapshot()
+    live_status["points"] = len(live_status["points"])
     return {
         "type": "gimbal_scan_status",
         "enabled": gimbal_scan["enabled"],
@@ -726,6 +747,7 @@ def get_gimbal_scan_status():
         "motor_speed_rpm": gimbal_scan["motor_speed_rpm"] if angle_fresh else None,
         "motor_angle_age_ms": round(age_ms) if angle_fresh else None,
         "motor_angle_source": "qd4310_usb_status_single_turn" if angle_fresh else None,
+        "live_registration": live_status,
         "points": len(gimbal_scan["combined_points"]),
         "last_update_s": gimbal_scan["last_update_s"],
         "last_error": gimbal_scan["last_error"],
@@ -747,6 +769,47 @@ def stop_pointcloud_recording():
 def record_pointcloud_frame(frame, raw_packet=None):
     pointcloud_recorder.record_frame(frame, raw_packet)
     _sync_recording_status()
+
+
+def configure_live_scan(config):
+    """Replace the optional measured-angle assembler without opening hardware."""
+    global live_scan_assembler
+    live_scan_assembler = None
+    if not config or not config.get("live_registration_enabled"):
+        return
+    live_scan_assembler = LiveScanAssembler(
+        direction=int(config["registration_direction"]),
+        zero_deg=float(config["registration_zero_deg"]),
+        mounting_yaw_deg=float(config["registration_mounting_yaw_deg"]),
+        mounting_roll_deg=float(config["registration_mounting_roll_deg"]),
+        max_gap_s=float(config["registration_max_gap_s"]),
+        max_query_duration_s=float(config["registration_max_query_duration_s"]),
+        max_span_deg=float(config["registration_max_span_deg"]),
+        stale_after_s=float(config["registration_stale_after_s"]),
+    )
+
+
+def add_live_motor_sample(sample):
+    assembler = live_scan_assembler
+    if assembler is not None:
+        assembler.add_motor_sample(sample)
+
+
+def add_live_radar_frame(frame):
+    assembler = live_scan_assembler
+    if assembler is not None:
+        assembler.add_frame(frame)
+
+
+def get_live_scan_snapshot():
+    assembler = live_scan_assembler
+    if assembler is None:
+        return {
+            "state": "disabled", "points": [], "registered_frames": 0,
+            "pending_frames": 0, "rejected_frames": {},
+            "rf_time_calibrated": False, "pose_compensated": False,
+        }
+    return assembler.snapshot(now_monotonic_s=time.monotonic())
 
 def get_recording_status():
     _sync_recording_status()
@@ -1112,6 +1175,7 @@ def radar_serial_thread(data_port_name, baud_rate, log_file="", stop_event=None)
                     "has_side_info": len(point_side_info) > 0
                 }
                 radar_health.mark_frame(f_num)
+                add_live_radar_frame(latest_radar_frame)
                 record_pointcloud_frame(latest_radar_frame, raw_packet)
                 recording_frame = dict(latest_radar_frame)
                 recording_frame["camera_sync"] = camera_sync_metadata(
@@ -1297,7 +1361,7 @@ async def handle_client(websocket):
                             payload = get_gimbal_scan_status()
                             payload.update({"success": ok, "message": message})
                             await websocket.send(json.dumps(payload))
-                        elif action == "set_speed":
+                        elif action in ("set_speed", "speed"):
                             ok, message = set_qd4310_speed(params.get("rpm"), params.get("direction"))
                             payload = get_gimbal_scan_status()
                             payload.update({"success": ok, "message": message})
@@ -1341,6 +1405,13 @@ async def handle_client(websocket):
                             gimbal_scan["yaw_actual_deg"] = yaw_deg
                             gimbal_scan["combined_points"] = [rotate_point_xy(pt, yaw_deg) for pt in frame.get("points", [])]
                             gimbal_scan["last_update_s"] = time.time()
+                        live_status = get_live_scan_snapshot()
+                        if live_status["state"] != "disabled":
+                            gimbal_scan["combined_points"] = live_status["points"]
+                            if live_status.get("last_yaw_deg") is not None:
+                                gimbal_scan["yaw_actual_deg"] = live_status["last_yaw_deg"]
+                        live_metadata = dict(live_status)
+                        live_metadata["points"] = len(live_status["points"])
                         frame["gimbal_scan"] = {
                             "enabled": gimbal_scan["enabled"],
                             "status": gimbal_scan["status"],
@@ -1354,6 +1425,7 @@ async def handle_client(websocket):
                             "port_configured": bool(gimbal_scan["config"].get("qd4310_port")),
                             "frame_angle_deg": gimbal_scan["frame_angle_deg"],
                             "points": gimbal_scan["combined_points"],
+                            "live_registration": live_metadata,
                             "last_update_s": gimbal_scan["last_update_s"],
                             "last_error": gimbal_scan["last_error"]
                         }

@@ -1088,6 +1088,24 @@
                     <label>电机单圈角度
                         <output id="motorAngleDisplay" class="motor-angle-readout" aria-live="polite">未获取</output>
                     </label>
+                    <label>实测角度逐帧配准（试验）
+                        <input type="checkbox" id="liveRegistrationEnabled">
+                    </label>
+                    <label>编码器递增方向
+                        <select id="registrationDirectionInput">
+                            <option value="1">+1</option>
+                            <option value="-1">-1</option>
+                        </select>
+                    </label>
+                    <label>机械零位(°)
+                        <input type="number" id="registrationZeroInput" value="0" step="0.1">
+                    </label>
+                    <label>安装偏航(°)
+                        <input type="number" id="registrationYawInput" value="0" step="0.1">
+                    </label>
+                    <label>安装滚转(°)
+                        <input type="number" id="registrationRollInput" value="0" step="0.1">
+                    </label>
                     <label>雷达帧周期(s，仅估算)
                         <input type="number" id="motorFramePeriodInput" value="0.656" step="0.001" min="0.01">
                     </label>
@@ -1098,8 +1116,9 @@
                         <button id="gimbalScanToggleBtn" type="button">启动电机</button>
                         <button id="motorApplyRpmBtn" type="button" disabled>更新转速</button>
                     </div>
-                    <div style="font-size:11px;color:#8abac5;margin-top:6px;">方向须先停机再切换。角度来自电机编码器的单圈读数；未标定转台零位或与雷达帧同步，暂不用于 360° 点云拼接。</div>
+                    <div style="font-size:11px;color:#8abac5;margin-top:6px;">方向和配准参数须停机设置。默认不配准；启用后仅使用有效的 QD4310 实测角度，结果仍是未校准雷达采集时延的临时周扫图。</div>
                     <div class="value" id="gimbalScanStatusDisplay" style="font-size:13px;color:#bff;">未启动</div>
+                    <div id="liveRegistrationStatusDisplay" style="font-size:11px;color:#8abac5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="逐帧角度配准状态">逐帧配准：未启用</div>
                 </div>
             </div>
 
@@ -3057,6 +3076,7 @@
             drawRangeProfile(lastRangeProfile);
 
             const scan = data.gimbal_scan || {};
+            const liveRegistration = scan.live_registration || {};
             const blindZone = getBlindZoneM();
             const points = (scan.points || []).filter(pt => Math.hypot(pt.x, pt.y) >= blindZone && isPointUsable(pt));
             drawGrid360();
@@ -3066,10 +3086,13 @@
             let fps = 1000 / (now - lastFrameTime);
             lastFrameTime = now;
             document.getElementById('frameDisplay').innerText = `#${data.frame_num} (${fps.toFixed(0)}Hz)`;
-            document.getElementById('pointsDisplay').innerText = `${points.length}/${(scan.points || []).length} (360合成)`;
+            const pointLabel = scan.mode === 'qd4310' ? '实测角度·临时' : '360合成';
+            document.getElementById('pointsDisplay').innerText = `${points.length}/${(scan.points || []).length} (${pointLabel})`;
             document.getElementById('targetsDisplay').innerText = '扫描';
             document.getElementById('gimbalScanStatusDisplay').innerText =
-                `${scan.status || '--'} ${scan.direction === 'ccw' ? '逆时针' : '顺时针'} ${Number(scan.rpm || 0).toFixed(1)}rpm 每帧${Number(scan.frame_angle_deg || 0).toFixed(2)}° 角度:${Number(scan.yaw_actual_deg || 0).toFixed(1)}°`;
+                scan.mode === 'qd4310'
+                    ? `${scan.status || '--'} ${scan.direction === 'ccw' ? '逆时针' : '顺时针'} ${Number(scan.rpm || 0).toFixed(1)}rpm · 已配准${Number(liveRegistration.registered_frames || 0)}帧 · 临时周扫`
+                    : `${scan.status || '--'} ${scan.direction === 'ccw' ? '逆时针' : '顺时针'} ${Number(scan.rpm || 0).toFixed(1)}rpm 每帧${Number(scan.frame_angle_deg || 0).toFixed(2)}° 角度:${Number(scan.yaw_actual_deg || 0).toFixed(1)}°`;
         }
 
         function updateRecordingHealth(status) {
@@ -3665,6 +3688,7 @@
             updateCameraPanel(data.camera_sync);
             updateCameraProjection(data.camera_projection);
             latestGimbalScan = data.gimbal_scan || latestGimbalScan;
+            updateLiveRegistrationStatus(data.gimbal_scan && data.gimbal_scan.live_registration);
             if (data.gimbal_scan) {
                 gimbalScanEnabled = !!data.gimbal_scan.enabled;
                 if (data.gimbal_scan.mode === 'qd4310') {
@@ -3673,7 +3697,11 @@
                     updateGimbalScanButton();
                 }
             }
-            if (data.gimbal_scan && data.gimbal_scan.enabled && data.gimbal_scan.mode !== 'qd4310') {
+            const liveRegistration = data.gimbal_scan && data.gimbal_scan.live_registration;
+            if (data.gimbal_scan && data.gimbal_scan.enabled &&
+                (data.gimbal_scan.mode !== 'qd4310' ||
+                 (liveRegistration && liveRegistration.state === 'provisional' &&
+                  Array.isArray(data.gimbal_scan.points) && data.gimbal_scan.points.length > 0))) {
                 renderGimbalScanFrame(data);
                 return;
             }
@@ -4449,11 +4477,17 @@
         }
 
         function getGimbalScanParams() {
+            const liveRegistrationEnabled = document.getElementById('liveRegistrationEnabled').checked;
             return {
                 mode: 'qd4310',
                 direction: document.getElementById('motorDirectionSelect').value,
                 rpm: Number(document.getElementById('motorRpmInput').value),
-                frame_period_s: Math.max(0.01, Number(document.getElementById('motorFramePeriodInput').value) || 0.656)
+                frame_period_s: Math.max(0.01, Number(document.getElementById('motorFramePeriodInput').value) || 0.656),
+                live_registration_enabled: liveRegistrationEnabled,
+                registration_direction: Number(document.getElementById('registrationDirectionInput').value),
+                registration_zero_deg: Number(document.getElementById('registrationZeroInput').value),
+                registration_mounting_yaw_deg: Number(document.getElementById('registrationYawInput').value),
+                registration_mounting_roll_deg: Number(document.getElementById('registrationRollInput').value)
             };
         }
 
@@ -4493,6 +4527,19 @@
             }
         }
 
+        function updateLiveRegistrationStatus(registration) {
+            const display = document.getElementById('liveRegistrationStatusDisplay');
+            if (!display) return;
+            if (!registration || registration.state === 'disabled') {
+                display.textContent = '逐帧配准：未启用';
+            } else if (registration.state === 'stale') {
+                display.textContent = '逐帧配准：等待有效编码器角度';
+            } else {
+                display.textContent = `逐帧配准：${Number(registration.registered_frames || 0)} 帧 · 地图${Number(registration.map_frames || 0)}帧`;
+            }
+            display.title = registration ? JSON.stringify(registration) : '逐帧角度配准状态';
+        }
+
         function updateGimbalScanButton(status = '') {
             const btn = document.getElementById('gimbalScanToggleBtn');
             const display = document.getElementById('gimbalScanStatusDisplay');
@@ -4501,6 +4548,10 @@
             btn.style.backgroundColor = gimbalScanEnabled ? 'rgba(53, 230, 255, 0.20)' : 'transparent';
             document.getElementById('motorApplyRpmBtn').disabled = !gimbalScanEnabled;
             document.getElementById('motorDirectionSelect').disabled = gimbalScanEnabled;
+            ['liveRegistrationEnabled', 'registrationDirectionInput', 'registrationZeroInput',
+             'registrationYawInput', 'registrationRollInput'].forEach(id => {
+                document.getElementById(id).disabled = gimbalScanEnabled;
+            });
             if (status) display.innerText = status;
         }
 
@@ -4979,6 +5030,7 @@
                     document.getElementById('motorDirectionSelect').value = data.direction;
                 }
                 updateMotorAngleDisplay(data);
+                updateLiveRegistrationStatus(data.live_registration);
                 updateGimbalScanButton(data.success === false
                     ? `操作失败：${data.message || '未知错误'}`
                     : formatQd4310Status(data));
