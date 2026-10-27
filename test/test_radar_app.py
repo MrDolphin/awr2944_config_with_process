@@ -38,7 +38,9 @@ class RadarAppMarkupTests(unittest.TestCase):
         self.assertLess(panel.index('id="motorRpmInput"'), panel.index('id="motorFramePeriodInput"'))
         self.assertLess(panel.index('id="motorFramePeriodInput"'), panel.index('id="motorFrameAngleDisplay"'))
         self.assertLess(panel.index('id="motorFrameAngleDisplay"'), panel.index('id="motorAngleDisplay"'))
+        self.assertIn('id="motorRpmInput" value="30"', panel)
         self.assertIn('id="motorFramePeriodInput" value="0.1"', panel)
+        self.assertIn('id="motorFrameAngleDisplay" value="18.00"', panel)
 
     def test_qd4310_panel_exposes_speed_and_stop_without_pwm_controls(self):
         app_html = (Path(__file__).resolve().parents[1] / "radar_app.html").read_text(
