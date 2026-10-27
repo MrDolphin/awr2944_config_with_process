@@ -416,6 +416,15 @@
             line-height: 1.18;
         }
 
+        /* Long telemetry must not change the card height or move controls below it. */
+        #pointsDisplay {
+            display: block;
+            width: 100%;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
         .config-panel {
             position: absolute;
             top: 20px;
@@ -3013,6 +3022,12 @@
             ctx.restore();
         }
 
+        function setPointsDisplay(value) {
+            const display = document.getElementById('pointsDisplay');
+            display.innerText = value;
+            display.title = value;
+        }
+
         function renderGimbalScanFrame(data) {
             updateRadarDisplayRange();
             lastRangeProfile = Array.isArray(data.range_profile) ? data.range_profile : [];
@@ -3030,7 +3045,7 @@
             lastFrameTime = now;
             document.getElementById('frameDisplay').innerText = `#${data.frame_num} (${fps.toFixed(0)}Hz)`;
             const pointLabel = scan.mode === 'qd4310' ? '实测角度·临时' : '360合成';
-            document.getElementById('pointsDisplay').innerText = `${points.length}/${(scan.points || []).length} (${pointLabel})`;
+            setPointsDisplay(`${points.length}/${(scan.points || []).length} (${pointLabel})`);
             document.getElementById('targetsDisplay').innerText = '扫描';
             document.getElementById('gimbalScanStatusDisplay').innerText =
                 scan.mode === 'qd4310'
@@ -3617,7 +3632,7 @@
             renderReplayTargetList(clusters, points.length);
             renderReplayPointDetail(replaySpatialAnalysis.selectedPoint);
             document.getElementById('frameDisplay').innerText = `回放 #${frame.frame_num}`;
-            document.getElementById('pointsDisplay').innerText = `${points.length}/${(frame.points || []).length} 点`;
+            setPointsDisplay(`${points.length}/${(frame.points || []).length} 点`);
             document.getElementById('targetsDisplay').innerText = '离线';
             const tlvTypes = Array.isArray(frame.tlv_types) ? frame.tlv_types.join(',') : '--';
             document.getElementById('sideInfoDisplay').innerText = `TLV:${tlvTypes}`;
@@ -3788,7 +3803,7 @@
             lastFrameTime = now;
 
             document.getElementById('frameDisplay').innerText = `#${data.frame_num} (${fps.toFixed(0)}Hz)`;
-            document.getElementById('pointsDisplay').innerText = `${renderPoints.length}/${visiblePoints.length} (静:${staticPoints.length}/${staticCandidates.length}/动:${dynamicPoints.length}+候:${promotedDynamicPoints.length})`;
+            setPointsDisplay(`${renderPoints.length}/${visiblePoints.length} (静:${staticPoints.length}/${staticCandidates.length}/动:${dynamicPoints.length}+候:${promotedDynamicPoints.length})`);
             document.getElementById('targetsDisplay').innerText = tracker.boats.filter(b => tracker.isBoatDrawable(b)).length;
             const tlvTypes = Array.isArray(data.tlv_types) ? data.tlv_types.join(',') : '--';
             const sideCount = Number.isFinite(Number(data.side_info_count)) ? Number(data.side_info_count) : 0;

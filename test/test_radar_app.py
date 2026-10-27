@@ -230,6 +230,39 @@ class RadarAppTests(unittest.TestCase):
     def _new_browser(self, playwright):
         return playwright.chromium.launch(headless=True, executable_path=str(CHROME_EXECUTABLE))
 
+    def test_point_count_changes_do_not_reflow_sidebar(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.goto(page_url, wait_until="networkidle")
+            card = page.locator("#pointsDisplay").locator("xpath=..")
+            follower = page.locator("#targetsDisplay").locator("xpath=..")
+            heights = []
+            follower_tops = []
+            for value in (
+                "10/10 (静:10/10/动:0+候:0)",
+                "1000/1000 (静:1000/1000/动:1000+候:1000)",
+                "0/0 (实测角度·临时)",
+            ):
+                page.locator("#pointsDisplay").evaluate("(el, text) => el.textContent = text", value)
+                heights.append(card.bounding_box()["height"])
+                follower_tops.append(follower.bounding_box()["y"])
+            self.assertEqual(len(set(heights)), 1)
+            self.assertEqual(len(set(follower_tops)), 1)
+            browser.close()
+
+    def test_point_count_keeps_full_telemetry_in_hover_title(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.goto(page_url, wait_until="networkidle")
+            value = "1000/1000 (静:1000/1000/动:1000+候:1000)"
+            page.evaluate("value => setPointsDisplay(value)", value)
+            self.assertEqual(page.locator("#pointsDisplay").get_attribute("title"), value)
+            browser.close()
+
     def test_ppi_grid_and_mapping_remain_full_circle_when_motor_is_stopped(self):
         page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
         with sync_playwright() as playwright:
