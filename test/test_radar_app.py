@@ -30,6 +30,16 @@ def camera_png(width, height):
 
 
 class RadarAppMarkupTests(unittest.TestCase):
+    def test_motor_frame_estimates_are_next_to_rpm_and_match_100_ms_cfg(self):
+        app_html = (Path(__file__).resolve().parents[1] / "radar_app.html").read_text(
+            encoding="utf-8"
+        )
+        panel = app_html.split('id="gimbalScanPanel"', 1)[1].split('<div class="main-visual">', 1)[0]
+        self.assertLess(panel.index('id="motorRpmInput"'), panel.index('id="motorFramePeriodInput"'))
+        self.assertLess(panel.index('id="motorFramePeriodInput"'), panel.index('id="motorFrameAngleDisplay"'))
+        self.assertLess(panel.index('id="motorFrameAngleDisplay"'), panel.index('id="motorAngleDisplay"'))
+        self.assertIn('id="motorFramePeriodInput" value="0.1"', panel)
+
     def test_qd4310_panel_exposes_speed_and_stop_without_pwm_controls(self):
         app_html = (Path(__file__).resolve().parents[1] / "radar_app.html").read_text(
             encoding="utf-8"
@@ -217,6 +227,56 @@ class RadarAppMarkupTests(unittest.TestCase):
 class RadarAppTests(unittest.TestCase):
     def _new_browser(self, playwright):
         return playwright.chromium.launch(headless=True, executable_path=str(CHROME_EXECUTABLE))
+
+    def test_ppi_grid_and_mapping_remain_full_circle_when_motor_is_stopped(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 2048, "height": 1100})
+            page.goto(page_url, wait_until="networkidle")
+            result = page.evaluate("""() => {
+                const arcs = [];
+                const originalArc = ctx.arc.bind(ctx);
+                ctx.arc = (...args) => { arcs.push(args); return originalArc(...args); };
+                const origin = mapToCanvas(0, 0);
+                const behind = mapToCanvas(0, -1);
+                document.getElementById('motorRpmInput').value = '30';
+                updateMotorFrameAngleDisplay();
+                renderRadarFrame({frame_num: 1, points: [{x: 0, y: 1, z: 0, v: 0}],
+                    gimbal_scan: {enabled: false, mode: 'qd4310', status: 'idle'}});
+                ctx.arc = originalArc;
+                return {
+                    origin, behind,
+                    width: canvas.width, height: canvas.height,
+                    fullRings: arcs.filter(a => a[2] > 100 && Math.abs(a[4] - a[3] - 2 * Math.PI) < 0.001).length,
+                    frameAngle: document.getElementById('motorFrameAngleDisplay').value,
+                    aspect: canvas.getBoundingClientRect().width / canvas.getBoundingClientRect().height
+                };
+            }""")
+            browser.close()
+        self.assertAlmostEqual(result["origin"]["px"], result["width"] / 2)
+        self.assertAlmostEqual(result["origin"]["py"], result["height"] / 2)
+        self.assertGreater(result["behind"]["py"], result["origin"]["py"])
+        self.assertGreaterEqual(result["fullRings"], 4)
+        self.assertEqual(result["frameAngle"], "18.00")
+        self.assertAlmostEqual(result["aspect"], 1, delta=0.02)
+
+    def test_full_circle_grid_does_not_invent_rear_returns_without_registration(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page()
+            page.goto(page_url, wait_until="networkidle")
+            shown = page.evaluate("""() => {
+                let shown = [];
+                drawPoints = (_ctx, points) => { shown = points.map(pt => pt.y); };
+                renderRadarFrame({frame_num: 2, points: [
+                    {x: 0, y: 1, z: 0, v: 0}, {x: 0, y: -1, z: 0, v: 0}],
+                    gimbal_scan: {enabled: false, mode: 'qd4310', status: 'idle'}});
+                return shown;
+            }""")
+            browser.close()
+        self.assertEqual(shown, [1])
 
     def test_qd4310_rpm_input_allows_120_up_to_130(self):
         page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
@@ -977,12 +1037,15 @@ class RadarAppTests(unittest.TestCase):
             sizes = page.evaluate(
                 """() => ({
                     radar: document.getElementById('radarCanvas').getBoundingClientRect().width,
+                    radarPanel: document.querySelector('.main-visual').getBoundingClientRect().width,
                     camera: document.querySelector('.camera-panel').getBoundingClientRect().width
                 })"""
             )
             self.assertGreaterEqual(sizes["radar"], 700)
             self.assertGreaterEqual(sizes["camera"], 700)
-            self.assertLessEqual(abs(sizes["radar"] - sizes["camera"]), 36)
+            # The square PPI is height-limited; its panel, not its canvas, shares
+            # the same column width as the camera panel.
+            self.assertLessEqual(abs(sizes["radarPanel"] - sizes["camera"]), 36)
             browser.close()
 
     def test_sidebar_can_collapse_to_expand_live_radar_and_camera_views(self):
@@ -993,9 +1056,9 @@ class RadarAppTests(unittest.TestCase):
             page = browser.new_page(viewport={"width": 2048, "height": 1100})
             page.goto(page_url, wait_until="networkidle")
             page.evaluate("document.getElementById('configPanel').classList.add('collapsed')")
-            before = page.locator("#radarCanvas").bounding_box()["width"]
+            before = page.locator(".main-visual").bounding_box()["width"]
             page.locator("#sidebarToggleBtn").click()
-            after = page.locator("#radarCanvas").bounding_box()["width"]
+            after = page.locator(".main-visual").bounding_box()["width"]
             self.assertFalse(page.locator(".hud-sidebar").is_visible())
             self.assertGreater(after, before)
             self.assertEqual(page.locator("#sidebarToggleBtn").inner_text(), "控制栏: 展开")

@@ -196,10 +196,10 @@
 
         #radarCanvas {
             display: block;
-            width: min(100%, calc((100vh - 290px) * 4 / 3));
+            width: min(100%, calc(100vh - 320px));
             height: auto;
             max-width: 100%;
-            max-height: calc(100vh - 290px);
+            max-height: calc(100vh - 320px);
         }
 
         .camera-panel {
@@ -859,8 +859,8 @@
             }
 
             #radarCanvas {
-                width: min(100%, calc((100vh - 310px) * 4 / 3));
-                max-height: calc(100vh - 310px);
+                width: min(100%, calc(100vh - 340px));
+                max-height: calc(100vh - 340px);
             }
         }
 
@@ -912,8 +912,8 @@
             }
 
             #radarCanvas {
-                width: min(100%, calc((100vh - 250px) * 4 / 3));
-                max-height: calc(100vh - 250px);
+                width: min(100%, calc(100vh - 280px));
+                max-height: calc(100vh - 280px);
             }
         }
 
@@ -1085,6 +1085,12 @@
                     <label>电机转速(rpm)
                         <input type="number" id="motorRpmInput" value="1" step="0.1" min="0.1" max="130">
                     </label>
+                    <label>雷达帧周期(s，仅估算)
+                        <input type="number" id="motorFramePeriodInput" value="0.1" step="0.001" min="0.01">
+                    </label>
+                    <label>每帧理论转角(°)
+                        <input type="text" id="motorFrameAngleDisplay" value="0.60" readonly>
+                    </label>
                     <label>电机单圈角度
                         <output id="motorAngleDisplay" class="motor-angle-readout" aria-live="polite">未获取</output>
                     </label>
@@ -1106,12 +1112,6 @@
                     <label>安装滚转(°)
                         <input type="number" id="registrationRollInput" value="0" step="0.1">
                     </label>
-                    <label>雷达帧周期(s，仅估算)
-                        <input type="number" id="motorFramePeriodInput" value="0.656" step="0.001" min="0.01">
-                    </label>
-                    <label>每帧理论转角(°)
-                        <input type="text" id="motorFrameAngleDisplay" value="3.94" readonly>
-                    </label>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
                         <button id="gimbalScanToggleBtn" type="button">启动电机</button>
                         <button id="motorApplyRpmBtn" type="button" disabled>更新转速</button>
@@ -1125,7 +1125,7 @@
 
             <div class="main-visual">
                 <div id="localMapBadge" class="local-map-badge">LOCAL MAP FRAMEWORK · 局部地图关闭</div>
-                <canvas id="radarCanvas" width="800" height="600"></canvas>
+                <canvas id="radarCanvas" width="800" height="800"></canvas>
                 <div class="profile-panel">
                     <div>距离能量图 (Range Profile)</div>
                     <canvas id="rangeProfileCanvas" class="hud-chart" width="960" height="120"></canvas>
@@ -1908,8 +1908,7 @@
             requestCameraFrame(sync);
         }
 
-        // 雷达显示范围由 cfarFovCfg 距离和 aoaFovCfg 方位上下限共同驱动。
-        const RADAR_PPI_EDGE_PADDING_PX = 14;
+        // PPI 网格始终为整圆；距离刻度由 cfarFovCfg 控制，AoA 限幅只影响实际回波。
         let radarRangeY = 15;
         let radarAzimuthMinDeg = -90;
         let radarAzimuthMaxDeg = 90;
@@ -2625,36 +2624,13 @@
         const tracker = new TargetTracker();
         const staticObstacleMapper = new StaticObstacleMapper();
 
-        function radarPpiGeometry() {
-            const minAngleRad = radarAzimuthMinDeg * Math.PI / 180;
-            const maxAngleRad = radarAzimuthMaxDeg * Math.PI / 180;
-            const minX = radarRangeY * Math.sin(minAngleRad);
-            const maxX = radarRangeY * Math.sin(maxAngleRad);
-            const lateralSpan = Math.max(0.001, maxX - minX);
-            const usableWidth = Math.max(1, canvas.width - 2 * RADAR_PPI_EDGE_PADDING_PX);
-            const usableHeight = Math.max(1, canvas.height - 2 * RADAR_PPI_EDGE_PADDING_PX);
-            const pixelsPerMetre = Math.min(usableWidth / lateralSpan, usableHeight / radarRangeY);
-            const renderedWidth = lateralSpan * pixelsPerMetre;
-            const left = (canvas.width - renderedWidth) / 2;
-            return {
-                minAngleRad,
-                maxAngleRad,
-                pixelsPerMetre,
-                originX: left - minX * pixelsPerMetre,
-                originY: canvas.height - RADAR_PPI_EDGE_PADDING_PX,
-            };
-        }
-
         function radarPpiPixelsPerMetre() {
-            return radarPpiGeometry().pixelsPerMetre;
+            return Math.min(canvas.width, canvas.height) * 0.46 /
+                Math.max(radarRangeY, radarRangeX, 1);
         }
 
         function mapToCanvas(x_m, y_m) {
-            const geometry = radarPpiGeometry();
-            return {
-                px: geometry.originX + x_m * geometry.pixelsPerMetre,
-                py: geometry.originY - y_m * geometry.pixelsPerMetre
-            };
+            return mapToCanvas360(x_m, y_m);
         }
 
         function getPointSnr(pt) {
@@ -2897,42 +2873,8 @@
         }
 
         function drawGrid() {
-            updateRadarDisplayRange();
-            // [余辉效果关键]：不再使用 clearRect，而是涂一层带透明度的底色
-            ctx.fillStyle = 'rgba(8, 12, 20, 0.4)'; // 值的越小，余辉越长 (0.1~0.5)
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            const geometry = radarPpiGeometry();
-            const cx = geometry.originX, cy = geometry.originY;
-            const outerRadiusPx = radarRangeY * geometry.pixelsPerMetre;
-
-            ctx.strokeStyle = 'rgba(0, 255, 204, 0.15)';
-            ctx.lineWidth = 1;
-
-            // 只绘制当前 aoaFovCfg 声明的方位扇区。
-            for (let i = 1; i <= 5; i++) {
-                const r = (outerRadiusPx / 5) * i;
-                ctx.beginPath();
-                ctx.arc(cx, cy, r, geometry.minAngleRad - Math.PI / 2,
-                    geometry.maxAngleRad - Math.PI / 2);
-                ctx.stroke();
-                ctx.fillStyle = 'rgba(0, 255, 204, 0.4)'; ctx.font = '10px Arial';
-                ctx.fillText((radarRangeY / 5 * i).toFixed(1) + 'm', cx + 5, cy - r + 15);
-            }
-
-            // 方位线包含配置边界及边界内每 30° 刻度。
-            const angleTicks = new Set([radarAzimuthMinDeg, radarAzimuthMaxDeg]);
-            for (let deg = Math.ceil(radarAzimuthMinDeg / 30) * 30;
-                deg <= radarAzimuthMaxDeg; deg += 30) angleTicks.add(deg);
-            [...angleTicks].sort((a, b) => a - b).forEach(deg => {
-                const rad = deg * Math.PI / 180;
-                ctx.beginPath(); ctx.moveTo(cx, cy);
-                ctx.lineTo(cx + outerRadiusPx * Math.sin(rad), cy - outerRadiusPx * Math.cos(rad));
-                ctx.stroke();
-            });
-
-            ctx.fillStyle = '#00ffcc';
-            ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI * 2); ctx.fill();
+            // PPI 坐标网格固定为整圆；后方是否有回波由实测配准数据决定。
+            drawGrid360();
         }
 
         // 画一艘带转向的船形 SVG
@@ -3049,7 +2991,8 @@
             ctx.fill();
             ctx.fillStyle = '#35e6ff';
             ctx.font = 'bold 12px Tahoma';
-            ctx.fillText('Motor 360 Scan', 12, 20);
+            ctx.textAlign = 'right';
+            ctx.fillText('360° PPI 网格（非实测覆盖）', canvas.width - 12, 20);
             ctx.restore();
         }
 
@@ -4467,7 +4410,7 @@
 
         function computeMotorFrameAngleDeg() {
             const rpm = Math.max(0, Number(document.getElementById('motorRpmInput').value) || 0);
-            const framePeriodS = Math.max(0.01, Number(document.getElementById('motorFramePeriodInput').value) || 0.656);
+            const framePeriodS = Math.max(0.01, Number(document.getElementById('motorFramePeriodInput').value) || 0.1);
             return rpm * 6 * framePeriodS;
         }
 
@@ -4482,7 +4425,7 @@
                 mode: 'qd4310',
                 direction: document.getElementById('motorDirectionSelect').value,
                 rpm: Number(document.getElementById('motorRpmInput').value),
-                frame_period_s: Math.max(0.01, Number(document.getElementById('motorFramePeriodInput').value) || 0.656),
+                frame_period_s: Math.max(0.01, Number(document.getElementById('motorFramePeriodInput').value) || 0.1),
                 live_registration_enabled: liveRegistrationEnabled,
                 registration_direction: Number(document.getElementById('registrationDirectionInput').value),
                 registration_zero_deg: Number(document.getElementById('registrationZeroInput').value),
