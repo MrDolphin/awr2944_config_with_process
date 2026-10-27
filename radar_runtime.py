@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import math
 import os
 import queue
 import threading
@@ -83,15 +84,21 @@ class PointCloudRecorder:
         self._frames_file = None
         self._raw_file = None
         self._points_file = None
+        self._motor_file = None
+        self._registration_file = None
         self._points_writer = None
         self._frames = 0
         self._points = 0
+        self._motor_samples = 0
+        self._registration_events = 0
         self._last_frame: int | None = None
-        self._queue: queue.Queue[tuple[Mapping[str, Any], bytes | None] | None] | None = None
+        self._queue: queue.Queue[tuple[str, Mapping[str, Any], bytes | None] | None] | None = None
         self._writer_thread: threading.Thread | None = None
         self._max_queue_size = max_queue_size
         self._sync_every_frames = sync_every_frames
         self._dropped_frames = 0
+        self._dropped_motor_samples = 0
+        self._dropped_registration_events = 0
         self._writer_error: str | None = None
         self._accepting = False
 
@@ -115,16 +122,24 @@ class PointCloudRecorder:
                 created_paths.append(capture_dir / "frames.tlv")
                 self._points_file = (capture_dir / "points.csv").open("w", newline="", encoding="utf-8")
                 created_paths.append(capture_dir / "points.csv")
+                self._motor_file = (capture_dir / "motor_samples.jsonl").open("w", encoding="utf-8")
+                created_paths.append(capture_dir / "motor_samples.jsonl")
+                self._registration_file = (capture_dir / "live_registration.jsonl").open("w", encoding="utf-8")
+                created_paths.append(capture_dir / "live_registration.jsonl")
                 self._points_writer = csv.writer(self._points_file)
                 self._points_writer.writerow([
                     "record_index", "host_time_s", "frame_num", "point_index", "x_m", "y_m", "z_m", "v_mps", "snr_db", "noise_db"
                 ])
                 metadata = {
-                    "schema_version": 2,
+                    "schema_version": 4,
                     "started_at_s": self._clock(),
                     "active_config": dict(active_config or {}),
                     "recording_status": "active",
-                    "files": {"frames": "frames.jsonl", "raw_tlv": "frames.tlv", "points": "points.csv"},
+                    "files": {
+                        "frames": "frames.jsonl", "raw_tlv": "frames.tlv", "points": "points.csv",
+                        "motor_samples": "motor_samples.jsonl",
+                        "live_registration": "live_registration.jsonl",
+                    },
                     "recording_policy": {
                         "max_queue_size": self._max_queue_size,
                         "sync_every_frames": self._sync_every_frames,
@@ -149,8 +164,12 @@ class PointCloudRecorder:
             self._metadata_path = metadata_path
             self._frames = 0
             self._points = 0
+            self._motor_samples = 0
+            self._registration_events = 0
             self._last_frame = None
             self._dropped_frames = 0
+            self._dropped_motor_samples = 0
+            self._dropped_registration_events = 0
             self._writer_error = None
             self._accepting = True
             self._queue = queue.Queue(maxsize=self._max_queue_size)
@@ -167,13 +186,73 @@ class PointCloudRecorder:
             frame_num = int(frame.get("frame_num", -1))
             if frame_num == self._last_frame:
                 return False
-            payload = (dict(frame), raw_packet)
+            payload = ("frame", dict(frame), raw_packet)
             try:
                 self._queue.put_nowait(payload)
             except queue.Full:
                 self._dropped_frames += 1
                 return False
             self._last_frame = frame_num
+            return True
+
+    def record_motor_sample(self, sample: Mapping[str, Any]) -> bool:
+        """Queue a read-only encoder result and the host query time bracket."""
+        try:
+            start = float(sample["query_started_monotonic_s"])
+            end = float(sample["query_completed_monotonic_s"])
+            angle = float(sample["angle_deg"])
+            speed = sample.get("speed_rpm")
+            if not all(math.isfinite(value) for value in (start, end, angle)) or end < start:
+                raise ValueError("invalid motor sample time or angle")
+            if speed is not None and not math.isfinite(float(speed)):
+                raise ValueError("invalid motor sample speed")
+        except (KeyError, TypeError, ValueError, OverflowError) as exc:
+            raise ValueError("motor sample requires finite query times and angle") from exc
+        payload = {
+            "query_started_monotonic_s": start,
+            "query_completed_monotonic_s": end,
+            "angle_deg": angle,
+            "speed_rpm": float(speed) if speed is not None else None,
+            "enabled": sample.get("enabled"),
+            "time_basis": "host_monotonic_query_bracket",
+        }
+        with self._lock:
+            if not self._accepting or self._queue is None or self._writer_error is not None:
+                return False
+            try:
+                self._queue.put_nowait(("motor", payload, None))
+            except queue.Full:
+                self._dropped_motor_samples += 1
+                return False
+            return True
+
+    def record_registration_event(self, event: Mapping[str, Any]) -> bool:
+        """Queue one live frame-registration decision for later analysis."""
+        try:
+            frame_num = int(event["frame_num"])
+            frame_time = float(event["host_monotonic_s"])
+            status = event["status"]
+            if not math.isfinite(frame_time) or not isinstance(status, str) or not status:
+                raise ValueError("invalid registration event")
+            payload = dict(event)
+            payload.update({"frame_num": frame_num, "host_monotonic_s": frame_time, "status": status})
+            for key in (
+                "yaw_deg", "sample_gap_s", "angular_span_deg",
+                "before_sample_midpoint_s", "after_sample_midpoint_s",
+                "before_query_duration_s", "after_query_duration_s",
+            ):
+                if payload.get(key) is not None and not math.isfinite(float(payload[key])):
+                    raise ValueError("registration event metrics must be finite")
+        except (KeyError, TypeError, ValueError, OverflowError) as exc:
+            raise ValueError("registration event requires frame, time, and status") from exc
+        with self._lock:
+            if not self._accepting or self._queue is None or self._writer_error is not None:
+                return False
+            try:
+                self._queue.put_nowait(("registration", payload, None))
+            except queue.Full:
+                self._dropped_registration_events += 1
+                return False
             return True
 
     def stop(self) -> dict[str, Any]:
@@ -205,8 +284,12 @@ class PointCloudRecorder:
                 "frames": self._frames,
                 "rows": self._points,
                 "points": self._points,
+                "motor_samples": self._motor_samples,
+                "registration_events": self._registration_events,
                 "queued_frames": self._queue.qsize() if self._queue is not None else 0,
                 "dropped_frames": self._dropped_frames,
+                "dropped_motor_samples": self._dropped_motor_samples,
+                "dropped_registration_events": self._dropped_registration_events,
                 "writer_error": self._writer_error,
             }
 
@@ -220,7 +303,15 @@ class PointCloudRecorder:
                 with self._lock:
                     failed = self._writer_error is not None
                 if not failed:
-                    self._write_frame(*payload)
+                    kind, data, raw_packet = payload
+                    if kind == "frame":
+                        self._write_frame(data, raw_packet)
+                    elif kind == "motor":
+                        self._write_motor_sample(data)
+                    elif kind == "registration":
+                        self._write_registration_event(data)
+                    else:
+                        raise ValueError(f"unknown capture record kind: {kind}")
             except Exception as exc:
                 with self._lock:
                     self._writer_error = f"{type(exc).__name__}: {exc}"
@@ -262,18 +353,37 @@ class PointCloudRecorder:
             self._points += len(points)
             self._flush(sync=self._sync_every_frames > 0 and self._frames % self._sync_every_frames == 0)
 
+    def _write_motor_sample(self, sample: Mapping[str, Any]) -> None:
+        with self._lock:
+            if self._motor_file is None:
+                return
+            self._motor_file.write(json.dumps(sample, ensure_ascii=False) + "\n")
+            self._motor_file.flush()
+            self._motor_samples += 1
+
+    def _write_registration_event(self, event: Mapping[str, Any]) -> None:
+        with self._lock:
+            if self._registration_file is None:
+                return
+            self._registration_file.write(json.dumps(event, ensure_ascii=False) + "\n")
+            self._registration_file.flush()
+            self._registration_events += 1
+
     def _flush(self, *, sync: bool = False) -> None:
-        for file_obj in (self._frames_file, self._raw_file, self._points_file):
+        for file_obj in (self._frames_file, self._raw_file, self._points_file,
+                         self._motor_file, self._registration_file):
             if file_obj is not None:
                 file_obj.flush()
                 if sync:
                     os.fsync(file_obj.fileno())
 
     def _close_files(self) -> None:
-        for file_obj in (self._frames_file, self._raw_file, self._points_file):
+        for file_obj in (self._frames_file, self._raw_file, self._points_file,
+                         self._motor_file, self._registration_file):
             if file_obj is not None:
                 file_obj.close()
-        self._frames_file = self._raw_file = self._points_file = self._points_writer = None
+        self._frames_file = self._raw_file = self._points_file = self._motor_file = None
+        self._registration_file = self._points_writer = None
 
     def _persist_completion_status(self, status: Mapping[str, Any]) -> None:
         """Make capture quality available to later offline replay and field triage."""
@@ -284,12 +394,17 @@ class PointCloudRecorder:
             metadata = json.loads(self._metadata_path.read_text(encoding="utf-8"))
             metadata.update({
                 "recording_status": "failed" if status["writer_error"] else (
-                    "completed_with_drops" if status["dropped_frames"] else "completed"
+                    "completed_with_drops" if status["dropped_frames"] or status["dropped_motor_samples"]
+                    or status["dropped_registration_events"] else "completed"
                 ),
                 "completed_at_s": self._clock(),
                 "frames": status["frames"],
                 "points": status["points"],
+                "motor_samples": status["motor_samples"],
+                "registration_events": status["registration_events"],
                 "dropped_frames": status["dropped_frames"],
+                "dropped_motor_samples": status["dropped_motor_samples"],
+                "dropped_registration_events": status["dropped_registration_events"],
                 "writer_error": status["writer_error"],
             })
             temporary_path = self._metadata_path.with_suffix(".json.tmp")

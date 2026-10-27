@@ -1,19 +1,23 @@
 # QD4310 + AWR2944P 机械周扫：现场验证记录与判读
 
-状态：**待现场执行**。本文是操作员验收方案，不是已完成的实测报告。2026-10-26 已在 `codex/radar-camera-web-fusion` 分支加入默认关闭的在线逐帧角度配准与网页临时周扫显示，仍只通过本地合成数据及浏览器测试；没有以这份新代码连接树莓派、雷达或电机，也没有改动 `frameCfg`、电机限速或服务配置。
+状态：**待现场执行**。本文是操作员验收方案，不是已完成的实测报告。`codex/radar-camera-web-fusion` 分支已有默认关闭的在线逐帧角度配准与网页临时周扫显示；本轮还补齐了显式录制期间的编码器样本和配准判定落盘。仅通过本地合成数据测试；没有以这份新代码连接树莓派、雷达或电机，也没有改动 `frameCfg`、电机限速或服务配置。
 
 ## 1. 本轮代码边界
 
 - `scan_registration.py` 接收同一主机单调时钟下的雷达**完成解包**时间与两次编码器查询起止时间。它在角度回绕时按已知方向插值，应用机械零位和安装偏航角，随后可把点云按安装滚转角和转台偏航角变换到局部坐标。缺少前后包围采样、查询太慢、采样间隔/角跨度太大或转数不可判定时返回拒绝原因，不生成伪造的 360° 点。
 - `tools/analyze_scan_timing.py` 读取现有 `frames.jsonl`，计算实收帧率、帧间隔中位数/P95/最大值、帧号缺口。**帧号缺口不能单独定位为雷达丢帧、串口丢包或记录器丢弃。**
 - `tools/register_scan_capture.py` 在取得同一主机单调时钟的电机样本后，把已有 `frames.jsonl` 与 `points.csv` 离线配准，输出每帧质量、已配准点 CSV 与摘要；若 `frames.tlv` 含类型 2 的距离剖面，还提取带实测插值方位的原始强度行。它不修改原始采集目录、不填补未观测方位，也不连接设备。
-- 本分支已把纯配准模块接入实时网页，但只在操作员显式勾选后使用两次有效编码器查询夹住的雷达帧。当前仍未把 QD4310 角度采样自动写入采集文件；现有 `host_monotonic_s` 是雷达包到达并被解析的时间，不是射频采集中心时刻。网页结果必须标注为临时配准，不能把本地测试当成真实 360° 覆盖或定位精度验收。
+- 本分支已把纯配准模块接入实时网页，但只在操作员显式勾选后使用两次有效编码器查询夹住的雷达帧。显式开启“记录点云”后，服务在同一采集目录写入 `motor_samples.jsonl` 和 `live_registration.jsonl`；停机或未开启实测角度配准时，后者可能为空。现有 `host_monotonic_s` 是雷达包到达并被解析的时间，不是射频采集中心时刻。网页结果必须标注为临时配准，不能把本地测试当成真实 360° 覆盖或定位精度验收。
 
 ## 2. 现场前置条件与原始证据
 
 由现场操作员在独立断电/急停可用、无人员进入扫转范围、转台固定且线束不会缠绕的条件下操作。先记录设备型号/序号、接线与供电实测、安装朝向（滚转正负）、转台机械零位、编码器角度增减方向、雷达 CFG 文件及 SHA-256、树莓派代码提交号、日志起止时间。电机速度上限/电流限制保持现场已验证值；任何提高限值都另行审批与测试。
 
-保留至少下列原始文件，不要只截网页图：`metadata.json`、`frames.jsonl`、`frames.tlv`、`points.csv`、雷达与电机服务日志。下一接入阶段需另存电机查询原始序列（每条含 `query_started_monotonic_s`、`query_completed_monotonic_s`、单圈角度、实测速率、使能/故障状态）；没有这份原始序列，不能离线复核每帧方位。船上测试另记 IMU/航向及统一时间基准。所有日志保留原件，分析输出单独存放。
+保留至少下列原始文件，不要只截网页图：`metadata.json`、`frames.jsonl`、`frames.tlv`、`points.csv`、`motor_samples.jsonl`、`live_registration.jsonl`、雷达与电机服务日志。单条电机样本含 `query_started_monotonic_s`、`query_completed_monotonic_s`、单圈角度、实测速率和使能状态；故障仍需留服务日志。没有可用的角度样本，不能离线复核每帧方位。船上测试另记 IMU/航向及统一时间基准。所有日志保留原件，分析输出单独存放。
+
+更新树莓派服务代码后，由现场操作员确认服务实际运行的是这个提交号，并在网页连接雷达服务。先保持电机停转，点击顶部“记录点云: 关”使其变为“开”，再由操作员显式开启实测角度逐帧配准、启动电机；完整记录至少数圈后，先停电机，再点击“记录点云: 开”结束录制。**记录按钮不会启动电机**。树莓派服务代码目录如为 `/home/pi/camera_web_fusion`，新目录通常在 `/home/pi/camera_web_fusion/captures/pointcloud_logs/capture_YYYYMMDD_HHMMSS*`（实际以网页记录状态给出的路径和服务配置为准）。静态测试也可只按记录按钮；这时 `motor_samples.jsonl`、`live_registration.jsonl` 为空是预期情况。录制期间如电机已启动但电机样本仍为空，先查服务是否更新、QDrive 状态查询是否成功和记录是否在运行；不能凭空补角度。
+
+停止录制后检查 `metadata.json` 的 `recording_status`、`writer_error`、`dropped_frames`、`dropped_motor_samples`、`dropped_registration_events`，以及各文件实际非空程度。`completed_with_drops` 不能当作无损采集。`live_registration.jsonl` 每行的 `status` 是一帧的配准判定；`registered` 仍属于主机解包时间的临时配准，拒绝状态要按原因统计。复制整个原始目录和 `journalctl -u radar.service` 对应时间段日志，再进行离线分析；不要直接修改原始文件。
 
 ## 3. 先测雷达帧时序，不转电机
 
@@ -42,10 +46,10 @@ python tools/analyze_scan_timing.py "D:\captures\capture_YYYYMMDD_HHMMSS\frames.
 已有电机样本时，可在复制回来的原始目录**旁边新建输出目录**运行离线配准（示例角度须替换为现场标定值）：
 
 ```powershell
-python tools/register_scan_capture.py "D:\captures\capture_YYYYMMDD_HHMMSS" "D:\captures\motor_samples.jsonl" "D:\captures\registered_YYYYMMDD_HHMMSS" --angle-direction increasing --zero-deg 0 --mounting-yaw-deg 0 --mounting-roll-deg 90 --max-possible-rpm 130
+python tools/register_scan_capture.py "D:\captures\capture_YYYYMMDD_HHMMSS" "D:\captures\capture_YYYYMMDD_HHMMSS\motor_samples.jsonl" "D:\captures\registered_YYYYMMDD_HHMMSS" --angle-direction increasing --zero-deg 0 --mounting-yaw-deg 0 --mounting-roll-deg 90 --max-possible-rpm 130
 ```
 
-`--angle-direction` 指**编码器角度数值增加或减少**，不是网页的顺/逆时针标签。`motor_samples.jsonl` 每行至少包含 `query_started_monotonic_s`、`query_completed_monotonic_s`、`angle_deg`。它与雷达 `host_monotonic_s` 必须来自**同一主机、同一次启动的单调时钟**；不同电脑或重启前后的数值不能直接拼接。当前还没有自动产出该电机样本文件的主线适配器，这是下一阶段的实现项。
+`--angle-direction` 指**编码器角度数值增加或减少**，不是网页的顺/逆时针标签。`motor_samples.jsonl` 每行至少包含 `query_started_monotonic_s`、`query_completed_monotonic_s`、`angle_deg`。它与雷达 `host_monotonic_s` 必须来自**同一主机、同一次启动的单调时钟**；不同电脑或重启前后的数值不能直接拼接。本轮已实现该文件在显式录制期间的自动生成，但现场采样频率、时钟一致性和配准率尚未验收。
 
 查看新目录的 `summary.json`：`registered_frames/frame_count` 是算法可配准率；`statuses` 中的 `sample_gap`、`query_duration`、`angular_span`、`ambiguous_wrap` 分别定位采样间隔、查询耗时、相邻角跨度和跨圈不可判定问题；`observed_azimuth_bins_10deg` 只表示有帧落入相应方位桶，**不是该扇区有连续有效回波**。逐点核对 `registered_points.csv` 的原始 `radar_x/y/z_m` 与变换后 `x/y/z_m`，并用固定目标检查零位和滚转正负。`polar_range_profiles.jsonl` 的 `range_bins_raw` 是固件输出的 uint16 值，距离轴仍为**未标定的 bin 序号**，并非可直接宣称的米数、RCS 或对标产品的成像质量；`range_profile_frames=0` 时先检查原始 TLV 是否包含类型 2。`rf_time_calibrated=false` 必须保留，直到射频采集时刻与串口传输及解包延迟经实测校准。
 
@@ -59,4 +63,4 @@ python tools/register_scan_capture.py "D:\captures\capture_YYYYMMDD_HHMMSS" "D:\
 
 ## 6. 暂不能宣称的结果与后续开发门
 
-本轮已有默认关闭的实时**临时周扫点云**入口：只有状态为 `provisional` 且存在已配准点时才进入整圆显示；角度缺测、过期或配准拒绝时不能把原始前向点冒充后向探测。尚未证明真实一整圈覆盖、角度精度或低延迟；角度采样与逐帧质量标志的持久化仍是下一阶段工作。离线得到的点云和原始距离剖面行，也不等于对标产品经过同步、校准、杂波抑制和动态范围处理的强度图。强度图还需确认 `range_profile` 的物理含义、距离刻度、动态范围、杂波抑制和未观测扇区显示。船舶避障和 0–200 m 性能，仍须独立水面目标/气象/船速试验，不能从软件单元测试推出。
+本轮已有默认关闭的实时**临时周扫点云**入口：只有状态为 `provisional` 且存在已配准点时才进入整圆显示；角度缺测、过期或配准拒绝时不能把原始前向点冒充后向探测。角度样本与逐帧质量标志已经可随显式录制落盘，但尚未证明真实一整圈覆盖、角度精度或低延迟。离线得到的点云和原始距离剖面行，也不等于对标产品经过同步、校准、杂波抑制和动态范围处理的强度图。强度图还需确认 `range_profile` 的物理含义、距离刻度、动态范围、杂波抑制和未观测扇区显示。船舶避障和 0–200 m 性能，仍须独立水面目标/气象/船速试验，不能从软件单元测试推出。

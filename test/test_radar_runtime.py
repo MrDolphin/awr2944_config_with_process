@@ -31,6 +31,63 @@ class ConfigPathTests(unittest.TestCase):
 
 
 class RecorderTests(unittest.TestCase):
+    def test_records_motor_samples_and_registration_events_in_capture(self):
+        with tempfile.TemporaryDirectory() as directory:
+            recorder = PointCloudRecorder(directory, clock=lambda: 1_700_000_000.0)
+            capture_dir = Path(recorder.start())
+            try:
+                self.assertTrue(recorder.record_motor_sample({
+                    "query_started_monotonic_s": 10.0,
+                    "query_completed_monotonic_s": 10.012,
+                    "angle_deg": 359.0,
+                    "speed_rpm": 30.0,
+                    "enabled": True,
+                }))
+                self.assertTrue(recorder.record_registration_event({
+                    "frame_num": 17,
+                    "host_monotonic_s": 10.025,
+                    "status": "registered",
+                    "yaw_deg": 12.5,
+                    "rf_time_calibrated": False,
+                    "pose_compensated": False,
+                }))
+            finally:
+                status = recorder.stop()
+            samples = [json.loads(line) for line in
+                       (capture_dir / "motor_samples.jsonl").read_text(encoding="utf-8").splitlines()]
+            events = [json.loads(line) for line in
+                      (capture_dir / "live_registration.jsonl").read_text(encoding="utf-8").splitlines()]
+            metadata = json.loads((capture_dir / "metadata.json").read_text(encoding="utf-8"))
+            self.assertEqual(samples[0]["angle_deg"], 359.0)
+            self.assertEqual(samples[0]["time_basis"], "host_monotonic_query_bracket")
+            self.assertEqual(events[0]["frame_num"], 17)
+            self.assertEqual(events[0]["status"], "registered")
+            self.assertEqual(status["motor_samples"], 1)
+            self.assertEqual(status["registration_events"], 1)
+            self.assertEqual(metadata["schema_version"], 4)
+            self.assertEqual(metadata["files"]["motor_samples"], "motor_samples.jsonl")
+            self.assertEqual(metadata["files"]["live_registration"], "live_registration.jsonl")
+
+    def test_rejects_invalid_motor_and_registration_times(self):
+        with tempfile.TemporaryDirectory() as directory:
+            recorder = PointCloudRecorder(directory)
+            capture_dir = Path(recorder.start())
+            try:
+                with self.assertRaises(ValueError):
+                    recorder.record_motor_sample({
+                        "query_started_monotonic_s": 2.0,
+                        "query_completed_monotonic_s": 1.0,
+                        "angle_deg": 20.0,
+                    })
+                with self.assertRaises(ValueError):
+                    recorder.record_registration_event({
+                        "frame_num": 1, "host_monotonic_s": float("nan"), "status": "registered"
+                    })
+            finally:
+                recorder.stop()
+            self.assertEqual((capture_dir / "motor_samples.jsonl").read_text(encoding="utf-8"), "")
+            self.assertEqual((capture_dir / "live_registration.jsonl").read_text(encoding="utf-8"), "")
+
     def test_records_empty_and_populated_frames_with_raw_bytes(self):
         with tempfile.TemporaryDirectory() as directory:
             recorder = PointCloudRecorder(directory, clock=lambda: 1_700_000_000.0, monotonic=lambda: 99.0)

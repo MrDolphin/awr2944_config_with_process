@@ -1,10 +1,12 @@
 import importlib
 import logging
 import sys
+import tempfile
 import threading
 import time
 import types
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 
@@ -370,6 +372,131 @@ class Qd4310ServerModeTests(unittest.TestCase):
             self.assertAlmostEqual(server.gimbal_scan["motor_angle_deg"], 49.446)
             self.assertEqual(server.gimbal_scan["yaw_actual_deg"], 0.0)
             self.assertIsNone(server.get_gimbal_scan_status()["motor_angle_deg"])
+        finally:
+            self._restore_modules(previous_serial, previous_websockets)
+
+    def test_timed_motor_sample_is_forwarded_to_explicit_recording(self):
+        server, previous_serial, previous_websockets = self._import_server()
+        try:
+            stop_event = threading.Event()
+            sample = {
+                "angle_deg": 12.0, "speed_rpm": 30.0, "enabled": True,
+                "query_started_monotonic_s": 1.0,
+                "query_completed_monotonic_s": 1.01,
+            }
+
+            class FakeMotor:
+                def __init__(self, port):
+                    pass
+
+                def start(self, rpm, direction):
+                    pass
+
+                def read_status_timed(self):
+                    stop_event.set()
+                    return sample
+
+                def stop(self):
+                    pass
+
+            with patch.object(server, "Qd4310Motor", FakeMotor), patch.object(
+                server.pointcloud_recorder, "record_motor_sample", return_value=True
+            ) as record:
+                server.qd4310_scan_loop(
+                    {"qd4310_port": "auto", "rpm": 30, "direction": "ccw"}, stop_event
+                )
+            record.assert_called_once_with(sample)
+        finally:
+            self._restore_modules(previous_serial, previous_websockets)
+
+    def test_live_registration_decision_is_forwarded_to_recording(self):
+        server, previous_serial, previous_websockets = self._import_server()
+        try:
+            server.live_scan_assembler = server.LiveScanAssembler(
+                direction=1, zero_deg=0, mounting_yaw_deg=0, mounting_roll_deg=0
+            )
+            with patch.object(server.pointcloud_recorder, "record_registration_event", return_value=True) as record:
+                server.add_live_motor_sample({
+                    "query_started_monotonic_s": 1.0,
+                    "query_completed_monotonic_s": 1.0,
+                    "angle_deg": 0.0,
+                })
+                server.add_live_radar_frame({
+                    "frame_num": 9, "host_monotonic_s": 1.02,
+                    "points": [{"x": 0.0, "y": 1.0, "z": 0.0}],
+                })
+                server.add_live_motor_sample({
+                    "query_started_monotonic_s": 1.04,
+                    "query_completed_monotonic_s": 1.04,
+                    "angle_deg": 6.0,
+                })
+            event = record.call_args.args[0]
+            self.assertEqual(event["frame_num"], 9)
+            self.assertEqual(event["status"], "registered")
+            self.assertAlmostEqual(event["yaw_deg"], 3.0)
+        finally:
+            self._restore_modules(previous_serial, previous_websockets)
+
+    def test_fake_motor_and_radar_capture_can_be_registered_offline(self):
+        from radar_runtime import PointCloudRecorder
+        from tools.register_scan_capture import register_capture
+
+        server, previous_serial, previous_websockets = self._import_server()
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                recorder = PointCloudRecorder(Path(directory) / "captures")
+                capture_dir = Path(recorder.start())
+                stop_event = threading.Event()
+                server.live_scan_assembler = server.LiveScanAssembler(
+                    direction=1, zero_deg=0, mounting_yaw_deg=0, mounting_roll_deg=90
+                )
+
+                class FakeMotor:
+                    reads = 0
+
+                    def __init__(self, port):
+                        pass
+
+                    def start(self, rpm, direction):
+                        pass
+
+                    def read_status_timed(self):
+                        self.reads += 1
+                        if self.reads == 2:
+                            frame = {
+                                "frame_num": 3, "host_monotonic_s": 1.02,
+                                "points": [{"x": 1.0, "y": 2.0, "z": 0.0}],
+                            }
+                            recorder.record_frame(frame)
+                            server.add_live_radar_frame(frame)
+                            stop_event.set()
+                        angle = 0.0 if self.reads == 1 else 6.0
+                        when = 1.0 if self.reads == 1 else 1.04
+                        return {
+                            "angle_deg": angle, "speed_rpm": 30.0, "enabled": True,
+                            "query_started_monotonic_s": when,
+                            "query_completed_monotonic_s": when,
+                        }
+
+                    def stop(self):
+                        pass
+
+                with patch.object(server, "Qd4310Motor", FakeMotor), patch.object(
+                    server, "pointcloud_recorder", recorder
+                ):
+                    server.qd4310_scan_loop(
+                        {"qd4310_port": "auto", "rpm": 30, "direction": "ccw"}, stop_event
+                    )
+                status = recorder.stop()
+                self.assertEqual(status["motor_samples"], 2)
+                self.assertEqual(status["registration_events"], 1)
+                output = Path(directory) / "registered"
+                summary = register_capture(
+                    capture_dir, capture_dir / "motor_samples.jsonl", output,
+                    direction=1, zero_deg=0, mounting_yaw_deg=0, mounting_roll_deg=90,
+                )
+                self.assertEqual(summary["registered_frames"], 1)
+                self.assertEqual(summary["registered_points"], 1)
         finally:
             self._restore_modules(previous_serial, previous_websockets)
 

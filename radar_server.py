@@ -410,6 +410,7 @@ def qd4310_scan_loop(config, stop_event):
                 gimbal_scan["motor_angle_deg"] = sample["angle_deg"]
                 gimbal_scan["motor_speed_rpm"] = sample["speed_rpm"]
                 gimbal_scan["motor_angle_sample_monotonic_s"] = sample["query_completed_monotonic_s"]
+                pointcloud_recorder.record_motor_sample(sample)
                 add_live_motor_sample(sample)
             stop_event.wait(0.02 if live_scan_assembler is not None else 0.2)
         gimbal_scan["status"] = "stopping"
@@ -793,12 +794,19 @@ def add_live_motor_sample(sample):
     assembler = live_scan_assembler
     if assembler is not None:
         assembler.add_motor_sample(sample)
+        _record_live_registration_events(assembler)
 
 
 def add_live_radar_frame(frame):
     assembler = live_scan_assembler
     if assembler is not None:
         assembler.add_frame(frame)
+        _record_live_registration_events(assembler)
+
+
+def _record_live_registration_events(assembler):
+    for event in assembler.drain_events():
+        pointcloud_recorder.record_registration_event(event)
 
 
 def get_live_scan_snapshot():
