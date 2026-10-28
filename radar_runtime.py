@@ -102,7 +102,8 @@ class PointCloudRecorder:
         self._writer_error: str | None = None
         self._accepting = False
 
-    def start(self, active_config: Mapping[str, Any] | None = None) -> str:
+    def start(self, active_config: Mapping[str, Any] | None = None,
+              *, registration: Mapping[str, Any] | None = None) -> str:
         with self._lock:
             if self._capture_dir is not None:
                 return str(self._capture_dir)
@@ -134,6 +135,7 @@ class PointCloudRecorder:
                     "schema_version": 4,
                     "started_at_s": self._clock(),
                     "active_config": dict(active_config or {}),
+                    "registration": dict(registration or {}),
                     "recording_status": "active",
                     "files": {
                         "frames": "frames.jsonl", "raw_tlv": "frames.tlv", "points": "points.csv",

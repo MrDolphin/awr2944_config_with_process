@@ -860,6 +860,36 @@ class RadarAppTests(unittest.TestCase):
             self.assertFalse(page.evaluate("downloadCalibrationSession()"))
             browser.close()
 
+    def test_recording_start_sends_idle_registration_calibration_without_starting_motor(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(headless=True)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.add_init_script("""
+                window.sentCommands = [];
+                class FakeWebSocket {
+                    static OPEN = 1;
+                    constructor() { this.readyState = 1; setTimeout(() => this.onopen && this.onopen(), 0); }
+                    send(payload) { window.sentCommands.push(JSON.parse(payload)); }
+                    close() { this.readyState = 3; if (this.onclose) this.onclose(); }
+                }
+                window.WebSocket = FakeWebSocket;
+            """)
+            page.goto(page_url, wait_until="networkidle")
+            page.locator("#wsInput").fill("127.0.0.1:8765")
+            page.locator("#connectBtn").click()
+            page.wait_for_function("window.sentCommands.some(item => item.type === 'list_configs')")
+            page.locator("#liveRegistrationEnabled").check()
+            page.locator("#registrationRollInput").fill("90")
+            page.locator("#recordPointcloudBtn").click()
+            commands = page.evaluate("window.sentCommands")
+            recording = [item for item in commands if item.get("type") == "pointcloud_record" and item.get("action") == "start"]
+            self.assertEqual(len(recording), 1)
+            self.assertEqual(recording[0]["registration"]["mounting_roll_deg"], 90)
+            self.assertTrue(recording[0]["registration"]["enabled"])
+            self.assertFalse(any(item.get("type") == "gimbal_scan" and item.get("action") == "start" for item in commands))
+            browser.close()
+
     def test_offline_replay_controls_render_without_javascript_errors(self):
         page_errors = []
         page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()

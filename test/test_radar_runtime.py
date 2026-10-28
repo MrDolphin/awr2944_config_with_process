@@ -31,6 +31,19 @@ class ConfigPathTests(unittest.TestCase):
 
 
 class RecorderTests(unittest.TestCase):
+    def test_capture_metadata_records_requested_registration_snapshot(self):
+        with tempfile.TemporaryDirectory() as directory:
+            recorder = PointCloudRecorder(directory, clock=lambda: 1_700_000_000.0)
+            capture_dir = Path(recorder.start(registration={
+                "enabled": True, "direction": 1, "zero_deg": 0.0,
+                "mounting_yaw_deg": 0.0, "mounting_roll_deg": 90.0,
+                "source": "recording_request", "motor_active": False,
+            }))
+            recorder.stop()
+            metadata = json.loads((capture_dir / "metadata.json").read_text(encoding="utf-8"))
+            self.assertEqual(metadata["registration"]["mounting_roll_deg"], 90.0)
+            self.assertFalse(metadata["registration"]["motor_active"])
+
     def test_records_motor_samples_and_registration_events_in_capture(self):
         with tempfile.TemporaryDirectory() as directory:
             recorder = PointCloudRecorder(directory, clock=lambda: 1_700_000_000.0)

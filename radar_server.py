@@ -755,8 +755,59 @@ def get_gimbal_scan_status():
         "config": gimbal_scan["config"]
     }
 
-def start_pointcloud_recording():
-    out_path = pointcloud_recorder.start(runtime_state["active_config"])
+def _recording_registration_snapshot(request, current, motor_active):
+    """Validate and snapshot calibration without changing runtime or motor state."""
+    keys = {
+        "direction": "registration_direction",
+        "zero_deg": "registration_zero_deg",
+        "mounting_yaw_deg": "registration_mounting_yaw_deg",
+        "mounting_roll_deg": "registration_mounting_roll_deg",
+    }
+    if request is None:
+        return {
+            "enabled": bool(current["live_registration_enabled"]),
+            **{key: current[config_key] for key, config_key in keys.items()},
+            "source": "server_state", "motor_active": motor_active,
+        }
+    if not isinstance(request, dict) or type(request.get("enabled")) is not bool:
+        raise ValueError("recording registration must contain an explicit enabled boolean")
+    try:
+        raw_direction = float(request["direction"])
+        if raw_direction not in (-1.0, 1.0):
+            raise ValueError("registration direction must be +1 or -1")
+        direction = int(raw_direction)
+        values = {key: float(request[key]) for key in keys if key != "direction"}
+        if not all(math.isfinite(value) for value in values.values()):
+            raise ValueError("registration calibration must be finite")
+    except (KeyError, TypeError, OverflowError) as exc:
+        raise ValueError("recording registration is incomplete") from exc
+    snapshot = {
+        "enabled": request["enabled"], "direction": direction, **values,
+        "source": "recording_request", "motor_active": motor_active,
+    }
+    if motor_active:
+        actual = _recording_registration_snapshot(None, current, motor_active)
+        if any(snapshot[key] != actual[key] for key in ("enabled", *keys)):
+            raise ValueError("recording calibration differs from active motor scan; stop scan before changing it")
+    return snapshot
+
+
+def start_pointcloud_recording(registration=None):
+    snapshot = _recording_registration_snapshot(
+        registration, gimbal_scan["config"], bool(gimbal_scan["enabled"])
+    )
+    if registration is not None and not gimbal_scan["enabled"]:
+        config = dict(gimbal_scan["config"])
+        config.update({
+            "live_registration_enabled": snapshot["enabled"],
+            "registration_direction": snapshot["direction"],
+            "registration_zero_deg": snapshot["zero_deg"],
+            "registration_mounting_yaw_deg": snapshot["mounting_yaw_deg"],
+            "registration_mounting_roll_deg": snapshot["mounting_roll_deg"],
+        })
+        configure_live_scan(config)
+        gimbal_scan["config"] = config
+    out_path = pointcloud_recorder.start(runtime_state["active_config"], registration=snapshot)
     _sync_recording_status()
     logger.info(f"📝 点云记录已开启: {out_path}")
     return out_path
@@ -1283,7 +1334,16 @@ async def handle_client(websocket):
                     elif ctype == "pointcloud_record":
                         action = cmd.get("action")
                         if action == "start":
-                            path = start_pointcloud_recording()
+                            try:
+                                path = start_pointcloud_recording(cmd.get("registration"))
+                            except ValueError as exc:
+                                status = get_recording_status()
+                                status.update({
+                                    "type": "pointcloud_record_status", "recording": status["enabled"],
+                                    "success": False, "message": str(exc),
+                                })
+                                await websocket.send(json.dumps(status))
+                                continue
                             status = get_recording_status()
                             status.update({"type": "pointcloud_record_status", "recording": True, "path": path})
                             await websocket.send(json.dumps(status))

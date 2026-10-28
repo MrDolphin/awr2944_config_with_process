@@ -409,6 +409,57 @@ class Qd4310ServerModeTests(unittest.TestCase):
         finally:
             self._restore_modules(previous_serial, previous_websockets)
 
+    def test_idle_recording_uses_requested_roll_without_starting_motor(self):
+        server, old_serial, old_websockets = self._import_server()
+        try:
+            with patch.object(server.pointcloud_recorder, "start", return_value="capture-test") as start, \
+                    patch.object(server.pointcloud_recorder, "record_registration_event", return_value=True) as record, \
+                    patch.object(server.threading, "Thread") as thread:
+                server.start_pointcloud_recording({
+                    "enabled": True, "direction": 1, "zero_deg": 0,
+                    "mounting_yaw_deg": 0, "mounting_roll_deg": 90,
+                })
+                for frame_num in range(20):
+                    server.add_live_radar_frame({
+                        "frame_num": frame_num, "host_monotonic_s": 1.02 + frame_num * 0.1,
+                        "points": [{"x": 0.1, "y": 1.5, "z": -0.3}],
+                    })
+            self.assertEqual(start.call_args.kwargs["registration"]["mounting_roll_deg"], 90)
+            self.assertEqual(record.call_args.args[0]["registration_mounting_roll_deg"], 90)
+            self.assertNotEqual(record.call_args.args[0]["status"], "registered")
+            thread.assert_not_called()
+        finally:
+            self._restore_modules(old_serial, old_websockets)
+
+    def test_recording_rejects_calibration_change_during_active_scan(self):
+        server, old_serial, old_websockets = self._import_server()
+        try:
+            server.gimbal_scan["enabled"] = True
+            server.gimbal_scan["config"]["live_registration_enabled"] = True
+            with patch.object(server.pointcloud_recorder, "start") as start:
+                with self.assertRaisesRegex(ValueError, "differs from active motor scan"):
+                    server.start_pointcloud_recording({
+                        "enabled": True, "direction": 1, "zero_deg": 0,
+                        "mounting_yaw_deg": 0, "mounting_roll_deg": 90,
+                    })
+            start.assert_not_called()
+        finally:
+            self._restore_modules(old_serial, old_websockets)
+
+    def test_idle_recording_rejects_nonfinite_roll_without_mutating_config(self):
+        server, old_serial, old_websockets = self._import_server()
+        try:
+            with patch.object(server.pointcloud_recorder, "start") as start:
+                with self.assertRaisesRegex(ValueError, "must be finite"):
+                    server.start_pointcloud_recording({
+                        "enabled": True, "direction": 1, "zero_deg": 0,
+                        "mounting_yaw_deg": 0, "mounting_roll_deg": float("nan"),
+                    })
+            start.assert_not_called()
+            self.assertEqual(server.gimbal_scan["config"]["registration_mounting_roll_deg"], 0)
+        finally:
+            self._restore_modules(old_serial, old_websockets)
+
     def test_live_registration_decision_is_forwarded_to_recording(self):
         server, previous_serial, previous_websockets = self._import_server()
         try:

@@ -3055,6 +3055,9 @@
 
         function updateRecordingHealth(status) {
             pointcloudRecording = !!(status.recording ?? status.enabled);
+            if (status.success === false) {
+                alert(`点云记录未启动：${status.message || '标定参数无效'}`);
+            }
             const recordDisplay = document.getElementById('recordDisplay');
             const healthParts = [];
             if (status.dropped_frames) healthParts.push(`丢帧 ${status.dropped_frames}`);
@@ -4111,7 +4114,30 @@
             }
             const action = pointcloudRecording ? "stop" : "start";
             pointcloudRecording = action === "start";
-            ws.send(JSON.stringify({ type: "pointcloud_record", action }));
+            if (action === "start") {
+                const calibration = [
+                    Number(document.getElementById('registrationZeroInput').value),
+                    Number(document.getElementById('registrationYawInput').value),
+                    Number(document.getElementById('registrationRollInput').value)
+                ];
+                if (!calibration.every(Number.isFinite)) {
+                    pointcloudRecording = false;
+                    alert('记录标定参数必须是有限数值。');
+                    return;
+                }
+                ws.send(JSON.stringify({
+                    type: "pointcloud_record", action,
+                    registration: {
+                        enabled: document.getElementById('liveRegistrationEnabled').checked,
+                        direction: Number(document.getElementById('registrationDirectionInput').value),
+                        zero_deg: calibration[0],
+                        mounting_yaw_deg: calibration[1],
+                        mounting_roll_deg: calibration[2]
+                    }
+                }));
+            } else {
+                ws.send(JSON.stringify({ type: "pointcloud_record", action }));
+            }
             e.target.innerText = action === "start" ? "记录点云: 开" : "记录点云: 关";
             e.target.style.backgroundColor = action === "start" ? "rgba(127, 220, 255, 0.18)" : "transparent";
             document.getElementById('recordDisplay').innerText = action === "start" ? "记录中..." : "正在停止";
