@@ -30,6 +30,7 @@ from tools.fusion.calibration import CalibrationError, load_calibration
 from tools.fusion.projection import project_radar_point
 from qd4310_motor import Qd4310Motor, list_qdrive_ports, validate_direction, validate_rpm
 from live_scan import LiveScanAssembler
+from scan_registration import EncoderDirectionVerifier
 
 # 配置日志：同时输出到文件和控制台
 config_dir = os.path.dirname(os.path.abspath(__file__))
@@ -240,6 +241,9 @@ gimbal_scan = {
     "motor_speed_rpm": None,
     "motor_angle_sample_monotonic_s": None,
     "owner": None,
+    "encoder_direction_detected": None,
+    "encoder_direction_verified": False,
+    "encoder_direction_observed_travel_deg": 0.0,
     "config": {
         "mode": "motor",
         "motor_pwm_gpio": 12,
@@ -269,6 +273,9 @@ gimbal_scan = {
         "registration_max_query_duration_s": 0.05,
         "registration_max_span_deg": 10.0,
         "registration_stale_after_s": 1.0,
+        "encoder_direction_detected": None,
+        "encoder_direction_verified": False,
+        "encoder_direction_observed_travel_deg": 0.0,
         "baud": 115200,
         "pitch_id": 1,
         "yaw_id": 2,
@@ -394,14 +401,18 @@ def motor_scan_loop(config, stop_event):
 def qd4310_scan_loop(config, stop_event):
     """Run the explicitly requested USB motor until a stop event arrives."""
     motor = Qd4310Motor(config["qd4310_port"])
+    verify_direction = bool(config.get("live_registration_enabled"))
+    verifier = EncoderDirectionVerifier() if verify_direction else None
+    pending_verification_samples = []
     try:
         if stop_event.is_set():
             return
         gimbal_scan["status"] = "opening"
         motor.start(config["rpm"], config.get("direction", "ccw"))
         gimbal_scan["motor"] = motor
-        gimbal_scan["status"] = "running"
+        gimbal_scan["status"] = "verifying_direction" if verify_direction else "running"
         gimbal_scan["last_update_s"] = time.time()
+        last_telemetry = time.monotonic()
         while not stop_event.is_set():
             sample = motor.read_status_timed()
             if sample is not None:
@@ -411,8 +422,38 @@ def qd4310_scan_loop(config, stop_event):
                 gimbal_scan["motor_speed_rpm"] = sample["speed_rpm"]
                 gimbal_scan["motor_angle_sample_monotonic_s"] = sample["query_completed_monotonic_s"]
                 pointcloud_recorder.record_motor_sample(sample)
-                add_live_motor_sample(sample)
-            stop_event.wait(0.02 if live_scan_assembler is not None else 0.2)
+                if verifier is None or config.get("encoder_direction_verified"):
+                    add_live_motor_sample(sample)
+                else:
+                    pending_verification_samples.append(sample)
+                    pending_verification_samples[:] = pending_verification_samples[-2:]
+                    detected = verifier.add_angle(sample["angle_deg"])
+                    travel = verifier.travel_deg
+                    config["encoder_direction_observed_travel_deg"] = travel
+                    gimbal_scan["encoder_direction_observed_travel_deg"] = travel
+                    if detected is not None:
+                        expected = int(config["registration_direction"])
+                        config["encoder_direction_detected"] = detected
+                        gimbal_scan["encoder_direction_detected"] = detected
+                        if detected != expected:
+                            config["encoder_direction_verified"] = False
+                            gimbal_scan["encoder_direction_verified"] = False
+                            raise RuntimeError(
+                                "QD4310 encoder direction mismatch: "
+                                f"expected {expected:+d}, measured {detected:+d}; "
+                                "registration remains disabled"
+                            )
+                        config["encoder_direction_verified"] = True
+                        gimbal_scan["encoder_direction_verified"] = True
+                        configure_live_scan(config)
+                        for verified_sample in pending_verification_samples:
+                            add_live_motor_sample(verified_sample)
+                        pending_verification_samples.clear()
+                        gimbal_scan["status"] = "running"
+                last_telemetry = time.monotonic()
+            elif time.monotonic() - last_telemetry > 1.0:
+                raise RuntimeError("QD4310 status unavailable for over 1 second")
+            stop_event.wait(0.02 if verify_direction or live_scan_assembler is not None else 0.2)
         gimbal_scan["status"] = "stopping"
     except Exception as exc:
         gimbal_scan["last_error"] = str(exc)
@@ -658,10 +699,15 @@ def start_gimbal_scan(params):
         except ValueError as exc:
             return False, str(exc)
         config["mode"] = "qd4310"
-        try:
-            configure_live_scan(config)
-        except ValueError as exc:
-            return False, str(exc)
+        if config["live_registration_enabled"]:
+            try:
+                _make_live_scan_assembler(config)
+            except (TypeError, ValueError) as exc:
+                return False, str(exc)
+        config["encoder_direction_detected"] = None
+        config["encoder_direction_verified"] = False
+        config["encoder_direction_observed_travel_deg"] = 0.0
+        configure_live_scan(None)
         thread_target = qd4310_scan_loop
     else:
         config["mode"] = "motor"
@@ -682,7 +728,10 @@ def start_gimbal_scan(params):
         "start_time_s": time.time(),
         "yaw_actual_deg": 0.0,
         "combined_points": [],
-        "last_update_s": 0.0
+        "last_update_s": 0.0,
+        "encoder_direction_detected": None,
+        "encoder_direction_verified": False,
+        "encoder_direction_observed_travel_deg": 0.0,
     })
     gimbal_scan["motor_angle_deg"] = None
     gimbal_scan["motor_speed_rpm"] = None
@@ -748,6 +797,9 @@ def get_gimbal_scan_status():
         "motor_speed_rpm": gimbal_scan["motor_speed_rpm"] if angle_fresh else None,
         "motor_angle_age_ms": round(age_ms) if angle_fresh else None,
         "motor_angle_source": "qd4310_usb_status_single_turn" if angle_fresh else None,
+        "encoder_direction_detected": gimbal_scan["encoder_direction_detected"],
+        "encoder_direction_verified": gimbal_scan["encoder_direction_verified"],
+        "encoder_direction_observed_travel_deg": gimbal_scan["encoder_direction_observed_travel_deg"],
         "live_registration": live_status,
         "points": len(gimbal_scan["combined_points"]),
         "last_update_s": gimbal_scan["last_update_s"],
@@ -763,10 +815,19 @@ def _recording_registration_snapshot(request, current, motor_active):
         "mounting_yaw_deg": "registration_mounting_yaw_deg",
         "mounting_roll_deg": "registration_mounting_roll_deg",
     }
+    direction_evidence = {
+        "motor_direction": current.get("direction"),
+        "encoder_direction_detected": current.get("encoder_direction_detected"),
+        "encoder_direction_verified": bool(current.get("encoder_direction_verified", False)),
+        "encoder_direction_observed_travel_deg": float(
+            current.get("encoder_direction_observed_travel_deg", 0.0)
+        ),
+    }
     if request is None:
         return {
             "enabled": bool(current["live_registration_enabled"]),
             **{key: current[config_key] for key, config_key in keys.items()},
+            **direction_evidence,
             "source": "server_state", "motor_active": motor_active,
         }
     if not isinstance(request, dict) or type(request.get("enabled")) is not bool:
@@ -783,6 +844,7 @@ def _recording_registration_snapshot(request, current, motor_active):
         raise ValueError("recording registration is incomplete") from exc
     snapshot = {
         "enabled": request["enabled"], "direction": direction, **values,
+        **direction_evidence,
         "source": "recording_request", "motor_active": motor_active,
     }
     if motor_active:
@@ -823,13 +885,9 @@ def record_pointcloud_frame(frame, raw_packet=None):
     _sync_recording_status()
 
 
-def configure_live_scan(config):
-    """Replace the optional measured-angle assembler without opening hardware."""
-    global live_scan_assembler
-    live_scan_assembler = None
-    if not config or not config.get("live_registration_enabled"):
-        return
-    live_scan_assembler = LiveScanAssembler(
+def _make_live_scan_assembler(config):
+    """Validate registration calibration and build an inactive assembler."""
+    return LiveScanAssembler(
         direction=int(config["registration_direction"]),
         zero_deg=float(config["registration_zero_deg"]),
         mounting_yaw_deg=float(config["registration_mounting_yaw_deg"]),
@@ -839,6 +897,15 @@ def configure_live_scan(config):
         max_span_deg=float(config["registration_max_span_deg"]),
         stale_after_s=float(config["registration_stale_after_s"]),
     )
+
+
+def configure_live_scan(config):
+    """Replace the optional measured-angle assembler without opening hardware."""
+    global live_scan_assembler
+    live_scan_assembler = None
+    if not config or not config.get("live_registration_enabled"):
+        return
+    live_scan_assembler = _make_live_scan_assembler(config)
 
 
 def add_live_motor_sample(sample):

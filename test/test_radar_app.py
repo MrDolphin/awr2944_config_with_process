@@ -396,6 +396,20 @@ class RadarAppTests(unittest.TestCase):
         self.assertIn("49.45", result["fresh"])
         self.assertNotIn("49.45", result["stale"])
 
+    def test_motor_direction_updates_encoder_trend_default(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.goto(page_url, wait_until="networkidle")
+            self.assertEqual(page.locator("#motorDirectionSelect").input_value(), "ccw")
+            self.assertEqual(page.locator("#registrationDirectionInput").input_value(), "1")
+            page.locator("#motorDirectionSelect").select_option("cw")
+            self.assertEqual(page.locator("#registrationDirectionInput").input_value(), "-1")
+            page.locator("#motorDirectionSelect").select_option("ccw")
+            self.assertEqual(page.locator("#registrationDirectionInput").input_value(), "1")
+            browser.close()
+
     def test_qd4310_live_registration_requires_opt_in_and_can_show_rear_point(self):
         page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
         with sync_playwright() as playwright:

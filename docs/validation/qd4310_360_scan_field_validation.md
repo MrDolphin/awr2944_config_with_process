@@ -17,7 +17,11 @@
 
 更新树莓派服务代码后，由现场操作员确认服务实际运行的是这个提交号，并在网页连接雷达服务。先保持电机停转，点击顶部“记录点云: 关”使其变为“开”，再由操作员显式开启实测角度逐帧配准、启动电机；完整记录至少数圈后，先停电机，再点击“记录点云: 开”结束录制。**记录按钮不会启动电机**。树莓派服务代码目录如为 `/home/pi/camera_web_fusion`，新目录通常在 `/home/pi/camera_web_fusion/captures/pointcloud_logs/capture_YYYYMMDD_HHMMSS*`（实际以网页记录状态给出的路径和服务配置为准）。静态测试也可只按记录按钮；这时 `motor_samples.jsonl`、`live_registration.jsonl` 为空是预期情况。录制期间如电机已启动但电机样本仍为空，先查服务是否更新、QDrive 状态查询是否成功和记录是否在运行；不能凭空补角度。
 
+选择“旋转方向”后，网页按本机已测关系给出编码器趋势默认值：顺时针为 `-1`、逆时针为 `+1`。它只是防止误配的界面联动，不是通用电机定律。勾选逐帧配准并启动后，服务器先进入 `verifying_direction`，累计至少 2° 实测净角位移；只有实测趋势与所选值一致才建立配准缓存。若不一致，服务报错、沿既有停止路径停机并保持配准关闭，不得显示猜测的 360° 地图。
+
 停止录制后检查 `metadata.json` 的 `recording_status`、`writer_error`、`dropped_frames`、`dropped_motor_samples`、`dropped_registration_events`，以及各文件实际非空程度。`completed_with_drops` 不能当作无损采集。`live_registration.jsonl` 每行的 `status` 是一帧的配准判定；`registered` 仍属于主机解包时间的临时配准，拒绝状态要按原因统计。复制整个原始目录和 `journalctl -u radar.service` 对应时间段日志，再进行离线分析；不要直接修改原始文件。
+
+最终 `metadata.json.registration` 还应保存 `motor_direction`、`encoder_direction_detected`、`encoder_direction_verified`、`encoder_direction_observed_travel_deg` 及方向、零位、安装偏航/滚转。它是开始录制时的快照：如果录制先于方向校验，`encoder_direction_verified=false` 是正确证据，不能事后改写为通过。
 
 ## 3. 先测雷达帧时序，不转电机
 

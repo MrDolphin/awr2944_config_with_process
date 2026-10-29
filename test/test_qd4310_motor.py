@@ -409,6 +409,89 @@ class Qd4310ServerModeTests(unittest.TestCase):
         finally:
             self._restore_modules(previous_serial, previous_websockets)
 
+    def test_qd_loop_rejects_registration_direction_opposite_to_encoder_trend(self):
+        server, previous_serial, previous_websockets = self._import_server()
+        try:
+            stop_event = threading.Event()
+            samples = iter([
+                {"angle_deg": 10.0, "speed_rpm": 30.0, "enabled": True,
+                 "query_started_monotonic_s": 1.0, "query_completed_monotonic_s": 1.01},
+                {"angle_deg": 7.0, "speed_rpm": 30.0, "enabled": True,
+                 "query_started_monotonic_s": 1.02, "query_completed_monotonic_s": 1.03},
+            ])
+
+            class FakeMotor:
+                def start(self, rpm, direction):
+                    pass
+
+                def read_status_timed(self):
+                    sample = next(samples)
+                    if sample["angle_deg"] == 7.0:
+                        stop_event.set()
+                    return sample
+
+                def stop(self):
+                    pass
+
+            config = dict(server.gimbal_scan["config"])
+            config.update({
+                "qd4310_port": "auto", "rpm": 30, "direction": "cw",
+                "live_registration_enabled": True, "registration_direction": 1,
+            })
+            with patch.object(server, "Qd4310Motor", return_value=FakeMotor()):
+                server.qd4310_scan_loop(config, stop_event)
+
+            self.assertEqual(server.gimbal_scan["status"], "error")
+            self.assertEqual(server.gimbal_scan["encoder_direction_detected"], -1)
+            self.assertFalse(server.gimbal_scan["encoder_direction_verified"])
+            self.assertIn("expected +1", server.gimbal_scan["last_error"])
+            self.assertIsNone(server.live_scan_assembler)
+        finally:
+            self._restore_modules(previous_serial, previous_websockets)
+
+    def test_qd_loop_enables_registration_only_after_encoder_trend_matches(self):
+        server, previous_serial, previous_websockets = self._import_server()
+        try:
+            stop_event = threading.Event()
+            samples = iter([
+                {"angle_deg": 358.0, "speed_rpm": 30.0, "enabled": True,
+                 "query_started_monotonic_s": 1.0, "query_completed_monotonic_s": 1.01},
+                {"angle_deg": 1.0, "speed_rpm": 30.0, "enabled": True,
+                 "query_started_monotonic_s": 1.02, "query_completed_monotonic_s": 1.03},
+            ])
+
+            class FakeMotor:
+                def start(self, rpm, direction):
+                    pass
+
+                def read_status_timed(self):
+                    sample = next(samples)
+                    if sample["angle_deg"] == 1.0:
+                        stop_event.set()
+                    return sample
+
+                def stop(self):
+                    pass
+
+            config = dict(server.gimbal_scan["config"])
+            config.update({
+                "qd4310_port": "auto", "rpm": 30, "direction": "ccw",
+                "live_registration_enabled": True, "registration_direction": 1,
+                "encoder_direction_detected": None,
+                "encoder_direction_verified": False,
+                "encoder_direction_observed_travel_deg": 0.0,
+            })
+            with patch.object(server, "Qd4310Motor", return_value=FakeMotor()):
+                server.qd4310_scan_loop(config, stop_event)
+
+            self.assertEqual(server.gimbal_scan["encoder_direction_detected"], 1)
+            self.assertTrue(server.gimbal_scan["encoder_direction_verified"])
+            self.assertAlmostEqual(server.gimbal_scan["encoder_direction_observed_travel_deg"], 3.0)
+            self.assertIsNotNone(server.live_scan_assembler)
+            self.assertEqual(server.gimbal_scan["last_error"], "")
+        finally:
+            self._restore_modules(previous_serial, previous_websockets)
+
     def test_idle_recording_uses_requested_roll_without_starting_motor(self):
         server, old_serial, old_websockets = self._import_server()
         try:
@@ -425,6 +508,9 @@ class Qd4310ServerModeTests(unittest.TestCase):
                         "points": [{"x": 0.1, "y": 1.5, "z": -0.3}],
                     })
             self.assertEqual(start.call_args.kwargs["registration"]["mounting_roll_deg"], 90)
+            self.assertIn("encoder_direction_verified", start.call_args.kwargs["registration"])
+            self.assertIn("encoder_direction_detected", start.call_args.kwargs["registration"])
+            self.assertIn("motor_direction", start.call_args.kwargs["registration"])
             self.assertEqual(record.call_args.args[0]["registration_mounting_roll_deg"], 90)
             self.assertNotEqual(record.call_args.args[0]["status"], "registered")
             thread.assert_not_called()
@@ -572,7 +658,8 @@ class Qd4310ServerModeTests(unittest.TestCase):
                     "registration_mounting_roll_deg": 90,
                 })
             self.assertTrue(ok, message)
-            self.assertEqual(server.get_live_scan_snapshot()["state"], "stale")
+            self.assertEqual(server.get_live_scan_snapshot()["state"], "disabled")
+            self.assertFalse(server.gimbal_scan["encoder_direction_verified"])
         finally:
             self._restore_modules(previous_serial, previous_websockets)
 

@@ -1,9 +1,26 @@
 import unittest
 
-from scan_registration import AngleSample, estimate_frame_yaw, register_points
+from scan_registration import (
+    AngleSample,
+    EncoderDirectionVerifier,
+    estimate_frame_yaw,
+    register_points,
+)
 
 
 class ScanRegistrationTests(unittest.TestCase):
+    def test_encoder_direction_verifier_handles_wrap_and_ignores_jitter(self):
+        increasing = EncoderDirectionVerifier(min_travel_deg=2.0)
+        self.assertIsNone(increasing.add_angle(359.0))
+        self.assertIsNone(increasing.add_angle(0.2))
+        self.assertEqual(increasing.add_angle(1.5), 1)
+
+        decreasing = EncoderDirectionVerifier(min_travel_deg=2.0)
+        self.assertIsNone(decreasing.add_angle(1.0))
+        self.assertIsNone(decreasing.add_angle(0.8))
+        self.assertIsNone(decreasing.add_angle(1.0))
+        self.assertEqual(decreasing.add_angle(358.5), -1)
+
     def test_interpolates_across_encoder_wrap_in_both_directions(self):
         ccw = estimate_frame_yaw(
             0.02,

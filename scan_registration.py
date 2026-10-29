@@ -36,6 +36,38 @@ class Registration:
     time_basis: str = "host_packet_parse_monotonic"
 
 
+class EncoderDirectionVerifier:
+    """Infer encoder trend after enough measured travel; never guess a large wrap."""
+
+    def __init__(self, *, min_travel_deg: float = 2.0,
+                 max_step_deg: float = 90.0) -> None:
+        if not math.isfinite(min_travel_deg) or min_travel_deg <= 0:
+            raise ValueError("min_travel_deg must be positive")
+        if not math.isfinite(max_step_deg) or not 0 < max_step_deg < 180:
+            raise ValueError("max_step_deg must be between 0 and 180")
+        self.min_travel_deg = float(min_travel_deg)
+        self.max_step_deg = float(max_step_deg)
+        self.previous_angle_deg: float | None = None
+        self.travel_deg = 0.0
+        self.direction: int | None = None
+
+    def add_angle(self, angle_deg: float) -> int | None:
+        angle = float(angle_deg)
+        if not math.isfinite(angle):
+            raise ValueError("encoder angle must be finite")
+        if self.previous_angle_deg is None:
+            self.previous_angle_deg = angle
+            return None
+        delta = (angle - self.previous_angle_deg + 180.0) % 360.0 - 180.0
+        self.previous_angle_deg = angle
+        if abs(delta) > self.max_step_deg:
+            raise ValueError("encoder step is too large to infer direction safely")
+        self.travel_deg += delta
+        if abs(self.travel_deg) >= self.min_travel_deg:
+            self.direction = 1 if self.travel_deg > 0 else -1
+        return self.direction
+
+
 def estimate_frame_yaw(
     frame_parse_monotonic_s: float,
     before: AngleSample,

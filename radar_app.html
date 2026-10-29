@@ -1106,7 +1106,8 @@
                     <label>实测角度逐帧配准（试验）
                         <input type="checkbox" id="liveRegistrationEnabled">
                     </label>
-                    <label>编码器递增方向
+                    <label title="随电机转向给出本机标定默认值；启动后服务端仍会用实测角度趋势复核">
+                        编码器递增方向
                         <select id="registrationDirectionInput">
                             <option value="1">+1</option>
                             <option value="-1">-1</option>
@@ -4460,6 +4461,20 @@
             if (display) display.value = computeMotorFrameAngleDeg().toFixed(2);
         }
 
+        const motorToEncoderDirection = { cw: '-1', ccw: '1' };
+
+        function syncEncoderDirectionToMotor() {
+            const motorDirection = document.getElementById('motorDirectionSelect').value;
+            const encoderDirection = document.getElementById('registrationDirectionInput');
+            encoderDirection.value = motorToEncoderDirection[motorDirection] || '-1';
+            encoderDirection.title = '由当前转向自动设置；服务端启动后还会根据真实编码器角度变化复核';
+        }
+
+        document.getElementById('motorDirectionSelect').addEventListener(
+            'change', syncEncoderDirectionToMotor
+        );
+        syncEncoderDirectionToMotor();
+
         function getGimbalScanParams() {
             const liveRegistrationEnabled = document.getElementById('liveRegistrationEnabled').checked;
             return {
@@ -4488,12 +4503,18 @@
             if (scan.last_error) return `故障：${scan.last_error}`;
             if (!scan.port_configured) return '树莓派服务未配置 QD4310 USB 串口';
             if (scan.status === 'opening' || scan.status === 'starting') return '串口打开中…';
+            if (scan.status === 'verifying_direction') {
+                return `正在校验编码器趋势 · 已观测 ${Math.abs(Number(scan.encoder_direction_observed_travel_deg || 0)).toFixed(2)}°`;
+            }
             if (scan.status === 'stopping') return '正在停止电机…';
             if (scan.enabled) {
                 const direction = scan.direction === 'cw' ? '顺时针' : '逆时针';
                 const measured = Number.isFinite(scan.motor_speed_rpm)
                     ? ` · 反馈 ${Number(scan.motor_speed_rpm).toFixed(1)} rpm` : '';
-                return `运转中 · ${direction} · 指令 ${Number(scan.rpm).toFixed(1)} rpm${measured}`;
+                const verified = scan.encoder_direction_verified
+                    ? ` · 编码器趋势已校验(${Number(scan.encoder_direction_detected) > 0 ? '+1' : '-1'})`
+                    : '';
+                return `运转中 · ${direction} · 指令 ${Number(scan.rpm).toFixed(1)} rpm${measured}${verified}`;
             }
             return '未启动';
         }
