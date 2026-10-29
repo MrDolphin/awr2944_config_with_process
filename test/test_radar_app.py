@@ -252,6 +252,54 @@ class RadarAppTests(unittest.TestCase):
             self.assertEqual(len(set(follower_tops)), 1)
             browser.close()
 
+    def test_radar_frames_do_not_overwrite_motor_status_text(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.goto(page_url, wait_until="networkidle")
+            status = {
+                "type": "gimbal_scan_status",
+                "enabled": True,
+                "status": "running",
+                "port_configured": True,
+                "direction": "cw",
+                "rpm": 30,
+                "motor_speed_rpm": 29.9,
+                "encoder_direction_detected": -1,
+                "encoder_direction_verified": True,
+                "live_registration": {
+                    "state": "provisional",
+                    "registered_frames": 70,
+                    "pending_frames": 0,
+                },
+            }
+            page.evaluate("status => handleConfigResponse(status)", status)
+            display = page.locator("#gimbalScanStatusDisplay")
+            stable_text = display.inner_text()
+            self.assertIn("反馈 29.9 rpm", stable_text)
+
+            frame = {
+                "frame_num": 71,
+                "points": [],
+                "range_profile": [],
+                "gimbal_scan": {
+                    "enabled": True,
+                    "status": "running",
+                    "direction": "cw",
+                    "rpm": 30,
+                    "points": [],
+                    "live_registration": {
+                        "state": "provisional",
+                        "registered_frames": 70,
+                        "pending_frames": 0,
+                    },
+                },
+            }
+            page.evaluate("frame => renderRadarFrame(frame)", frame)
+            self.assertEqual(display.inner_text(), stable_text)
+            browser.close()
+
     def test_point_count_keeps_full_telemetry_in_hover_title(self):
         page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
         with sync_playwright() as playwright:
@@ -357,6 +405,8 @@ class RadarAppTests(unittest.TestCase):
                 renderRadarFrame({frame_num: 12, points: [{x: 1, y: 2, z: 0, v: 0}],
                     gimbal_scan: {enabled: true, mode: 'qd4310', rpm: 5.5,
                         status: 'running', port_configured: true}});
+                handleConfigResponse({type: 'gimbal_scan_status', enabled: true,
+                    mode: 'qd4310', rpm: 5.5, status: 'running', port_configured: true});
                 return commands;
             }""")
             self.assertNotIn("360合成", page.locator("#pointsDisplay").inner_text())

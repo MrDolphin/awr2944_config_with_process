@@ -3048,10 +3048,6 @@
             const pointLabel = scan.mode === 'qd4310' ? '实测角度·临时' : '360合成';
             setPointsDisplay(`${points.length}/${(scan.points || []).length} (${pointLabel})`);
             document.getElementById('targetsDisplay').innerText = '扫描';
-            document.getElementById('gimbalScanStatusDisplay').innerText =
-                scan.mode === 'qd4310'
-                    ? `${scan.status || '--'} ${scan.direction === 'ccw' ? '逆时针' : '顺时针'} ${Number(scan.rpm || 0).toFixed(1)}rpm · 已配准${Number(liveRegistration.registered_frames || 0)}帧 · 临时周扫`
-                    : `${scan.status || '--'} ${scan.direction === 'ccw' ? '逆时针' : '顺时针'} ${Number(scan.rpm || 0).toFixed(1)}rpm 每帧${Number(scan.frame_angle_deg || 0).toFixed(2)}° 角度:${Number(scan.yaw_actual_deg || 0).toFixed(1)}°`;
         }
 
         function updateRecordingHealth(status) {
@@ -3653,11 +3649,7 @@
             updateLiveRegistrationStatus(data.gimbal_scan && data.gimbal_scan.live_registration);
             if (data.gimbal_scan) {
                 gimbalScanEnabled = !!data.gimbal_scan.enabled;
-                if (data.gimbal_scan.mode === 'qd4310') {
-                    updateGimbalScanButton(formatQd4310Status(data.gimbal_scan));
-                } else {
-                    updateGimbalScanButton();
-                }
+                updateGimbalScanButton();
             }
             const liveRegistration = data.gimbal_scan && data.gimbal_scan.live_registration;
             if (data.gimbal_scan && data.gimbal_scan.enabled &&
