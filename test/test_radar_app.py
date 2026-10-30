@@ -230,6 +230,40 @@ class RadarAppTests(unittest.TestCase):
     def _new_browser(self, playwright):
         return playwright.chromium.launch(headless=True, executable_path=str(CHROME_EXECUTABLE))
 
+    def test_snr_display_gate_is_off_by_default_and_counts_raw_vs_shown(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.goto(page_url, wait_until="networkidle")
+            frame = {
+                "frame_num": 1,
+                "points": [
+                    {"x": 0.1, "y": 2.2, "z": 0, "v": 0, "snr": -1.1, "noise": 78.4},
+                    {"x": 0.2, "y": 2.3, "z": 0, "v": 0, "snr": 12.0, "noise": 78.4},
+                ],
+                "range_profile": [],
+                "gimbal_scan": {"enabled": False, "status": "idle", "points": []},
+            }
+            page.evaluate("frame => renderRadarFrame(frame)", frame)
+            self.assertEqual(page.locator("#minSnrSelect").input_value(), "off")
+            self.assertIn("2/2", page.locator("#pointsDisplay").inner_text())
+            self.assertIn("原始/显示", page.locator("#pointsDisplay").get_attribute("title"))
+            page.locator("#minSnrSelect").select_option("10")
+            page.evaluate("frame => renderRadarFrame(frame)", frame)
+            self.assertIn("2/1", page.locator("#pointsDisplay").inner_text())
+            page.locator("#minSnrSelect").select_option("custom")
+            page.locator("#minSnrCustomInput").fill("-2")
+            page.evaluate("frame => renderRadarFrame(frame)", frame)
+            self.assertIn("2/2", page.locator("#pointsDisplay").inner_text())
+            page.locator("#minSnrSelect").select_option("off")
+            page.evaluate("frame => renderRadarFrame(frame)", frame)
+            self.assertIn("2/2", page.locator("#pointsDisplay").inner_text())
+            page.evaluate("localStorage.setItem('radar_noise_filter_enabled', 'true')")
+            page.reload(wait_until="networkidle")
+            self.assertEqual(page.locator("#noiseFilterToggleBtn").inner_text(), "Noise过滤: 关")
+            browser.close()
+
     def test_point_count_changes_do_not_reflow_sidebar(self):
         page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
         with sync_playwright() as playwright:

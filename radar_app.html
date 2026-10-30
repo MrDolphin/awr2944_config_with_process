@@ -996,7 +996,7 @@
                 <button id="radarCameraRecordBtn" style="border-color: #b99cff; color: #d7c8ff;"
                     title="保存雷达帧、匹配相机 JPEG 和同步索引">同步记录: 关</button>
                 <button id="noiseFilterToggleBtn" style="border-color: #7fdcff; color: #7fdcff;"
-                    title="启用/关闭 Noise基线 对 confidence 的扣分">Noise过滤: 开</button>
+                    title="启用/关闭前端 Noise/confidence 过滤，不改变雷达板 CFAR">Noise过滤: 关</button>
                 <button id="liveObjectToggleBtn" style="border-color: #35e6ff; color: #35e6ff;"
                     title="显示/隐藏实时前方聚合物体 L1/L2 列表和 PPI 边界">实时物体: 开</button>
                 <button id="lineFilterToggleBtn" style="border-color: #ff5533; color: #ff7a55;"
@@ -1020,7 +1020,7 @@
                     <div class="value" id="frameDisplay">DISCONNECTED</div>
                 </div>
                 <div class="hud-box" style="border-color: rgba(0,255,100,0.4); color: rgba(0,255,100,0.6);">
-                    <div>原始点云 (降噪过滤)</div>
+                    <div>TLV1 点数 (输入/显示)</div>
                     <div class="value" id="pointsDisplay">0</div>
                 </div>
                 <div class="hud-box" style="border-color: #ffaa00; color: #ffaa00;">
@@ -1063,6 +1063,19 @@
                         <button id="filterTabLine" type="button" class="filter-tab-btn" data-filter-tab="line">线结构</button>
                     </div>
                     <div id="filterPanelSignal" class="filter-tab-panel active" data-filter-panel="signal">
+                        <label>最低 SNR(dB，仅网页显示)
+                            <select id="minSnrSelect" title="默认关闭；仅筛选网页显示/分析，不改变雷达板 CFAR 或录制的原始 TLV">
+                                <option value="off">关闭</option>
+                                <option value="10">10</option>
+                                <option value="12">12</option>
+                                <option value="15">15</option>
+                                <option value="custom">自定义</option>
+                            </select>
+                        </label>
+                        <label>自定义门限(dB)
+                            <input type="number" id="minSnrCustomInput" value="10" step="0.1" min="-50" max="100" disabled
+                                title="选择自定义后生效；缺失 TLV7 SNR 的点在启用门限时不显示">
+                        </label>
                         <label>Noise基线(dB)
                             <input type="number" id="noiseBaselineInput" value="80" step="1"
                                 title="前端 confidence 估算基准；主要用于显示/过滤调试，不是雷达底层 CFAR 阈值">
@@ -1989,7 +2002,9 @@
         const NOISE_BASELINE_STORAGE_KEY = 'radar_noise_baseline_db';
         const LINE_MIN_LENGTH_STORAGE_KEY = 'radar_line_min_length_m';
         const LINE_MIN_RATIO_STORAGE_KEY = 'radar_line_min_ratio';
-        const NOISE_FILTER_ENABLED_STORAGE_KEY = 'radar_noise_filter_enabled';
+        const NOISE_FILTER_ENABLED_STORAGE_KEY = 'radar_noise_filter_enabled_v2';
+        const MIN_SNR_STORAGE_KEY = 'radar_min_snr_display_v1';
+        const MIN_SNR_CUSTOM_STORAGE_KEY = 'radar_min_snr_custom_db_v1';
         const LINE_FILTER_ENABLED_STORAGE_KEY = 'radar_line_filter_enabled';
         const LIVE_OBJECT_ENABLED_STORAGE_KEY = 'radar_live_object_enabled';
         const STRUCTURE_CLUSTER_EPS = 0.55;
@@ -2014,7 +2029,7 @@
         let noiseBaselineDb = 80;
         let lineClusterMinLengthM = 1.35;
         let lineClusterMinRatio = 3.0;
-        let noiseFilterEnabled = true;
+        let noiseFilterEnabled = false;
         let lineFilterEnabled = true;
         let liveObjectEnabled = true;
         let pointTrails = [];
@@ -2709,12 +2724,26 @@
             //return safeSnr - 0.15 * Math.max(0, safeNoise - getNoiseBaseline());
         }
 
+        function getMinSnrThreshold() {
+            const selected = document.getElementById('minSnrSelect').value;
+            if (selected === 'off') return null;
+            const input = selected === 'custom' ? document.getElementById('minSnrCustomInput').value : selected;
+            if (input === '') return null;
+            const threshold = Number(input);
+            return Number.isFinite(threshold) ? threshold : null;
+        }
+
         function isPointUsable(pt) {
-            return pointConfidence(pt) >= CONFIDENCE_HIDE_THRESHOLD;
+            const threshold = getMinSnrThreshold();
+            if (threshold !== null) {
+                const snr = getPointSnr(pt);
+                if (snr === null || snr < threshold) return false;
+            }
+            return !noiseFilterEnabled || pointConfidence(pt) >= CONFIDENCE_HIDE_THRESHOLD;
         }
 
         function confidenceToAlpha(confidence) {
-            if (confidence < CONFIDENCE_HIDE_THRESHOLD) return 0;
+            if (confidence < CONFIDENCE_HIDE_THRESHOLD) return 0.28;
             if (confidence < CONFIDENCE_WEAK_THRESHOLD) return 0.28 + (confidence - CONFIDENCE_HIDE_THRESHOLD) * 0.08;
             return Math.min(1, 0.62 + (confidence - CONFIDENCE_WEAK_THRESHOLD) * 0.025);
         }
@@ -3046,7 +3075,7 @@
             lastFrameTime = now;
             document.getElementById('frameDisplay').innerText = `#${data.frame_num} (${fps.toFixed(0)}Hz)`;
             const pointLabel = scan.mode === 'qd4310' ? '实测角度·临时' : '360合成';
-            setPointsDisplay(`${points.length}/${(scan.points || []).length} (${pointLabel})`);
+            setPointsDisplay(`${(scan.points || []).length}/${points.length} (输入/显示 · ${pointLabel})`);
             document.getElementById('targetsDisplay').innerText = '扫描';
         }
 
@@ -3632,7 +3661,7 @@
             renderReplayTargetList(clusters, points.length);
             renderReplayPointDetail(replaySpatialAnalysis.selectedPoint);
             document.getElementById('frameDisplay').innerText = `回放 #${frame.frame_num}`;
-            setPointsDisplay(`${points.length}/${(frame.points || []).length} 点`);
+            setPointsDisplay(`${(frame.points || []).length}/${points.length} (输入/显示 · 回放)`);
             document.getElementById('targetsDisplay').innerText = '离线';
             const tlvTypes = Array.isArray(frame.tlv_types) ? frame.tlv_types.join(',') : '--';
             document.getElementById('sideInfoDisplay').innerText = `TLV:${tlvTypes}`;
@@ -3799,7 +3828,7 @@
             lastFrameTime = now;
 
             document.getElementById('frameDisplay').innerText = `#${data.frame_num} (${fps.toFixed(0)}Hz)`;
-            setPointsDisplay(`${renderPoints.length}/${visiblePoints.length} (静:${staticPoints.length}/${staticCandidates.length}/动:${dynamicPoints.length}+候:${promotedDynamicPoints.length})`);
+            setPointsDisplay(`${rawPoints.length}/${renderPoints.length} (原始/显示 · 雷达原始点·未配准·静:${staticPoints.length}/${staticCandidates.length}/动:${dynamicPoints.length}+候:${promotedDynamicPoints.length})`);
             document.getElementById('targetsDisplay').innerText = tracker.boats.filter(b => tracker.isBoatDrawable(b)).length;
             const tlvTypes = Array.isArray(data.tlv_types) ? data.tlv_types.join(',') : '--';
             const sideCount = Number.isFinite(Number(data.side_info_count)) ? Number(data.side_info_count) : 0;
@@ -3946,7 +3975,7 @@
             const savedNoise = localStorage.getItem(NOISE_FILTER_ENABLED_STORAGE_KEY);
             const savedLine = localStorage.getItem(LINE_FILTER_ENABLED_STORAGE_KEY);
             const savedLiveObject = localStorage.getItem(LIVE_OBJECT_ENABLED_STORAGE_KEY);
-            noiseFilterEnabled = savedNoise === null ? true : savedNoise === 'true';
+            noiseFilterEnabled = savedNoise === 'true';
             lineFilterEnabled = savedLine === null ? true : savedLine === 'true';
             liveObjectEnabled = savedLiveObject === null ? true : savedLiveObject === 'true';
             updateFilterToggleButtons();
@@ -4009,6 +4038,28 @@
             updateFilterToggleButtons();
         });
 
+        function loadMinSnrFilter() {
+            const select = document.getElementById('minSnrSelect');
+            const custom = document.getElementById('minSnrCustomInput');
+            const saved = localStorage.getItem(MIN_SNR_STORAGE_KEY);
+            select.value = ['10', '12', '15', 'custom'].includes(saved) ? saved : 'off';
+            const savedCustom = localStorage.getItem(MIN_SNR_CUSTOM_STORAGE_KEY);
+            if (savedCustom !== null && savedCustom !== '' && Number.isFinite(Number(savedCustom))) custom.value = savedCustom;
+            custom.disabled = select.value !== 'custom';
+        }
+
+        document.getElementById('minSnrSelect').addEventListener('change', event => {
+            const selected = event.target.value;
+            document.getElementById('minSnrCustomInput').disabled = selected !== 'custom';
+            localStorage.setItem(MIN_SNR_STORAGE_KEY, selected);
+            if (replayState.active && replaySpatialAnalysis.frame) renderReplayFrame(replaySpatialAnalysis.frame, true);
+        });
+
+        document.getElementById('minSnrCustomInput').addEventListener('input', event => {
+            localStorage.setItem(MIN_SNR_CUSTOM_STORAGE_KEY, event.target.value);
+            if (replayState.active && replaySpatialAnalysis.frame) renderReplayFrame(replaySpatialAnalysis.frame, true);
+        });
+
         document.getElementById('liveObjectToggleBtn').addEventListener('click', () => {
             liveObjectEnabled = !liveObjectEnabled;
             localStorage.setItem(LIVE_OBJECT_ENABLED_STORAGE_KEY, String(liveObjectEnabled));
@@ -4039,6 +4090,7 @@
         window.addEventListener('load', loadBlindZoneParam);
         window.addEventListener('load', loadLineFilterParams);
         window.addEventListener('load', loadFilterToggles);
+        window.addEventListener('load', loadMinSnrFilter);
         window.addEventListener('load', updateMotorFrameAngleDisplay);
         window.addEventListener('load', () => drawRangeProfile([]));
         window.addEventListener('load', updateLocalMapBadge);
