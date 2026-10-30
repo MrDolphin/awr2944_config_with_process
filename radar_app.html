@@ -2034,6 +2034,7 @@
         let liveObjectEnabled = true;
         let pointTrails = [];
         let lastRangeProfile = [];
+        let lastRangeProfileBinSizeM = null;
         let strongIsolatedTracks = [];
         let gimbalScanEnabled = false;
         let latestGimbalScan = null;
@@ -2079,7 +2080,9 @@
 
             const maxVal = Math.max(...profile, 1);
             const peakIdx = profile.indexOf(maxVal);
-            const peakDist = (peakIdx / Math.max(1, profile.length - 1)) * radarRangeY;
+            const hasMetresAxis = Number.isFinite(lastRangeProfileBinSizeM) && lastRangeProfileBinSizeM > 0;
+            const rangeMax = hasMetresAxis ? (profile.length - 1) * lastRangeProfileBinSizeM : profile.length - 1;
+            const peakDist = peakIdx * lastRangeProfileBinSizeM;
             rangeProfileCtx.strokeStyle = '#7fe8ff';
             rangeProfileCtx.lineWidth = 1.6;
             rangeProfileCtx.beginPath();
@@ -2108,15 +2111,15 @@
             });
             rangeProfileCtx.fillText('Amplitude (a.u.)', 6, 12);
 
-            const xTicks = [0, radarRangeY * 0.25, radarRangeY * 0.5, radarRangeY * 0.75, radarRangeY];
+            const xTicks = [0, rangeMax * 0.25, rangeMax * 0.5, rangeMax * 0.75, rangeMax];
             xTicks.forEach((tick, idx) => {
                 const x = margin.left + (idx / (xTicks.length - 1)) * plotW;
-                rangeProfileCtx.fillText(`${tick.toFixed(1)} m`, x - 14, h - 16);
+                rangeProfileCtx.fillText(hasMetresAxis ? `${tick.toFixed(1)} m` : `${Math.round(tick)}`, x - 14, h - 16);
             });
-            rangeProfileCtx.fillText('Range (m)', margin.left + plotW / 2 - 24, h - 2);
+            rangeProfileCtx.fillText(hasMetresAxis ? 'Range (m)' : 'Range bin (uncalibrated)', margin.left + plotW / 2 - 55, h - 2);
 
             rangeProfileCtx.fillStyle = 'rgba(255, 205, 90, 0.95)';
-            rangeProfileCtx.fillText(`Peak ${peakDist.toFixed(2)} m`, Math.min(w - 128, peakX + 8), margin.top + 12);
+            rangeProfileCtx.fillText(hasMetresAxis ? `Peak ${peakDist.toFixed(2)} m` : `Peak bin ${peakIdx}`, Math.min(w - 128, peakX + 8), margin.top + 12);
         }
 
         function updateRadarDisplayRange() {
@@ -3061,6 +3064,7 @@
         function renderGimbalScanFrame(data) {
             updateRadarDisplayRange();
             lastRangeProfile = Array.isArray(data.range_profile) ? data.range_profile : [];
+            lastRangeProfileBinSizeM = Number(data.range_profile_bin_size_m) || null;
             drawRangeProfile(lastRangeProfile);
 
             const scan = data.gimbal_scan || {};
@@ -3667,6 +3671,7 @@
             document.getElementById('sideInfoDisplay').innerText = `TLV:${tlvTypes}`;
             renderReplayFrameDetail(frame);
             lastRangeProfile = [];
+            lastRangeProfileBinSizeM = null;
             drawRangeProfile([]);
         }
 
@@ -3690,6 +3695,7 @@
             }
             updateRadarDisplayRange();
             lastRangeProfile = Array.isArray(data.range_profile) ? data.range_profile : [];
+            lastRangeProfileBinSizeM = Number(data.range_profile_bin_size_m) || null;
             drawRangeProfile(lastRangeProfile);
             // 【近场补偿】过滤雷达中心 blindZone 内部的天线串扰/安装结构鬼点。
             const rawPoints = Array.isArray(data.points) ? data.points : [];
@@ -4700,6 +4706,7 @@
                 document.getElementById('recordDisplay').innerText = '未记录';
                 document.getElementById('healthDisplay').innerText = '连接已断开';
                 lastRangeProfile = [];
+                lastRangeProfileBinSizeM = null;
                 drawRangeProfile([]);
                 document.getElementById('configPanel').style.display = 'none';
                 stopReplay();

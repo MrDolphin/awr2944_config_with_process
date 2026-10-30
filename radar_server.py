@@ -31,6 +31,7 @@ from tools.fusion.projection import project_radar_point
 from qd4310_motor import Qd4310Motor, list_qdrive_ports, validate_direction, validate_rpm
 from live_scan import LiveScanAssembler
 from scan_registration import EncoderDirectionVerifier
+from range_profile_axis import range_profile_bin_size_m
 
 # 配置日志：同时输出到文件和控制台
 config_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1296,6 +1297,9 @@ def radar_serial_thread(data_port_name, baud_rate, log_file="", stop_event=None)
                     "detected_object_count": detected_objects,
                     "points": pts,
                     "range_profile": range_profile,
+                    "range_profile_bin_size_m": range_profile_bin_size_m(
+                        runtime_state["active_config"].get("content"), len(range_profile)
+                    ) if range_profile else None,
                     "tlv_types": tlv_types,
                     "side_info_count": len(point_side_info),
                     "has_side_info": len(point_side_info) > 0

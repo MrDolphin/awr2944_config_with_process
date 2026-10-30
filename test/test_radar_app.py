@@ -230,6 +230,54 @@ class RadarAppTests(unittest.TestCase):
     def _new_browser(self, playwright):
         return playwright.chromium.launch(headless=True, executable_path=str(CHROME_EXECUTABLE))
 
+    def test_range_profile_axis_uses_cfg_bin_size_not_ppi_display_range(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.goto(page_url, wait_until="networkidle")
+            labels = page.evaluate("""() => {
+                const labels = [];
+                const original = rangeProfileCtx.fillText;
+                rangeProfileCtx.fillText = function(text, ...args) { labels.push(String(text)); };
+                try {
+                    document.getElementById('f_fovRange').value = '3.5';
+                    const profile = Array(512).fill(1);
+                    profile[73] = 100;
+                    renderRadarFrame({frame_num: 1, points: [], range_profile: profile,
+                        range_profile_bin_size_m: 0.027915245, camera_sync: null});
+                    return labels;
+                } finally { rangeProfileCtx.fillText = original; }
+            }""")
+            self.assertIn("Peak 2.04 m", labels)
+            self.assertIn("14.3 m", labels)
+            self.assertNotIn("3.5 m", labels)
+            browser.close()
+
+    def test_range_profile_without_active_cfg_shows_bins_not_false_metres(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.goto(page_url, wait_until="networkidle")
+            labels = page.evaluate("""() => {
+                const labels = [];
+                const original = rangeProfileCtx.fillText;
+                rangeProfileCtx.fillText = function(text, ...args) { labels.push(String(text)); };
+                try {
+                    document.getElementById('f_fovRange').value = '3.5';
+                    const profile = Array(512).fill(1);
+                    profile[73] = 100;
+                    renderRadarFrame({frame_num: 1, points: [], range_profile: profile,
+                        camera_sync: null});
+                    return labels;
+                } finally { rangeProfileCtx.fillText = original; }
+            }""")
+            self.assertIn("Peak bin 73", labels)
+            self.assertIn("Range bin (uncalibrated)", labels)
+            self.assertNotIn("3.5 m", labels)
+            browser.close()
+
     def test_snr_display_gate_is_off_by_default_and_counts_raw_vs_shown(self):
         page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
         with sync_playwright() as playwright:
@@ -961,7 +1009,7 @@ class RadarAppTests(unittest.TestCase):
     def test_recording_start_sends_idle_registration_calibration_without_starting_motor(self):
         page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(headless=True)
+            browser = self._new_browser(playwright)
             page = browser.new_page(viewport={"width": 1440, "height": 900})
             page.add_init_script("""
                 window.sentCommands = [];
