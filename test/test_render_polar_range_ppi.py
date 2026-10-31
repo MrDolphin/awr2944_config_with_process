@@ -1,4 +1,5 @@
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -61,6 +62,25 @@ class RenderPolarRangePpiTests(unittest.TestCase):
             (root / "ppi").mkdir()
             with self.assertRaises(FileExistsError):
                 render_ppi(source, root / "ppi")
+
+    def test_realistic_raw_baseline_does_not_make_low_and_high_equally_bright(self):
+        """A positive TLV2 floor must not saturate every sampled range cell."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "polar_range_profiles.jsonl"
+            self._write(source, [self._row(0, 0, bins=([2500] * 100 + [3100] * 100
+                                                       + [4500] * 100))])
+            report = render_ppi(source, root / "ppi")
+            svg = (root / "ppi" / "intensity_ppi.svg").read_text(encoding="utf-8")
+            greens = [int(value, 16) for value in re.findall(
+                r'stroke="#00([0-9a-f]{2})[0-9a-f]{2}"', svg)]
+            self.assertEqual(len(greens), 300)
+            self.assertLess(min(greens), 60)
+            self.assertGreater(max(greens), 220)
+            self.assertGreater(max(greens) - min(greens), 160)
+            self.assertEqual(report["display_lower_raw"], 2500)
+            self.assertEqual(report["display_upper_raw"], 4500)
+            self.assertEqual(report["intensity_filter_applied"], False)
 
 
 if __name__ == "__main__":

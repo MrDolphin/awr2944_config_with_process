@@ -74,14 +74,26 @@ def _largest_gap_deg(angles: list[float]) -> float:
                      for i, angle in enumerate(ordered)), 3)
 
 
-def _svg(rows: list[dict], skip_bins: int) -> tuple[str, int]:
+def _contrast_limits(values: list[int]) -> tuple[int, int]:
+    """Robust display limits; these do not filter or change any range bins."""
+    ordered = sorted(values)
+    return (ordered[int((len(ordered) - 1) * 0.05)],
+            ordered[int((len(ordered) - 1) * 0.99)])
+
+
+def _intensity_color(value: int, lower: int, upper: int) -> str:
+    level = min(1.0, max(0.0, (value - lower) / max(1, upper - lower)))
+    green = 24 + round(level * 231)
+    blue = round(level * 85)
+    return f"#00{green:02x}{blue:02x}"
+
+
+def _svg(rows: list[dict], skip_bins: int) -> tuple[str, int, int]:
     center = 400
     radius = 350
     bin_count = len(rows[0]["range_bins_raw"])
-    positive = sorted(value for row in rows for value in row["range_bins_raw"][skip_bins:]
-                      if value > 0)
-    upper = positive[min(len(positive) - 1, int(len(positive) * 0.99))] if positive else 1
-    top = max(1.0, math.log1p(upper))
+    values = [value for row in rows for value in row["range_bins_raw"][skip_bins:]]
+    lower, upper = _contrast_limits(values)
     parts = [
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 840" '
         'role="img" aria-label="Diagnostic observed-spoke intensity PPI">',
@@ -99,26 +111,24 @@ def _svg(rows: list[dict], skip_bins: int) -> tuple[str, int]:
             value = row["range_bins_raw"][bin_index]
             if value == 0:
                 continue
-            brightness = min(1.0, math.log1p(value) / top)
-            green = 35 + round(brightness * 220)
-            blue = round(brightness * 85)
+            color = _intensity_color(value, lower, upper)
             inner = radius * bin_index / bin_count
             outer = radius * (bin_index + 1) / bin_count
             parts.append(
                 f'<line x1="{center + inner * cosine:.2f}" y1="{center + inner * sine:.2f}" '
                 f'x2="{center + outer * cosine:.2f}" y2="{center + outer * sine:.2f}" '
-                f'stroke="#{0:02x}{green:02x}{blue:02x}" stroke-width="1.5"/>'
+                f'stroke="{color}" stroke-width="1.5"/>'
             )
         parts.append("</g>")
     parts.extend([
         '<circle cx="400" cy="400" r="3" fill="#4affd5"/>',
         '<text x="25" y="795" fill="#c4f4e9" font-size="17">'
-        'Diagnostic PPI: raw firmware intensity; radial axis = uncalibrated bin index</text>',
+        'Diagnostic PPI: display contrast p05-p99; radial axis = uncalibrated bin index</text>',
         '<text x="25" y="820" fill="#9ab8b2" font-size="14">'
         'Host parse time, not RF time; unobserved sectors remain blank</text>',
         '</svg>',
     ])
-    return "\n".join(parts) + "\n", upper
+    return "\n".join(parts) + "\n", lower, upper
 
 
 def render_ppi(profiles_jsonl: Path, output_dir: Path, *, skip_bins: int = 0) -> dict:
@@ -128,7 +138,7 @@ def render_ppi(profiles_jsonl: Path, output_dir: Path, *, skip_bins: int = 0) ->
     rows = _load_profiles(profiles_jsonl)
     if not isinstance(skip_bins, int) or not 0 <= skip_bins < len(rows[0]["range_bins_raw"]):
         raise ValueError("skip_bins must leave at least one observed range bin")
-    svg, upper = _svg(rows, skip_bins)
+    svg, lower, upper = _svg(rows, skip_bins)
     angles = [float(row["yaw_deg"]) for row in rows]
     times = [float(row["host_monotonic_s"]) for row in rows]
     summary = {
@@ -141,6 +151,10 @@ def render_ppi(profiles_jsonl: Path, output_dir: Path, *, skip_bins: int = 0) ->
         "largest_angular_gap_deg": _largest_gap_deg(angles),
         "host_parse_time_span_s": round(max(times) - min(times), 6),
         "normalization_p99_raw": upper,
+        "display_lower_raw": lower,
+        "display_upper_raw": upper,
+        "display_transform": "linear_clipped_p05_p99",
+        "intensity_filter_applied": False,
         "range_axis": "bin_index_uncalibrated",
         "value_units": "firmware_raw_uint16",
         "time_basis": "host_packet_parse_monotonic",
