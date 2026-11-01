@@ -29,3 +29,4 @@
 - 双轴只读审查：规范轴无明确 AGENTS.md 违规，指出计划状态需同步；需求轴发现未核对活动 `chirpCfg` 与畸形 `cfarFovCfg` 可误给米轴。先加 2 类失败测试，再补活动 chirp 覆盖/冲突及 FOV 命令校验；另加重复 chirp 冲突的失败测试并修复。
 - 最终 `python -m unittest discover -s test -p test_offline_range_axis.py -q` 为 11/11；`test_render*.py` 5/5；`test_register_scan_capture.py` 5/5。新模块及测试 `py_compile` 和 `git diff --check` 通过。三组采集的实际首帧 TLV2 均为 512 格，均返回理论米轴；未编辑采集。
 - R01 已完成，R02 尚未开始；全套测试环境失败仍是后续完整验收的限制，不能报告全绿。
+- R01 代码与测试、计划记录已在 `f9593e5` 提交并推送 `origin/codex/radar-camera-web-fusion`；随后仅补写本计划表的真实提交/推送结果。
