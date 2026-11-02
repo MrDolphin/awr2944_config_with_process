@@ -239,6 +239,96 @@ class RadarAppTests(unittest.TestCase):
     def _new_browser(self, playwright):
         return playwright.chromium.launch(headless=True, executable_path=str(CHROME_EXECUTABLE))
 
+    def test_ppi_issue1_live_intensity_respects_metre_blind_zone(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.goto(page_url, wait_until="networkidle")
+            result = page.evaluate("""() => {
+                document.getElementById('ppiViewSelect').value = 'intensity';
+                document.getElementById('f_fovRange').value = '3.5';
+                document.getElementById('blindZoneInput').value = '0.5';
+                const profile = Array(100).fill(100);
+                for (let i = 2; i <= 7; i++) profile[i] = 900;
+                for (let i = 52; i <= 61; i++) profile[i] = 900;
+                const frame = (spokes) => ({frame_num: 1, points: [],
+                    range_profile: profile, range_profile_bin_size_m: 0.05,
+                    gimbal_scan: {enabled: true, mode: 'qd4310', points: [],
+                        live_registration: {state: 'provisional'}, intensity_ppi: {
+                            generation: 'test', oldest_seq: 1, latest_seq: 1, spokes}}});
+                const green = (x) => {
+                    const data = ctx.getImageData(x - 2, 398, 5, 5).data;
+                    let sum = 0;
+                    for (let i = 1; i < data.length; i += 4) sum += data[i];
+                    return sum;
+                };
+                renderRadarFrame(frame([]));
+                const nearBefore = green(420), farBefore = green(689);
+                renderRadarFrame(frame([{seq: 1, yaw_deg: 90,
+                    range_profile: profile, range_profile_bin_size_m: 0.05}]));
+                return {nearGain: green(420) - nearBefore,
+                    farGain: green(689) - farBefore};
+            }""")
+            self.assertLess(abs(result["nearGain"]), 50, result)
+            self.assertGreater(result["farGain"], 50, result)
+            browser.close()
+
+    def test_ppi_issue2_display_threshold_and_brightness_are_adjustable(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.goto(page_url, wait_until="networkidle")
+            result = page.evaluate("""() => {
+                const threshold = document.getElementById('ppiDisplayThresholdInput');
+                const brightness = document.getElementById('ppiDisplayBrightnessInput');
+                if (!threshold || !brightness) return {missingControls: true};
+                document.getElementById('ppiViewSelect').value = 'intensity';
+                document.getElementById('f_fovRange').value = '3.5';
+                const profile = Array(100).fill(100);
+                for (let i = 52; i <= 61; i++) profile[i] = 900;
+                const frame = {frame_num: 1, points: [], range_profile: profile,
+                    range_profile_bin_size_m: 0.05, gimbal_scan: {enabled: true,
+                        mode: 'qd4310', points: [], live_registration: {state: 'provisional'},
+                        intensity_ppi: {generation: 'test', oldest_seq: 1, latest_seq: 1,
+                            spokes: [{seq: 1, yaw_deg: 90, range_profile: profile,
+                                range_profile_bin_size_m: 0.05}]}}};
+                const green = () => {
+                    const data = ctx.getImageData(687, 398, 5, 5).data;
+                    let sum = 0;
+                    for (let i = 1; i < data.length; i += 4) sum += data[i];
+                    return sum;
+                };
+                threshold.value = '0'; brightness.value = '100';
+                renderRadarFrame(frame);
+                const bright = green();
+                threshold.value = '90'; brightness.value = '25';
+                renderIntensityPpiFrame(frame, true);
+                return {missingControls: false, bright, dimmed: green(),
+                    rawUnchanged: profile[55] === 900};
+            }""")
+            self.assertFalse(result["missingControls"], result)
+            self.assertTrue(result["rawUnchanged"], result)
+            self.assertLess(result["dimmed"], result["bright"] - 100, result)
+            browser.close()
+
+    def test_ppi_issue3_controls_do_not_cover_radar_canvas(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.goto(page_url, wait_until="networkidle")
+            result = page.evaluate("""() => {
+                const toolbar = document.querySelector('.ppi-view-toolbar').getBoundingClientRect();
+                const radar = document.getElementById('radarCanvas').getBoundingClientRect();
+                return {toolbarBottom: toolbar.bottom, canvasTop: radar.top,
+                    overlaps: toolbar.left < radar.right && toolbar.right > radar.left &&
+                        toolbar.top < radar.bottom && toolbar.bottom > radar.top};
+            }""")
+            self.assertFalse(result["overlaps"], result)
+            browser.close()
+
     def test_live_intensity_ppi_keeps_measured_spokes_and_clears_on_reset(self):
         page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
         with sync_playwright() as playwright:

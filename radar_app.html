@@ -161,18 +161,49 @@
             position: relative;
         }
 
+        .ppi-topbar {
+            width: 100%;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+            box-sizing: border-box;
+            padding: 0 8px;
+        }
+
         .ppi-view-toolbar {
-            position: absolute;
-            top: 12px;
-            right: 14px;
-            z-index: 7;
-            max-width: min(330px, 45%);
+            flex: 1 1 400px;
+            min-width: min(400px, 100%);
             padding: 6px 9px;
             background: rgba(4, 16, 25, 0.9);
             border: 1px solid rgba(53, 230, 255, 0.42);
             border-radius: 7px;
             color: #bff;
             font-size: 11px;
+        }
+
+        .ppi-view-toolbar .ppi-controls {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 5px 8px;
+        }
+
+        .ppi-view-toolbar input[type="range"] {
+            width: 72px;
+            height: 12px;
+            padding: 0;
+            vertical-align: middle;
+            accent-color: #00ffcc;
+        }
+
+        #intensityPpiStatus {
+            margin-top: 4px;
+            line-height: 1.35;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .ppi-view-toolbar select {
@@ -184,11 +215,8 @@
         }
 
         .local-map-badge {
-            position: absolute;
-            top: 18px;
-            left: 14px;
-            z-index: 6;
-            max-width: min(360px, calc(100% - 28px));
+            flex: 0 1 350px;
+            max-width: 100%;
             padding: 7px 10px;
             border: 1px solid rgba(53, 230, 255, 0.42);
             border-left: 3px solid #35e6ff;
@@ -218,10 +246,10 @@
 
         #radarCanvas {
             display: block;
-            width: min(100%, calc(100vh - 320px));
+            width: min(100%, calc(100vh - 400px));
             height: auto;
             max-width: 100%;
-            max-height: calc(100vh - 320px);
+            max-height: calc(100vh - 400px);
         }
 
         .camera-panel {
@@ -890,8 +918,8 @@
             }
 
             #radarCanvas {
-                width: min(100%, calc(100vh - 340px));
-                max-height: calc(100vh - 340px);
+                width: min(100%, calc(100vh - 420px));
+                max-height: calc(100vh - 420px);
             }
         }
 
@@ -1169,14 +1197,22 @@
 
 
             <div class="main-visual">
-                <div id="localMapBadge" class="local-map-badge">LOCAL MAP FRAMEWORK · 局部地图关闭</div>
-                <div class="ppi-view-toolbar">
-                    <label for="ppiViewSelect">雷达图</label>
-                    <select id="ppiViewSelect" aria-label="雷达图显示模式">
-                        <option value="points">点云 PPI</option>
-                        <option value="intensity">TLV2 强度 PPI</option>
-                    </select>
-                    <div id="intensityPpiStatus" role="status">切换后显示实测方位线；未采样方位留白</div>
+                <div class="ppi-topbar">
+                    <div id="localMapBadge" class="local-map-badge">LOCAL MAP FRAMEWORK · 局部地图关闭</div>
+                    <div class="ppi-view-toolbar">
+                        <div class="ppi-controls">
+                            <label for="ppiViewSelect">雷达图</label>
+                            <select id="ppiViewSelect" aria-label="雷达图显示模式">
+                                <option value="points">点云 PPI</option>
+                                <option value="intensity">TLV2 强度 PPI</option>
+                            </select>
+                            <label for="ppiDisplayThresholdInput">背景抑制</label>
+                            <input id="ppiDisplayThresholdInput" type="range" min="0" max="95" value="25" aria-label="TLV2 相对显示门限">
+                            <label for="ppiDisplayBrightnessInput">亮度</label>
+                            <input id="ppiDisplayBrightnessInput" type="range" min="10" max="100" value="60" aria-label="TLV2 显示亮度">
+                        </div>
+                        <div id="intensityPpiStatus" role="status">切换后显示实测方位线；未采样方位留白。仅调显示，不是 SNR 门限</div>
+                    </div>
                 </div>
                 <canvas id="radarCanvas" width="800" height="800"></canvas>
                 <div class="profile-panel">
@@ -3128,12 +3164,22 @@
             drawRangeProfile(lastRangeProfile);
             const spokes = intensityPpiState.spokes;
             const status = document.getElementById('intensityPpiStatus');
-            const binSize = spokes.length ? spokes[0].axisM : null;
+            const binSize = spokes.length ? spokes[0].axisM :
+                (Number.isFinite(lastRangeProfileBinSizeM) && lastRangeProfileBinSizeM > 0
+                    ? lastRangeProfileBinSizeM : null);
             const axisMax = binSize ? Math.max(radarRangeX, radarRangeY, 1)
                 : (spokes.length ? spokes[0].range_profile.length - 1 : Math.max(radarRangeX, radarRangeY, 1));
+            const blindZone = getBlindZoneM();
+            const threshold = Math.max(0, Math.min(0.95,
+                Number(document.getElementById('ppiDisplayThresholdInput').value) / 100));
+            const brightness = Math.max(0.1, Math.min(1,
+                Number(document.getElementById('ppiDisplayBrightnessInput').value) / 100));
             status.textContent = `${spokes.length} 条实测方位线 · 未采样方位留白 · ` +
-                (binSize ? '理论距离轴，未经实测标定' : '距离格索引，未标定') +
-                ' · 主机解包时间配准，非 RF 采集时间';
+                (binSize ? `盲区 ${blindZone.toFixed(2)}m` : '米制盲区未应用') +
+                ` · 抑制 ${Math.round(threshold * 100)}% / 亮度 ${Math.round(brightness * 100)}%`;
+            status.title = (binSize ? '理论距离轴，未经实测标定' :
+                '距离格索引，未标定；米制盲区未应用：缺少距离格宽') +
+                '；背景抑制和亮度仅改变显示，不是 SNR 门限；主机解包时间配准，非 RF 采集时间';
             setPointsDisplay(`TLV2 ${spokes.length} 条方位线（非点云）`);
             document.getElementById('targetsDisplay').innerText = '强度诊断';
             const now = performance.now();
@@ -3141,34 +3187,61 @@
             intensityPpiState.lastRenderAt = now;
             drawGrid360(axisMax, binSize ? 'm' : 'bin',
                 'TLV2 强度 PPI · 未采样方位留白', true);
-            if (!spokes.length) return;
-
             const radiusPx = Math.min(canvas.width, canvas.height) * 0.46;
             const cx = canvas.width / 2;
             const cy = canvas.height / 2;
+            const paintBlindZone = () => {
+                if (!binSize || blindZone <= 0) return;
+                const maskRadius = radiusPx * Math.min(blindZone / axisMax, 1);
+                ctx.save();
+                ctx.fillStyle = '#080c14';
+                ctx.strokeStyle = 'rgba(0, 255, 204, 0.38)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(cx, cy, maskRadius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = '#8abac5';
+                ctx.font = '11px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(`盲区 ${blindZone.toFixed(2)}m`, cx, cy + 4);
+                ctx.restore();
+            };
+            if (!spokes.length) {
+                paintBlindZone();
+                return;
+            }
             const maxBin = binSize
                 ? Math.min(spokes[0].range_profile.length - 1, Math.floor(axisMax / binSize))
                 : spokes[0].range_profile.length - 1;
-            if (maxBin < 1) return;
+            const firstBin = binSize ? Math.max(1, Math.ceil(blindZone / binSize)) : 1;
+            if (maxBin < firstBin) {
+                paintBlindZone();
+                return;
+            }
             const step = Math.max(1, Math.ceil(maxBin / radiusPx));
             const values = [];
             for (const spoke of spokes) {
-                for (let bin = 1; bin <= maxBin; bin += step) values.push(spoke.range_profile[bin]);
+                for (let bin = firstBin; bin <= maxBin; bin += step) values.push(spoke.range_profile[bin]);
             }
             values.sort((a, b) => a - b);
             const floor = values[Math.floor(0.05 * (values.length - 1))];
             const ceiling = values[Math.floor(0.99 * (values.length - 1))];
-            if (!(ceiling > floor)) return;
+            if (!(ceiling > floor)) {
+                paintBlindZone();
+                return;
+            }
             const paths = Array.from({length: 16}, () => new Path2D());
             for (const spoke of spokes) {
                 const angle = spoke.yaw_deg * Math.PI / 180;
                 const dx = Math.sin(angle);
                 const dy = -Math.cos(angle);
-                for (let bin = 1; bin <= maxBin; bin += step) {
+                for (let bin = firstBin; bin <= maxBin; bin += step) {
                     const value = Math.max(0, Math.min(1,
                         (spoke.range_profile[bin] - floor) / (ceiling - floor)));
-                    if (value < 0.04) continue;
-                    const bucket = Math.min(15, Math.floor(value * 15));
+                    if (value <= threshold) continue;
+                    const adjusted = (value - threshold) / (1 - threshold);
+                    const bucket = Math.max(1, Math.min(15, Math.ceil(adjusted * 15)));
                     const r0 = radiusPx * Math.max(0, bin - step / 2) / maxBin;
                     const r1 = radiusPx * Math.min(maxBin, bin + step / 2) / maxBin;
                     paths[bucket].moveTo(cx + dx * r0, cy + dy * r0);
@@ -3178,10 +3251,12 @@
             ctx.save();
             ctx.lineWidth = 2;
             for (let bucket = 1; bucket < paths.length; bucket++) {
-                ctx.strokeStyle = `rgba(30, 255, 80, ${Math.min(0.95, 0.08 + 0.88 * bucket / 15)})`;
+                ctx.strokeStyle = `rgba(30, 255, 80, ${Math.min(0.95,
+                    (0.08 + 0.88 * bucket / 15) * brightness)})`;
                 ctx.stroke(paths[bucket]);
             }
             ctx.restore();
+            paintBlindZone();
         }
 
         function drawGimbalScanPoints(points) {
@@ -4165,9 +4240,19 @@
             localStorage.setItem(RADAR_BLIND_ZONE_STORAGE_KEY, String(blindZoneM));
             if (replayState.active && replaySpatialAnalysis.frame) {
                 renderReplayFrame(replaySpatialAnalysis.frame, true);
+            } else if (document.getElementById('ppiViewSelect').value === 'intensity') {
+                renderIntensityPpiFrame(latestCalibrationRadarFrame || {range_profile: []}, true);
             } else {
                 renderLivePointDetail(undefined, true);
             }
+        });
+
+        ['ppiDisplayThresholdInput', 'ppiDisplayBrightnessInput'].forEach(id => {
+            document.getElementById(id).addEventListener('input', () => {
+                if (document.getElementById('ppiViewSelect').value === 'intensity') {
+                    renderIntensityPpiFrame(latestCalibrationRadarFrame || {range_profile: []}, true);
+                }
+            });
         });
 
         document.getElementById('lineMinLengthInput').addEventListener('input', (e) => {
