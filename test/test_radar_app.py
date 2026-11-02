@@ -30,6 +30,15 @@ def camera_png(width, height):
 
 
 class RadarAppMarkupTests(unittest.TestCase):
+    def test_live_intensity_ppi_has_explicit_view_switch_and_caveat(self):
+        app_html = (Path(__file__).resolve().parents[1] / "radar_app.html").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('id="ppiViewSelect"', app_html)
+        self.assertIn('value="intensity"', app_html)
+        self.assertIn('未采样方位留白', app_html)
+        self.assertIn('未经实测标定', app_html)
+
     def test_motor_frame_estimates_are_next_to_rpm_and_match_100_ms_cfg(self):
         app_html = (Path(__file__).resolve().parents[1] / "radar_app.html").read_text(
             encoding="utf-8"
@@ -229,6 +238,77 @@ class RadarAppMarkupTests(unittest.TestCase):
 class RadarAppTests(unittest.TestCase):
     def _new_browser(self, playwright):
         return playwright.chromium.launch(headless=True, executable_path=str(CHROME_EXECUTABLE))
+
+    def test_live_intensity_ppi_keeps_measured_spokes_and_clears_on_reset(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.goto(page_url, wait_until="networkidle")
+            result = page.evaluate("""() => {
+                document.getElementById('ppiViewSelect').value = 'intensity';
+                const spoke = (seq, yaw) => ({seq, frame_num: seq,
+                    yaw_deg: yaw, range_profile: [100, 100, 900, 100],
+                    range_profile_bin_size_m: 0.05, rf_time_calibrated: false});
+                const frame = (number, batch) => ({frame_num: number, points: [],
+                    range_profile: [100, 100, 900, 100], range_profile_bin_size_m: 0.05,
+                    gimbal_scan: {enabled: true, mode: 'qd4310', status: 'running',
+                        points: [], live_registration: {state: 'provisional'},
+                        intensity_ppi: batch}});
+                renderRadarFrame(frame(1, {generation: 'a', oldest_seq: 1,
+                    latest_seq: 1, spokes: [spoke(1, 15)]}));
+                renderRadarFrame(frame(2, {generation: 'a', oldest_seq: 1,
+                    latest_seq: 2, spokes: [spoke(2, 90)]}));
+                const observed = intensityPpiState.spokes.map(item => item.yaw_deg);
+                const label = document.getElementById('intensityPpiStatus').textContent;
+                renderRadarFrame(frame(3, {generation: 'b', oldest_seq: 1,
+                    latest_seq: 0, spokes: []}));
+                return {observed, label, afterReset: intensityPpiState.spokes.length};
+            }""")
+            self.assertEqual(result["observed"], [15, 90])
+            self.assertIn("2", result["label"])
+            self.assertEqual(result["afterReset"], 0)
+            browser.close()
+
+    def test_live_intensity_ppi_draws_observed_ray_without_painting_opposite_side(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.goto(page_url, wait_until="networkidle")
+            result = page.evaluate("""() => {
+                document.getElementById('ppiViewSelect').value = 'intensity';
+                document.getElementById('f_fovRange').value = '3.5';
+                const profile = Array(100).fill(100);
+                for (let i = 52; i <= 61; i++) profile[i] = 900;
+                const frame = (number, spokes) => ({frame_num: number, points: [],
+                    range_profile: profile, range_profile_bin_size_m: 0.05,
+                    gimbal_scan: {enabled: true, mode: 'qd4310', status: 'running', points: [],
+                        live_registration: {state: 'provisional'}, intensity_ppi: {
+                            generation: 'measured', oldest_seq: 1, latest_seq: number, spokes}}});
+                const green = (x, y) => {
+                    const data = ctx.getImageData(x - 2, y - 2, 5, 5).data;
+                    let sum = 0;
+                    for (let i = 1; i < data.length; i += 4) sum += data[i];
+                    return sum;
+                };
+                renderRadarFrame(frame(1, []));
+                const beforeRight = green(689, 400);
+                const beforeLeft = green(111, 400);
+                renderRadarFrame(frame(2, [{seq: 1, yaw_deg: 90,
+                    range_profile: profile, range_profile_bin_size_m: 0.05}]));
+                const rightGain = green(689, 400) - beforeRight;
+                const leftGain = green(111, 400) - beforeLeft;
+                const reset = frame(3, []);
+                reset.gimbal_scan.intensity_ppi.generation = 'new-sweep';
+                renderRadarFrame(reset);
+                return {rightGain, leftGain,
+                    resetDifference: green(689, 400) - beforeRight};
+            }""")
+            self.assertGreater(result["rightGain"], 50, result)
+            self.assertGreater(result["rightGain"], abs(result["leftGain"]) + 50, result)
+            self.assertLess(abs(result["resetDifference"]), 10, result)
+            browser.close()
 
     def test_range_profile_axis_uses_cfg_bin_size_not_ppi_display_range(self):
         page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()

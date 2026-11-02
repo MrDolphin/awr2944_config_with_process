@@ -161,6 +161,28 @@
             position: relative;
         }
 
+        .ppi-view-toolbar {
+            position: absolute;
+            top: 12px;
+            right: 14px;
+            z-index: 7;
+            max-width: min(330px, 45%);
+            padding: 6px 9px;
+            background: rgba(4, 16, 25, 0.9);
+            border: 1px solid rgba(53, 230, 255, 0.42);
+            border-radius: 7px;
+            color: #bff;
+            font-size: 11px;
+        }
+
+        .ppi-view-toolbar select {
+            background: #102433;
+            border: 1px solid #35e6ff;
+            color: #d6fbff;
+            border-radius: 4px;
+            padding: 4px;
+        }
+
         .local-map-badge {
             position: absolute;
             top: 18px;
@@ -1148,6 +1170,14 @@
 
             <div class="main-visual">
                 <div id="localMapBadge" class="local-map-badge">LOCAL MAP FRAMEWORK · 局部地图关闭</div>
+                <div class="ppi-view-toolbar">
+                    <label for="ppiViewSelect">雷达图</label>
+                    <select id="ppiViewSelect" aria-label="雷达图显示模式">
+                        <option value="points">点云 PPI</option>
+                        <option value="intensity">TLV2 强度 PPI</option>
+                    </select>
+                    <div id="intensityPpiStatus" role="status">切换后显示实测方位线；未采样方位留白</div>
+                </div>
                 <canvas id="radarCanvas" width="800" height="800"></canvas>
                 <div class="profile-panel">
                     <div>距离能量图 (Range Profile)</div>
@@ -2035,6 +2065,7 @@
         let pointTrails = [];
         let lastRangeProfile = [];
         let lastRangeProfileBinSizeM = null;
+        const intensityPpiState = { generation: null, spokes: [], lastRenderAt: 0 };
         let strongIsolatedTracks = [];
         let gimbalScanEnabled = false;
         let latestGimbalScan = null;
@@ -2996,15 +3027,17 @@
             };
         }
 
-        function drawGrid360() {
+        function drawGrid360(axisMax = null, axisUnit = 'm',
+                             caption = '360° PPI 网格（非实测覆盖）', opaque = false) {
             updateRadarDisplayRange();
-            ctx.fillStyle = 'rgba(8, 12, 20, 0.55)';
+            ctx.fillStyle = opaque ? '#080c14' : 'rgba(8, 12, 20, 0.55)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             const cx = canvas.width / 2;
             const cy = canvas.height / 2;
             const radiusPx = Math.min(canvas.width, canvas.height) * 0.46;
-            const rangeM = Math.max(radarRangeY, radarRangeX, 1);
+            const rangeM = Number.isFinite(axisMax) && axisMax > 0
+                ? axisMax : Math.max(radarRangeY, radarRangeX, 1);
 
             ctx.save();
             ctx.strokeStyle = 'rgba(0, 255, 204, 0.15)';
@@ -3016,7 +3049,9 @@
                 ctx.stroke();
                 ctx.fillStyle = 'rgba(0, 255, 204, 0.45)';
                 ctx.font = '10px Arial';
-                ctx.fillText((rangeM * i / 5).toFixed(1) + 'm', cx + 5, cy - r + 12);
+                const tick = rangeM * i / 5;
+                ctx.fillText(axisUnit === 'bin' ? `${Math.round(tick)} bin`
+                    : `${tick.toFixed(1)}m`, cx + 5, cy - r + 12);
             }
 
             for (let deg = 0; deg < 360; deg += 30) {
@@ -3034,7 +3069,118 @@
             ctx.fillStyle = '#35e6ff';
             ctx.font = 'bold 12px Tahoma';
             ctx.textAlign = 'right';
-            ctx.fillText('360° PPI 网格（非实测覆盖）', canvas.width - 12, 20);
+            ctx.fillText(caption, canvas.width - 12, canvas.height - 12);
+            ctx.restore();
+        }
+
+        function ingestIntensityPpi(batch) {
+            if (!batch) return false;
+            if (batch.state === 'disabled' || !batch.generation) {
+                const changed = intensityPpiState.spokes.length > 0;
+                intensityPpiState.generation = null;
+                intensityPpiState.spokes = [];
+                return changed;
+            }
+            let changed = false;
+            if (intensityPpiState.generation !== batch.generation || batch.truncated) {
+                intensityPpiState.generation = batch.generation;
+                intensityPpiState.spokes = [];
+                changed = true;
+            }
+            const oldest = Number(batch.oldest_seq);
+            if (Number.isSafeInteger(oldest)) {
+                const kept = intensityPpiState.spokes.filter(spoke => spoke.seq >= oldest);
+                if (kept.length !== intensityPpiState.spokes.length) changed = true;
+                intensityPpiState.spokes = kept;
+            }
+            const seen = new Set(intensityPpiState.spokes.map(spoke => spoke.seq));
+            for (const spoke of batch.spokes || []) {
+                if (!Number.isSafeInteger(spoke.seq) || seen.has(spoke.seq) ||
+                    !Number.isFinite(spoke.yaw_deg) || !Array.isArray(spoke.range_profile) ||
+                    spoke.range_profile.length < 2 || spoke.range_profile.length > 2048 ||
+                    !spoke.range_profile.every(v => Number.isInteger(v) && v >= 0 && v <= 65535)) continue;
+                const binSize = Number(spoke.range_profile_bin_size_m);
+                const axisM = Number.isFinite(binSize) && binSize > 0 ? binSize : null;
+                const first = intensityPpiState.spokes[0];
+                if (first && (first.range_profile.length !== spoke.range_profile.length ||
+                    first.axisM !== axisM)) {
+                    intensityPpiState.spokes = [];
+                    seen.clear();
+                }
+                intensityPpiState.spokes.push({
+                    seq: spoke.seq, yaw_deg: spoke.yaw_deg,
+                    range_profile: spoke.range_profile, axisM,
+                });
+                seen.add(spoke.seq);
+                changed = true;
+            }
+            if (intensityPpiState.spokes.length > 128) {
+                intensityPpiState.spokes.splice(0, intensityPpiState.spokes.length - 128);
+                changed = true;
+            }
+            return changed;
+        }
+
+        function renderIntensityPpiFrame(data, changed) {
+            updateRadarDisplayRange();
+            lastRangeProfile = Array.isArray(data.range_profile) ? data.range_profile : [];
+            lastRangeProfileBinSizeM = Number(data.range_profile_bin_size_m) || null;
+            drawRangeProfile(lastRangeProfile);
+            const spokes = intensityPpiState.spokes;
+            const status = document.getElementById('intensityPpiStatus');
+            const binSize = spokes.length ? spokes[0].axisM : null;
+            const axisMax = binSize ? Math.max(radarRangeX, radarRangeY, 1)
+                : (spokes.length ? spokes[0].range_profile.length - 1 : Math.max(radarRangeX, radarRangeY, 1));
+            status.textContent = `${spokes.length} 条实测方位线 · 未采样方位留白 · ` +
+                (binSize ? '理论距离轴，未经实测标定' : '距离格索引，未标定') +
+                ' · 主机解包时间配准，非 RF 采集时间';
+            setPointsDisplay(`TLV2 ${spokes.length} 条方位线（非点云）`);
+            document.getElementById('targetsDisplay').innerText = '强度诊断';
+            const now = performance.now();
+            if (!changed && now - intensityPpiState.lastRenderAt < 100) return;
+            intensityPpiState.lastRenderAt = now;
+            drawGrid360(axisMax, binSize ? 'm' : 'bin',
+                'TLV2 强度 PPI · 未采样方位留白', true);
+            if (!spokes.length) return;
+
+            const radiusPx = Math.min(canvas.width, canvas.height) * 0.46;
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            const maxBin = binSize
+                ? Math.min(spokes[0].range_profile.length - 1, Math.floor(axisMax / binSize))
+                : spokes[0].range_profile.length - 1;
+            if (maxBin < 1) return;
+            const step = Math.max(1, Math.ceil(maxBin / radiusPx));
+            const values = [];
+            for (const spoke of spokes) {
+                for (let bin = 1; bin <= maxBin; bin += step) values.push(spoke.range_profile[bin]);
+            }
+            values.sort((a, b) => a - b);
+            const floor = values[Math.floor(0.05 * (values.length - 1))];
+            const ceiling = values[Math.floor(0.99 * (values.length - 1))];
+            if (!(ceiling > floor)) return;
+            const paths = Array.from({length: 16}, () => new Path2D());
+            for (const spoke of spokes) {
+                const angle = spoke.yaw_deg * Math.PI / 180;
+                const dx = Math.sin(angle);
+                const dy = -Math.cos(angle);
+                for (let bin = 1; bin <= maxBin; bin += step) {
+                    const value = Math.max(0, Math.min(1,
+                        (spoke.range_profile[bin] - floor) / (ceiling - floor)));
+                    if (value < 0.04) continue;
+                    const bucket = Math.min(15, Math.floor(value * 15));
+                    const r0 = radiusPx * Math.max(0, bin - step / 2) / maxBin;
+                    const r1 = radiusPx * Math.min(maxBin, bin + step / 2) / maxBin;
+                    paths[bucket].moveTo(cx + dx * r0, cy + dy * r0);
+                    paths[bucket].lineTo(cx + dx * r1, cy + dy * r1);
+                }
+            }
+            ctx.save();
+            ctx.lineWidth = 2;
+            for (let bucket = 1; bucket < paths.length; bucket++) {
+                ctx.strokeStyle = `rgba(30, 255, 80, ${Math.min(0.95, 0.08 + 0.88 * bucket / 15)})`;
+                ctx.stroke(paths[bucket]);
+            }
             ctx.restore();
         }
 
@@ -3684,6 +3830,11 @@
             if (data.gimbal_scan) {
                 gimbalScanEnabled = !!data.gimbal_scan.enabled;
                 updateGimbalScanButton();
+            }
+            const ppiChanged = ingestIntensityPpi(data.gimbal_scan && data.gimbal_scan.intensity_ppi);
+            if (document.getElementById('ppiViewSelect').value === 'intensity') {
+                renderIntensityPpiFrame(data, ppiChanged);
+                return;
             }
             const liveRegistration = data.gimbal_scan && data.gimbal_scan.live_registration;
             if (data.gimbal_scan && data.gimbal_scan.enabled &&
@@ -4691,6 +4842,11 @@
             };
 
             ws.onclose = () => {
+                intensityPpiState.generation = null;
+                intensityPpiState.spokes = [];
+                if (document.getElementById('ppiViewSelect').value === 'intensity') {
+                    renderIntensityPpiFrame({range_profile: []}, true);
+                }
                 gimbalScanEnabled = false;
                 updateGimbalScanButton('连接已断开；请确认电机实际停转');
                 updateMotorAngleDisplay(null);
@@ -4890,6 +5046,17 @@
                 resetStaticMap();
                 drawGrid();
             });
+        });
+
+        document.getElementById('ppiViewSelect').addEventListener('change', () => {
+            intensityPpiState.lastRenderAt = 0;
+            if (latestCalibrationRadarFrame && !replayState.active) {
+                renderRadarFrame(latestCalibrationRadarFrame);
+            } else if (document.getElementById('ppiViewSelect').value === 'intensity') {
+                renderIntensityPpiFrame({range_profile: []}, true);
+            } else {
+                drawGrid();
+            }
         });
 
         function parseCfgToForm(text) {

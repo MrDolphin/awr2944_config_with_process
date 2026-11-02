@@ -692,6 +692,31 @@ class Qd4310ServerModeTests(unittest.TestCase):
         finally:
             self._restore_modules(previous_serial, previous_websockets)
 
+    def test_live_tlv2_delta_is_available_without_tlv1_points(self):
+        server, previous_serial, previous_websockets = self._import_server()
+        try:
+            config = dict(server.gimbal_scan["config"])
+            config["live_registration_enabled"] = True
+            server.configure_live_scan(config)
+            server.add_live_motor_sample({
+                "angle_deg": 0.0, "query_started_monotonic_s": 100.0,
+                "query_completed_monotonic_s": 100.0,
+            })
+            server.add_live_radar_frame({
+                "frame_num": 7, "host_monotonic_s": 100.02, "points": [],
+                "range_profile": [100, 200, 900], "range_profile_bin_size_m": 0.05,
+            })
+            server.add_live_motor_sample({
+                "angle_deg": 5.0, "query_started_monotonic_s": 100.04,
+                "query_completed_monotonic_s": 100.04,
+            })
+            batch = server.get_live_profile_delta(None, 0)
+            self.assertEqual(len(batch["spokes"]), 1)
+            self.assertEqual(batch["spokes"][0]["range_profile"], [100, 200, 900])
+            self.assertEqual(server.get_live_profile_delta(batch["generation"], batch["latest_seq"])["spokes"], [])
+        finally:
+            self._restore_modules(previous_serial, previous_websockets)
+
     def test_radar_port_inventory_excludes_qdrive_usb_device(self):
         server, previous_serial, previous_websockets = self._import_server()
         try:

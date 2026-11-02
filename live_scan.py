@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections import Counter, deque
 import math
 import threading
+import uuid
 from typing import Any, Mapping
 
 from scan_registration import AngleSample, estimate_frame_yaw, register_points
@@ -35,6 +36,7 @@ class LiveScanAssembler:
         max_frame_points: int = 2048,
         max_map_frames: int = 512,
         max_map_points: int = 6000,
+        max_profile_spokes: int = 128,
         max_event_backlog: int = 2048,
     ) -> None:
         if direction not in (-1, 1):
@@ -50,7 +52,7 @@ class LiveScanAssembler:
                max_possible_rpm, stale_after_s) <= 0:
             raise ValueError("live scan quality limits must be positive")
         if min(int(max_pending_frames), int(max_frame_points), int(max_map_frames),
-               int(max_map_points), int(max_event_backlog)) <= 0:
+               int(max_map_points), int(max_profile_spokes), int(max_event_backlog)) <= 0:
             raise ValueError("live scan buffer limits must be positive")
 
         self._direction = direction
@@ -68,6 +70,7 @@ class LiveScanAssembler:
         self._max_frame_points = int(max_frame_points)
         self._max_map_frames = int(max_map_frames)
         self._max_map_points = int(max_map_points)
+        self._max_profile_spokes = int(max_profile_spokes)
         self._max_event_backlog = int(max_event_backlog)
         self._lock = threading.RLock()
         self.reset()
@@ -77,6 +80,9 @@ class LiveScanAssembler:
             self._samples: deque[AngleSample] = deque(maxlen=2)
             self._pending: deque[dict[str, Any]] = deque()
             self._registered: deque[tuple[float, list[dict[str, Any]]]] = deque()
+            self._profiles: deque[tuple[float, dict[str, Any]]] = deque()
+            self._profile_generation = uuid.uuid4().hex
+            self._profile_seq = 0
             self._events: deque[dict[str, Any]] = deque()
             self._rejected: Counter[str] = Counter()
             self._registered_frames = 0
@@ -91,6 +97,8 @@ class LiveScanAssembler:
 
     def _clear_map(self, reason: str) -> None:
         self._registered.clear()
+        self._profiles.clear()
+        self._profile_generation = uuid.uuid4().hex
         self._map_points_count = 0
         self._cumulative_angle_deg = 0.0
         self._last_yaw_deg = None
@@ -108,6 +116,37 @@ class LiveScanAssembler:
                self._cumulative_angle_deg - self._registered[0][0] >= 360.0):
             _, old_points = self._registered.popleft()
             self._map_points_count -= len(old_points)
+        while (self._profiles and
+               self._cumulative_angle_deg - self._profiles[0][0] >= 360.0):
+            self._profiles.popleft()
+
+    def profile_delta(self, generation: str | None, after_seq: int,
+                      *, max_spokes: int = 64) -> dict[str, Any]:
+        """Return bounded registered TLV2 spokes for one WebSocket client.
+
+        A generation change means the old sweep was invalidated; clients must
+        clear it rather than blending unrelated angular coordinate systems.
+        """
+        if max_spokes <= 0:
+            raise ValueError("max_spokes must be positive")
+        with self._lock:
+            same_generation = generation == self._profile_generation
+            cursor = int(after_seq) if same_generation else 0
+            oldest_seq = self._profiles[0][1]["seq"] if self._profiles else self._profile_seq + 1
+            newest_seq = self._profiles[-1][1]["seq"] if self._profiles else 0
+            truncated = same_generation and cursor < oldest_seq - 1
+            batch = [profile for _, profile in self._profiles if profile["seq"] > cursor][:max_spokes]
+            latest_seq = batch[-1]["seq"] if batch else cursor
+            return {
+                "generation": self._profile_generation,
+                "oldest_seq": oldest_seq,
+                "latest_seq": latest_seq,
+                "has_more": latest_seq < newest_seq,
+                "truncated": truncated,
+                "spokes": batch,
+                "time_basis": "host_packet_parse_monotonic",
+                "rf_time_calibrated": False,
+            }
 
     @staticmethod
     def _angle_sample(sample: Mapping[str, Any]) -> AngleSample:
@@ -179,6 +218,12 @@ class LiveScanAssembler:
             # for the next encoder sample. Keep the validated coordinates immutable
             # from the producer's perspective until registration has finished.
             payload["points"] = [dict(point) for point in points]
+            profile = payload.get("range_profile")
+            if (isinstance(profile, (list, tuple)) and 0 < len(profile) <= 2048 and
+                    all(type(value) is int and 0 <= value <= 65535 for value in profile)):
+                payload["range_profile"] = list(profile)
+            else:
+                payload.pop("range_profile", None)
             self._pending.append(payload)
             while len(self._pending) > self._max_pending_frames:
                 dropped = self._pending.popleft()
@@ -260,6 +305,27 @@ class LiveScanAssembler:
             span = registration.angular_span_deg or 0.0
             frame_progress = self._cumulative_angle_deg - span * (1.0 - fraction)
             self._registered.append((frame_progress, points))
+            profile = frame.get("range_profile")
+            if profile is not None:
+                bin_size = frame.get("range_profile_bin_size_m")
+                try:
+                    bin_size = float(bin_size)
+                    if not math.isfinite(bin_size) or bin_size <= 0:
+                        bin_size = None
+                except (TypeError, ValueError, OverflowError):
+                    bin_size = None
+                self._profile_seq += 1
+                self._profiles.append((frame_progress, {
+                    "seq": self._profile_seq,
+                    "frame_num": int(frame.get("frame_num", -1)),
+                    "yaw_deg": registration.yaw_deg,
+                    "host_monotonic_s": frame_time,
+                    "range_profile": profile,
+                    "range_profile_bin_size_m": bin_size,
+                    "rf_time_calibrated": False,
+                }))
+                while len(self._profiles) > self._max_profile_spokes:
+                    self._profiles.popleft()
             self._map_points_count += len(points)
             self._trim_measured_revolution()
             while (len(self._registered) > self._max_map_frames or
@@ -277,7 +343,7 @@ class LiveScanAssembler:
         with self._lock:
             stale = (self._last_sample_midpoint_s is None or
                      now - self._last_sample_midpoint_s > self._stale_after_s)
-            if stale and self._registered:
+            if stale and (self._registered or self._profiles):
                 self._clear_map("telemetry_stale")
             points = [] if stale else [point for _, batch in self._registered for point in batch]
             return {

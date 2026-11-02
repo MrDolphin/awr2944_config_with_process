@@ -938,6 +938,18 @@ def get_live_scan_snapshot():
         }
     return assembler.snapshot(now_monotonic_s=time.monotonic())
 
+
+def get_live_profile_delta(generation, after_seq):
+    assembler = live_scan_assembler
+    if assembler is None:
+        return {
+            "state": "disabled", "generation": None, "oldest_seq": 0,
+            "latest_seq": 0, "has_more": False, "truncated": False,
+            "spokes": [], "time_basis": "host_packet_parse_monotonic",
+            "rf_time_calibrated": False,
+        }
+    return assembler.profile_delta(generation, after_seq)
+
 def get_recording_status():
     _sync_recording_status()
     return pointcloud_recorder.status()
@@ -1524,9 +1536,12 @@ async def handle_client(websocket):
     # 创建一个推流任务
     async def stream_data():
         nonlocal last_sent_frame
+        last_profile_generation = None
+        last_profile_seq = 0
+        pending_profile_more = False
         try:
             while True:
-                if latest_radar_frame["frame_num"] != last_sent_frame:
+                if latest_radar_frame["frame_num"] != last_sent_frame or pending_profile_more:
                     # 如果不是命令包，则发送雷达点云包
                     try:
                         frame = dict(latest_radar_frame)
@@ -1545,6 +1560,9 @@ async def handle_client(websocket):
                             gimbal_scan["combined_points"] = [rotate_point_xy(pt, yaw_deg) for pt in frame.get("points", [])]
                             gimbal_scan["last_update_s"] = time.time()
                         live_status = get_live_scan_snapshot()
+                        profile_batch = get_live_profile_delta(
+                            last_profile_generation, last_profile_seq
+                        )
                         if live_status["state"] != "disabled":
                             gimbal_scan["combined_points"] = live_status["points"]
                             if live_status.get("last_yaw_deg") is not None:
@@ -1565,10 +1583,14 @@ async def handle_client(websocket):
                             "frame_angle_deg": gimbal_scan["frame_angle_deg"],
                             "points": gimbal_scan["combined_points"],
                             "live_registration": live_metadata,
+                            "intensity_ppi": profile_batch,
                             "last_update_s": gimbal_scan["last_update_s"],
                             "last_error": gimbal_scan["last_error"]
                         }
                         await websocket.send(json.dumps(frame))
+                        last_profile_generation = profile_batch["generation"]
+                        last_profile_seq = profile_batch["latest_seq"]
+                        pending_profile_more = profile_batch["has_more"]
                         last_sent_frame = latest_radar_frame["frame_num"]
                     except: break
                 await asyncio.sleep(0.04) # 约 25Hz 推送

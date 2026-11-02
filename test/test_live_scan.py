@@ -23,6 +23,74 @@ def frame(number, when, point=None):
 
 
 class LiveScanAssemblerTests(unittest.TestCase):
+    def test_registered_tlv2_profiles_are_delivered_once_with_measured_yaw(self):
+        scan = LiveScanAssembler(direction=1, zero_deg=0, mounting_yaw_deg=0,
+                                 mounting_roll_deg=0)
+        scan.add_motor_sample(sample(1.0, 0))
+        source = frame(1, 1.02)
+        source["range_profile"] = [100, 200, 900]
+        source["range_profile_bin_size_m"] = 0.05
+        scan.add_frame(source)
+        source["range_profile"][2] = 0
+        self.assertEqual(scan.profile_delta(None, 0)["spokes"], [])
+        scan.add_motor_sample(sample(1.04, 6))
+        batch = scan.profile_delta(None, 0)
+        self.assertEqual(len(batch["spokes"]), 1)
+        self.assertAlmostEqual(batch["spokes"][0]["yaw_deg"], 3)
+        self.assertEqual(batch["spokes"][0]["range_profile"], [100, 200, 900])
+        self.assertEqual(batch["spokes"][0]["range_profile_bin_size_m"], 0.05)
+        self.assertFalse(batch["spokes"][0]["rf_time_calibrated"])
+        self.assertEqual(scan.profile_delta(batch["generation"], batch["latest_seq"])["spokes"], [])
+
+    def test_profile_delta_batches_without_skipping_and_clears_on_discontinuity(self):
+        scan = LiveScanAssembler(direction=1, zero_deg=0, mounting_yaw_deg=0,
+                                 mounting_roll_deg=0)
+        scan.add_motor_sample(sample(1.0, 0))
+        for number in range(1, 4):
+            before = 1.0 + (number - 1) * 0.02
+            source = frame(number, before + 0.01)
+            source["range_profile"] = [number] * 4
+            scan.add_frame(source)
+            scan.add_motor_sample(sample(1.0 + number * 0.02, number * 2))
+        first = scan.profile_delta(None, 0, max_spokes=2)
+        self.assertEqual([spoke["frame_num"] for spoke in first["spokes"]], [1, 2])
+        self.assertTrue(first["has_more"])
+        second = scan.profile_delta(first["generation"], first["latest_seq"], max_spokes=2)
+        self.assertEqual([spoke["frame_num"] for spoke in second["spokes"]], [3])
+        self.assertFalse(second["has_more"])
+        scan.add_motor_sample(sample(1.20, 40))
+        cleared = scan.profile_delta(first["generation"], second["latest_seq"])
+        self.assertNotEqual(cleared["generation"], first["generation"])
+        self.assertEqual(cleared["spokes"], [])
+
+    def test_unregistered_or_invalid_tlv2_never_becomes_a_spoke(self):
+        scan = LiveScanAssembler(direction=1, zero_deg=0, mounting_yaw_deg=0,
+                                 mounting_roll_deg=0)
+        scan.add_motor_sample(sample(1.0, 0))
+        source = frame(1, 1.01)
+        source["range_profile"] = [1, 2, 3]
+        scan.add_frame(source)
+        scan.add_motor_sample(sample(1.02, 2))
+        self.assertEqual(scan.profile_delta(None, 0)["spokes"][0]["range_profile_bin_size_m"], None)
+        invalid = frame(2, 1.03)
+        invalid["range_profile"] = [1, -1, 3]
+        scan.add_frame(invalid)
+        scan.add_motor_sample(sample(1.04, 4))
+        self.assertEqual(len(scan.profile_delta(None, 0)["spokes"]), 1)
+
+    def test_tlv2_spoke_expires_after_one_measured_turn_without_new_radar_frame(self):
+        scan = LiveScanAssembler(direction=1, zero_deg=0, mounting_yaw_deg=0,
+                                 mounting_roll_deg=0)
+        scan.add_motor_sample(sample(1.0, 0))
+        source = frame(1, 1.01)
+        source["range_profile"] = [10, 20, 30]
+        scan.add_frame(source)
+        scan.add_motor_sample(sample(1.02, 6))
+        self.assertEqual(len(scan.profile_delta(None, 0)["spokes"]), 1)
+        for number in range(2, 62):
+            scan.add_motor_sample(sample(1.0 + number * 0.02, (number * 6) % 360))
+        self.assertEqual(scan.profile_delta(None, 0)["spokes"], [])
+
     def test_waits_for_later_encoder_sample_before_plotting_frame(self):
         scan = LiveScanAssembler(direction=1, zero_deg=0, mounting_yaw_deg=0,
                                  mounting_roll_deg=90)
