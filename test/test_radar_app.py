@@ -1442,7 +1442,29 @@ class RadarAppTests(unittest.TestCase):
             after = page.locator(".main-visual").bounding_box()["width"]
             self.assertFalse(page.locator(".hud-sidebar").is_visible())
             self.assertGreater(after, before)
-            self.assertEqual(page.locator("#sidebarToggleBtn").inner_text(), "控制栏: 展开")
+            self.assertEqual(page.locator("#sidebarToggleBtn").get_attribute("aria-label"), "展开控制栏")
+            browser.close()
+
+    def test_sidebar_toggle_is_compact_and_outside_controls_at_desktop_and_mobile_widths(self):
+        """The minimize control must not cover replay buttons or other sidebar content."""
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            for width in (2048, 680):
+                page = browser.new_page(viewport={"width": width, "height": 900})
+                page.goto(page_url, wait_until="networkidle")
+                toggle = page.locator("#sidebarToggleBtn")
+                sidebar = page.locator(".hud-sidebar")
+                toggle_box = toggle.bounding_box()
+                sidebar_box = sidebar.bounding_box()
+                self.assertLessEqual(toggle_box["width"], 30)
+                self.assertLessEqual(toggle_box["height"], 30)
+                self.assertLessEqual(toggle_box["x"] + toggle_box["width"], sidebar_box["x"])
+                self.assertEqual(toggle.get_attribute("aria-label"), "收起控制栏")
+                toggle.click()
+                self.assertEqual(toggle.get_attribute("aria-label"), "展开控制栏")
+                self.assertTrue(page.locator(".main-visual").is_visible())
+                page.close()
             browser.close()
 
     def test_manual_calibration_shortcut_opens_hidden_analysis_workspace(self):

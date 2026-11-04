@@ -91,7 +91,7 @@
             display: flex;
             justify-content: center;
             align-items: flex-start;
-            padding: 18px calc(28px + var(--config-panel-width) + var(--layout-gap)) 24px 28px;
+            padding: 18px calc(28px + var(--config-panel-width) + var(--layout-gap)) 24px 40px;
             box-sizing: border-box;
         }
 
@@ -497,12 +497,45 @@
         .sidebar-toggle {
             position: absolute;
             top: 18px;
-            left: calc(28px + var(--sidebar-width) - 116px);
+            left: 8px;
             z-index: 9;
-            min-width: 108px;
-            padding: 6px 8px;
-            font-size: 12px;
+            width: 26px;
+            min-width: 26px;
+            height: 26px;
+            padding: 0;
+            border-radius: 13px;
+            color: #b8f5ed;
             background: rgba(8, 22, 34, 0.9);
+        }
+
+        .sidebar-toggle::before,
+        .sidebar-toggle::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            background: currentColor;
+            transform: translate(-50%, -50%);
+        }
+
+        .sidebar-toggle::before {
+            width: 12px;
+            height: 2px;
+        }
+
+        .sidebar-toggle::after {
+            width: 2px;
+            height: 12px;
+            opacity: 0;
+        }
+
+        .sidebar-toggle[aria-expanded="false"]::after {
+            opacity: 1;
+        }
+
+        .sidebar-toggle:focus-visible {
+            outline: 2px solid #fff;
+            outline-offset: 2px;
         }
 
         .radar-layout.sidebar-collapsed {
@@ -511,10 +544,6 @@
 
         .radar-layout.sidebar-collapsed .hud-sidebar {
             display: none;
-        }
-
-        .radar-layout.sidebar-collapsed + .sidebar-toggle {
-            left: 28px;
         }
 
         .config-panel.collapsed {
@@ -931,7 +960,7 @@
             }
 
             .radar-container {
-                padding: 14px;
+                padding: 14px 14px 14px 40px;
             }
 
             .radar-layout {
@@ -966,8 +995,7 @@
             }
 
             .sidebar-toggle {
-                position: static;
-                margin: 0 14px 8px auto;
+                top: 14px;
             }
 
             #radarCanvas {
@@ -1064,7 +1092,7 @@
 
     <div class="radar-container">
         <div class="radar-layout">
-            <div class="hud-overlay hud-sidebar">
+            <div id="controlSidebar" class="hud-overlay hud-sidebar">
                 <div class="hud-box">
                     <div>网络延迟 / 帧率</div>
                     <div class="value" id="frameDisplay">DISCONNECTED</div>
@@ -1249,7 +1277,7 @@
                 <p class="camera-disclaimer">软件接收时钟同步，非硬件触发同步。尚未空间标定。投影点是坐标配准结果，不代表目标已被分类或确认。</p>
             </section>
         </div>
-        <button id="sidebarToggleBtn" class="sidebar-toggle" type="button" aria-expanded="true">控制栏: 收起</button>
+        <button id="sidebarToggleBtn" class="sidebar-toggle" type="button" aria-controls="controlSidebar" aria-expanded="true" aria-label="收起控制栏" title="收起控制栏"></button>
 
         <!-- 配置管理面板 -->
         <div id="configPanel" class="config-panel">
@@ -4323,7 +4351,9 @@
             const layout = document.querySelector('.radar-layout');
             const collapsed = layout.classList.toggle('sidebar-collapsed');
             const button = document.getElementById('sidebarToggleBtn');
-            button.innerText = collapsed ? '控制栏: 展开' : '控制栏: 收起';
+            const label = collapsed ? '展开控制栏' : '收起控制栏';
+            button.setAttribute('aria-label', label);
+            button.title = label;
             button.setAttribute('aria-expanded', String(!collapsed));
         });
 
