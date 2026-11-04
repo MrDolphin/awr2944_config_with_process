@@ -1467,6 +1467,71 @@ class RadarAppTests(unittest.TestCase):
                 page.close()
             browser.close()
 
+    def test_primary_views_expand_when_the_other_view_is_collapsed(self):
+        """Either presentation view fills the shared display area on its own."""
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 2048, "height": 1100})
+            page.goto(page_url, wait_until="domcontentloaded")
+            page.evaluate("document.getElementById('configPanel').classList.add('collapsed')")
+            radar = page.locator(".main-visual")
+            camera = page.locator(".camera-panel")
+            radar_button = page.locator("#radarViewToggleBtn")
+            camera_button = page.locator("#cameraViewToggleBtn")
+            radar_width = radar.bounding_box()["width"]
+            camera_width = camera.bounding_box()["width"]
+            radar_canvas_width = page.locator("#radarCanvas").bounding_box()["width"]
+            camera_stage_width = page.locator(".camera-stage").bounding_box()["width"]
+            self.assertLess(abs(radar_width - camera_width), 40)
+
+            camera_button.click()
+            self.assertFalse(camera.is_visible())
+            self.assertGreater(radar.bounding_box()["width"], radar_width * 1.7)
+            self.assertLessEqual(
+                abs(
+                    page.evaluate("document.querySelector('.main-visual').getBoundingClientRect().bottom")
+                    - page.evaluate("document.querySelector('.profile-panel').getBoundingClientRect().bottom")
+                ),
+                2,
+            )
+            self.assertGreater(
+                page.locator("#radarCanvas").bounding_box()["width"],
+                radar_canvas_width * 1.1,
+            )
+            self.assertEqual(camera_button.get_attribute("aria-label"), "展开相机视图")
+            self.assertTrue(radar_button.is_disabled())
+            camera_button.click()
+            self.assertTrue(camera.is_visible())
+
+            radar_button.click()
+            self.assertFalse(radar.is_visible())
+            self.assertGreater(camera.bounding_box()["width"], camera_width * 1.7)
+            self.assertGreater(
+                page.locator(".camera-stage").bounding_box()["width"],
+                camera_stage_width * 1.1,
+            )
+            self.assertEqual(radar_button.get_attribute("aria-label"), "展开雷达视图")
+            self.assertTrue(camera_button.is_disabled())
+            page.locator("#sidebarToggleBtn").click()
+            self.assertTrue(camera.is_visible())
+            radar_button.click()
+            self.assertTrue(radar.is_visible())
+            browser.close()
+
+    def test_primary_view_toggles_remain_available_on_narrow_layout(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 680, "height": 900})
+            page.goto(page_url, wait_until="domcontentloaded")
+            page.locator("#cameraViewToggleBtn").click()
+            self.assertTrue(page.locator(".main-visual").is_visible())
+            self.assertFalse(page.locator(".camera-panel").is_visible())
+            page.locator("#cameraViewToggleBtn").click()
+            self.assertTrue(page.locator(".camera-panel").is_visible())
+            browser.close()
+
     def test_manual_calibration_shortcut_opens_hidden_analysis_workspace(self):
         """Calibration must remain discoverable when the configuration panel is collapsed."""
         page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()

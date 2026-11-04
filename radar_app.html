@@ -102,6 +102,8 @@
             max-width: calc(1840px - var(--config-panel-width) - var(--layout-gap));
             display: grid;
             grid-template-columns: var(--sidebar-width) minmax(0, 1fr) minmax(0, 1fr);
+            grid-template-rows: 28px minmax(0, 1fr);
+            grid-template-areas: "sidebar controls controls" "sidebar radar camera";
             align-items: stretch;
             justify-content: flex-start;
             gap: var(--layout-gap);
@@ -116,6 +118,7 @@
         }
 
         .hud-sidebar {
+            grid-area: sidebar;
             width: var(--sidebar-width);
             flex: 0 0 var(--sidebar-width);
             max-height: calc(100vh - 124px);
@@ -148,6 +151,7 @@
         }
 
         .main-visual {
+            grid-area: radar;
             min-width: 0;
             width: 100%;
             height: 100%;
@@ -252,7 +256,32 @@
             max-height: calc(100vh - 400px);
         }
 
+        .radar-layout.camera-view-collapsed .main-visual {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(260px, 0.55fr);
+            grid-template-rows: auto minmax(0, 1fr);
+            align-items: start;
+        }
+
+        .radar-layout.camera-view-collapsed .ppi-topbar {
+            grid-column: 1 / -1;
+        }
+
+        .radar-layout.camera-view-collapsed #radarCanvas {
+            width: min(100%, calc(100vh - 280px));
+            max-height: calc(100vh - 280px);
+            justify-self: center;
+        }
+
+        .radar-layout.camera-view-collapsed .profile-panel {
+            grid-column: 2;
+            grid-row: 2;
+            align-self: end;
+            margin-top: 0;
+        }
+
         .camera-panel {
+            grid-area: camera;
             width: 100%;
             min-width: 0;
             height: 100%;
@@ -286,6 +315,11 @@
             border: 1px solid rgba(53, 230, 255, 0.4);
             border-radius: 6px;
             background: #02070c;
+        }
+
+        .radar-layout.radar-view-collapsed .camera-stage {
+            width: min(100%, calc((100vh - 390px) * 16 / 9));
+            margin-inline: auto;
         }
 
         #cameraCanvas,
@@ -436,7 +470,7 @@
         .hud-chart {
             width: 100%;
             max-width: var(--radar-panel-max-width);
-            height: 132px;
+            height: 90px;
             margin-top: 6px;
             border: 1px solid rgba(0, 255, 204, 0.18);
             background: rgba(2, 10, 18, 0.75);
@@ -538,11 +572,111 @@
             outline-offset: 2px;
         }
 
+        .view-switchbar {
+            grid-area: controls;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: var(--layout-gap);
+            align-items: center;
+        }
+
+        .view-switch-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+            color: #8feeff;
+            font: 700 11px/1.2 "Courier New", monospace;
+            letter-spacing: 0.05em;
+        }
+
+        .view-switch-control:last-child {
+            color: #b8f5ed;
+        }
+
+        .view-toggle {
+            position: relative;
+            width: 26px;
+            min-width: 26px;
+            height: 26px;
+            padding: 0;
+            border-radius: 13px;
+            color: inherit;
+            background: rgba(8, 22, 34, 0.9);
+        }
+
+        .view-toggle::before,
+        .view-toggle::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            background: currentColor;
+            transform: translate(-50%, -50%);
+        }
+
+        .view-toggle::before {
+            width: 12px;
+            height: 2px;
+        }
+
+        .view-toggle::after {
+            width: 2px;
+            height: 12px;
+            opacity: 0;
+        }
+
+        .view-toggle[aria-expanded="false"]::after {
+            opacity: 1;
+        }
+
+        .view-toggle:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .view-toggle:focus-visible {
+            outline: 2px solid #fff;
+            outline-offset: 2px;
+        }
+
         .radar-layout.sidebar-collapsed {
             grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            grid-template-areas: "controls controls" "radar camera";
         }
 
         .radar-layout.sidebar-collapsed .hud-sidebar {
+            display: none;
+        }
+
+        .radar-layout.radar-view-collapsed,
+        .radar-layout.camera-view-collapsed {
+            grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+        }
+
+        .radar-layout.radar-view-collapsed {
+            grid-template-areas: "sidebar controls" "sidebar camera";
+        }
+
+        .radar-layout.camera-view-collapsed {
+            grid-template-areas: "sidebar controls" "sidebar radar";
+        }
+
+        .radar-layout.sidebar-collapsed.radar-view-collapsed,
+        .radar-layout.sidebar-collapsed.camera-view-collapsed {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .radar-layout.sidebar-collapsed.radar-view-collapsed {
+            grid-template-areas: "controls" "camera";
+        }
+
+        .radar-layout.sidebar-collapsed.camera-view-collapsed {
+            grid-template-areas: "controls" "radar";
+        }
+
+        .radar-layout.radar-view-collapsed .main-visual,
+        .radar-layout.camera-view-collapsed .camera-panel {
             display: none;
         }
 
@@ -964,9 +1098,15 @@
             }
 
             .radar-layout {
+                display: flex;
+                flex-direction: column;
                 height: auto;
                 max-width: 100%;
-                grid-template-columns: minmax(0, 1fr);
+                gap: 14px;
+            }
+
+            .view-switchbar {
+                width: 100%;
                 gap: 14px;
             }
 
@@ -982,6 +1122,10 @@
                 height: auto;
                 max-width: 100%;
                 padding-top: 0;
+            }
+
+            .radar-layout.camera-view-collapsed .main-visual {
+                display: flex;
             }
 
             .camera-panel {
@@ -1224,7 +1368,11 @@
             </div>
 
 
-            <div class="main-visual">
+            <div class="view-switchbar" role="group" aria-label="主要视图显示">
+                <div class="view-switch-control"><button id="radarViewToggleBtn" class="view-toggle" type="button" aria-controls="radarView" aria-expanded="true" aria-label="收起雷达视图" title="收起雷达视图"></button><span>雷达 PPI</span></div>
+                <div class="view-switch-control"><button id="cameraViewToggleBtn" class="view-toggle" type="button" aria-controls="cameraView" aria-expanded="true" aria-label="收起相机视图" title="收起相机视图"></button><span>相机同步</span></div>
+            </div>
+            <div id="radarView" class="main-visual">
                 <div class="ppi-topbar">
                     <div id="localMapBadge" class="local-map-badge">LOCAL MAP FRAMEWORK · 局部地图关闭</div>
                     <div class="ppi-view-toolbar">
@@ -1248,7 +1396,7 @@
                     <canvas id="rangeProfileCanvas" class="hud-chart" width="960" height="120"></canvas>
                 </div>
             </div>
-            <section class="camera-panel" aria-label="相机同步画面">
+            <section id="cameraView" class="camera-panel" aria-label="相机同步画面">
                 <div class="camera-heading">
                     <span>CAMERA / RADAR SYNC</span>
                     <span id="cameraStatus" class="camera-status-disabled">disabled</span>
@@ -4355,6 +4503,36 @@
             button.setAttribute('aria-label', label);
             button.title = label;
             button.setAttribute('aria-expanded', String(!collapsed));
+        });
+
+        const primaryViewLayout = document.querySelector('.radar-layout');
+        const radarViewToggleBtn = document.getElementById('radarViewToggleBtn');
+        const cameraViewToggleBtn = document.getElementById('cameraViewToggleBtn');
+
+        function updatePrimaryViewButtons() {
+            const radarVisible = !primaryViewLayout.classList.contains('radar-view-collapsed');
+            const cameraVisible = !primaryViewLayout.classList.contains('camera-view-collapsed');
+            for (const [button, visible, name] of [
+                [radarViewToggleBtn, radarVisible, '雷达视图'],
+                [cameraViewToggleBtn, cameraVisible, '相机视图']
+            ]) {
+                const label = `${visible ? '收起' : '展开'}${name}`;
+                button.setAttribute('aria-expanded', String(visible));
+                button.setAttribute('aria-label', label);
+                button.title = visible && (radarVisible !== cameraVisible)
+                    ? '至少保留一个展示视图' : label;
+            }
+            radarViewToggleBtn.disabled = radarVisible && !cameraVisible;
+            cameraViewToggleBtn.disabled = cameraVisible && !radarVisible;
+        }
+
+        radarViewToggleBtn.addEventListener('click', () => {
+            primaryViewLayout.classList.toggle('radar-view-collapsed');
+            updatePrimaryViewButtons();
+        });
+        cameraViewToggleBtn.addEventListener('click', () => {
+            primaryViewLayout.classList.toggle('camera-view-collapsed');
+            updatePrimaryViewButtons();
         });
 
         window.addEventListener('load', loadIpHistory);
