@@ -1488,17 +1488,15 @@ class RadarAppTests(unittest.TestCase):
             camera_button.click()
             self.assertFalse(camera.is_visible())
             self.assertGreater(radar.bounding_box()["width"], radar_width * 1.7)
-            self.assertLessEqual(
-                abs(
-                    page.evaluate("document.querySelector('.main-visual').getBoundingClientRect().bottom")
-                    - page.evaluate("document.querySelector('.profile-panel').getBoundingClientRect().bottom")
-                ),
-                2,
-            )
-            self.assertGreater(
-                page.locator("#radarCanvas").bounding_box()["width"],
-                radar_canvas_width * 1.1,
-            )
+            canvas_box = page.locator("#radarCanvas").bounding_box()
+            badge_box = page.locator("#localMapBadge").bounding_box()
+            toolbar_box = page.locator(".ppi-view-toolbar").bounding_box()
+            profile_box = page.locator(".profile-panel").bounding_box()
+            self.assertGreater(canvas_box["width"], radar_canvas_width * 1.2)
+            for box in (badge_box, toolbar_box, profile_box):
+                self.assertGreater(box["x"], canvas_box["x"] + canvas_box["width"])
+            self.assertLess(badge_box["y"], toolbar_box["y"])
+            self.assertLess(toolbar_box["y"], profile_box["y"])
             self.assertEqual(camera_button.get_attribute("aria-label"), "展开相机视图")
             self.assertTrue(radar_button.is_disabled())
             camera_button.click()
