@@ -214,11 +214,19 @@
         }
 
         #intensityPpiStatus {
-            margin-top: 4px;
+            flex: 1 1 auto;
+            min-width: 0;
             line-height: 1.35;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+
+        .ppi-status-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: 4px;
         }
 
         .ppi-view-toolbar select {
@@ -227,6 +235,19 @@
             color: #d6fbff;
             border-radius: 4px;
             padding: 4px;
+        }
+
+        #ppiContrastMode {
+            flex: 0 0 82px;
+            width: 82px;
+            height: 16px;
+            padding: 0;
+            font-size: 10px;
+        }
+
+        .ppi-contrast-label {
+            flex: 0 0 auto;
+            font-size: 10px;
         }
 
         .local-map-badge {
@@ -1412,7 +1433,14 @@
                             <label for="ppiDisplayBrightnessInput">亮度</label>
                             <input id="ppiDisplayBrightnessInput" type="range" min="10" max="100" value="60" aria-label="TLV2 显示亮度">
                         </div>
-                        <div id="intensityPpiStatus" role="status">切换后显示实测方位线；未采样方位留白。仅调显示，不是 SNR 门限</div>
+                        <div class="ppi-status-row">
+                            <div id="intensityPpiStatus" role="status">切换后显示实测方位线；未采样方位留白。仅调显示，不是 SNR 门限</div>
+                            <label class="ppi-contrast-label" for="ppiContrastMode">回波对比</label>
+                            <select id="ppiContrastMode" aria-label="TLV2 回波对比方式" title="仅改变显示；原始 TLV2 数据不变">
+                                <option value="adaptive" selected>背景扣除</option>
+                                <option value="raw">原始强度</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
                 <canvas id="radarCanvas" width="800" height="800"></canvas>
@@ -3351,11 +3379,45 @@
                 seen.add(spoke.seq);
                 changed = true;
             }
-            if (intensityPpiState.spokes.length > 128) {
-                intensityPpiState.spokes.splice(0, intensityPpiState.spokes.length - 128);
+            // Keep more than one 400-spoke revolution, but bound memory when the motor stops.
+            if (intensityPpiState.spokes.length > 512) {
+                intensityPpiState.spokes.splice(0, intensityPpiState.spokes.length - 512);
                 changed = true;
             }
             return changed;
+        }
+
+        function buildIntensityPpiContrastModel(spokes, firstBin, maxBin, step, adaptive) {
+            const background = adaptive && spokes.length >= 8 ? new Float32Array(maxBin + 1) : null;
+            if (background) {
+                const stride = Math.max(1, Math.floor(spokes.length / 64));
+                for (let bin = firstBin; bin <= maxBin; bin += step) {
+                    const samples = [];
+                    for (let i = 0; i < spokes.length; i += stride) {
+                        samples.push(spokes[i].range_profile[bin]);
+                    }
+                    samples.sort((a, b) => a - b);
+                    background[bin] = samples[Math.floor(samples.length / 2)];
+                }
+            }
+            const values = [];
+            const valueStride = Math.max(1, Math.floor(spokes.length / 128));
+            for (let i = 0; i < spokes.length; i += valueStride) {
+                for (let bin = firstBin; bin <= maxBin; bin += step) {
+                    values.push(Math.max(0, spokes[i].range_profile[bin] - (background ? background[bin] : 0)));
+                }
+            }
+            values.sort((a, b) => a - b);
+            const floor = values[Math.floor(0.05 * (values.length - 1))] || 0;
+            const high = values[Math.floor(0.995 * (values.length - 1))] || 0;
+            const ceiling = high > floor ? high : (values[values.length - 1] || floor);
+            return {background, floor, ceiling};
+        }
+
+        function ppiIntensityNormalized(value, bin, model) {
+            if (!(model.ceiling > model.floor)) return 0;
+            const residual = Math.max(0, value - (model.background ? model.background[bin] : 0));
+            return Math.max(0, Math.min(1, (residual - model.floor) / (model.ceiling - model.floor)));
         }
 
         function renderIntensityPpiFrame(data, changed) {
@@ -3375,12 +3437,13 @@
                 Number(document.getElementById('ppiDisplayThresholdInput').value) / 100));
             const brightness = Math.max(0.1, Math.min(1,
                 Number(document.getElementById('ppiDisplayBrightnessInput').value) / 100));
+            const adaptive = document.getElementById('ppiContrastMode').value === 'adaptive';
             status.textContent = `${spokes.length} 条实测方位线 · 未采样方位留白 · ` +
                 (binSize ? `盲区 ${blindZone.toFixed(2)}m` : '米制盲区未应用') +
-                ` · 抑制 ${Math.round(threshold * 100)}% / 亮度 ${Math.round(brightness * 100)}%`;
+                ` · ${adaptive ? '背景扣除' : '原始强度'} · 抑制 ${Math.round(threshold * 100)}% / 亮度 ${Math.round(brightness * 100)}%`;
             status.title = (binSize ? '理论距离轴，未经实测标定' :
                 '距离格索引，未标定；米制盲区未应用：缺少距离格宽') +
-                '；背景抑制和亮度仅改变显示，不是 SNR 门限；主机解包时间配准，非 RF 采集时间';
+                '；回波对比、背景抑制和亮度仅改变显示，不是 SNR 门限；主机解包时间配准，非 RF 采集时间';
             setPointsDisplay(`TLV2 ${spokes.length} 条方位线（非点云）`);
             document.getElementById('targetsDisplay').innerText = '强度诊断';
             const now = performance.now();
@@ -3421,14 +3484,8 @@
                 return;
             }
             const step = Math.max(1, Math.ceil(maxBin / radiusPx));
-            const values = [];
-            for (const spoke of spokes) {
-                for (let bin = firstBin; bin <= maxBin; bin += step) values.push(spoke.range_profile[bin]);
-            }
-            values.sort((a, b) => a - b);
-            const floor = values[Math.floor(0.05 * (values.length - 1))];
-            const ceiling = values[Math.floor(0.99 * (values.length - 1))];
-            if (!(ceiling > floor)) {
+            const contrast = buildIntensityPpiContrastModel(spokes, firstBin, maxBin, step, adaptive);
+            if (!(contrast.ceiling > contrast.floor)) {
                 paintBlindZone();
                 return;
             }
@@ -3438,8 +3495,7 @@
                 const dx = Math.sin(angle);
                 const dy = -Math.cos(angle);
                 for (let bin = firstBin; bin <= maxBin; bin += step) {
-                    const value = Math.max(0, Math.min(1,
-                        (spoke.range_profile[bin] - floor) / (ceiling - floor)));
+                    const value = ppiIntensityNormalized(spoke.range_profile[bin], bin, contrast);
                     if (value <= threshold) continue;
                     const adjusted = (value - threshold) / (1 - threshold);
                     const bucket = Math.max(1, Math.min(15, Math.ceil(adjusted * 15)));
@@ -4454,6 +4510,11 @@
                     renderIntensityPpiFrame(latestCalibrationRadarFrame || {range_profile: []}, true);
                 }
             });
+        });
+        document.getElementById('ppiContrastMode').addEventListener('change', () => {
+            if (document.getElementById('ppiViewSelect').value === 'intensity') {
+                renderIntensityPpiFrame(latestCalibrationRadarFrame || {range_profile: []}, true);
+            }
         });
 
         document.getElementById('lineMinLengthInput').addEventListener('input', (e) => {

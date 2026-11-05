@@ -23,6 +23,20 @@ def frame(number, when, point=None):
 
 
 class LiveScanAssemblerTests(unittest.TestCase):
+    def test_default_profile_capacity_retains_four_hundred_measured_spokes(self):
+        scan = LiveScanAssembler(direction=1, zero_deg=0, mounting_yaw_deg=0,
+                                 mounting_roll_deg=0)
+        scan.add_motor_sample(sample(1.0, 0))
+        for number in range(1, 401):
+            source = frame(number, 1.0 + number * 0.005 - 0.0025)
+            source["range_profile"] = [100, 200, 300]
+            scan.add_frame(source)
+            scan.add_motor_sample(sample(1.0 + number * 0.005, number * 0.8))
+        batch = scan.profile_delta(None, 0, max_spokes=512)
+        self.assertEqual(len(batch["spokes"]), 400)
+        self.assertEqual(batch["spokes"][0]["frame_num"], 1)
+        self.assertEqual(batch["spokes"][-1]["frame_num"], 400)
+
     def test_registered_tlv2_profiles_are_delivered_once_with_measured_yaw(self):
         scan = LiveScanAssembler(direction=1, zero_deg=0, mounting_yaw_deg=0,
                                  mounting_roll_deg=0)

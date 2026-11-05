@@ -30,6 +30,14 @@ def camera_png(width, height):
 
 
 class RadarAppMarkupTests(unittest.TestCase):
+    def test_intensity_ppi_offers_background_subtraction_with_raw_comparison(self):
+        app_html = (Path(__file__).resolve().parents[1] / "radar_app.html").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('id="ppiContrastMode"', app_html)
+        self.assertIn('value="adaptive" selected', app_html)
+        self.assertIn('value="raw"', app_html)
+
     def test_live_intensity_ppi_has_explicit_view_switch_and_caveat(self):
         app_html = (Path(__file__).resolve().parents[1] / "radar_app.html").read_text(
             encoding="utf-8"
@@ -238,6 +246,52 @@ class RadarAppMarkupTests(unittest.TestCase):
 class RadarAppTests(unittest.TestCase):
     def _new_browser(self, playwright):
         return playwright.chromium.launch(headless=True, executable_path=str(CHROME_EXECUTABLE))
+
+    def test_intensity_ppi_keeps_four_hundred_measured_spokes(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.goto(page_url, wait_until="networkidle")
+            observed = page.evaluate("""() => {
+                const spokes = Array.from({length: 400}, (_, index) => ({
+                    seq: index + 1, yaw_deg: index * 0.8,
+                    range_profile: [100, 200, 300], range_profile_bin_size_m: 0.05,
+                }));
+                ingestIntensityPpi({generation: 'test-400', oldest_seq: 1, spokes});
+                return [intensityPpiState.spokes.length,
+                    intensityPpiState.spokes[0].seq,
+                    intensityPpiState.spokes.at(-1).seq];
+            }""")
+            self.assertEqual(observed, [400, 1, 400])
+            browser.close()
+
+    def test_adaptive_ppi_contrast_separates_local_echo_from_range_pedestal(self):
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.goto(page_url, wait_until="networkidle")
+            result = page.evaluate("""() => {
+                const spokes = Array.from({length: 32}, (_, angle) => ({
+                    range_profile: Array.from({length: 32}, (_, bin) =>
+                        500 + bin * 20 + (angle % 3) * 2),
+                }));
+                spokes[5].range_profile[10] += 300;
+                const enhanced = buildIntensityPpiContrastModel(spokes, 1, 31, 1, true);
+                const raw = buildIntensityPpiContrastModel(spokes, 1, 31, 1, false);
+                return {
+                    target: ppiIntensityNormalized(spokes[5].range_profile[10], 10, enhanced),
+                    background: ppiIntensityNormalized(spokes[6].range_profile[10], 10, enhanced),
+                    rawBackground: ppiIntensityNormalized(spokes[6].range_profile[10], 10, raw),
+                    original: spokes[5].range_profile[10],
+                };
+            }""")
+            self.assertGreater(result["target"], 0.8, result)
+            self.assertLess(result["background"], 0.1, result)
+            self.assertGreater(result["rawBackground"], result["background"] + 0.15, result)
+            self.assertEqual(result["original"], 1004)
+            browser.close()
 
     def test_ppi_issue1_live_intensity_respects_metre_blind_zone(self):
         page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()

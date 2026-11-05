@@ -36,7 +36,7 @@ class LiveScanAssembler:
         max_frame_points: int = 2048,
         max_map_frames: int = 512,
         max_map_points: int = 6000,
-        max_profile_spokes: int = 128,
+        max_profile_spokes: int = 512,
         max_event_backlog: int = 2048,
     ) -> None:
         if direction not in (-1, 1):
