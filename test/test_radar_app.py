@@ -1530,6 +1530,29 @@ class RadarAppTests(unittest.TestCase):
             self.assertTrue(page.locator(".camera-panel").is_visible())
             browser.close()
 
+    def test_solo_radar_uses_page_height_when_config_panel_is_hidden(self):
+        """A hidden configuration panel must not reserve width and shrink the solo PPI."""
+        page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 2492, "height": 1263})
+            page.goto(page_url, wait_until="domcontentloaded")
+            self.assertFalse(page.locator("#configPanel").is_visible())
+            page.locator("#cameraViewToggleBtn").click()
+            canvas_box = page.locator("#radarCanvas").bounding_box()
+            layout_box = page.locator(".radar-layout").bounding_box()
+            self.assertGreater(canvas_box["height"], 950)
+            self.assertGreater(layout_box["x"] + layout_box["width"], 2400)
+            self.assertGreater(canvas_box["y"] + canvas_box["height"], 1160)
+            self.assertLessEqual(canvas_box["y"] + canvas_box["height"], 1263)
+            page.evaluate("document.getElementById('configPanel').style.display = 'block'")
+            self.assertLessEqual(
+                page.locator("#radarCanvas").bounding_box()["x"]
+                + page.locator("#radarCanvas").bounding_box()["width"],
+                page.locator("#configPanel").bounding_box()["x"],
+            )
+            browser.close()
+
     def test_manual_calibration_shortcut_opens_hidden_analysis_workspace(self):
         """Calibration must remain discoverable when the configuration panel is collapsed."""
         page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()

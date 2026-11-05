@@ -117,6 +117,17 @@
             max-width: none;
         }
 
+        @media (min-width: 1081px) {
+            /* The hidden configuration panel must not cap a solo radar presentation. */
+            .radar-container:has(.camera-view-collapsed):not(:has(.config-panel[style*="display: block"]:not(.collapsed))) {
+                padding-right: 28px;
+            }
+
+            .radar-container:has(.camera-view-collapsed):not(:has(.config-panel[style*="display: block"]:not(.collapsed))) .radar-layout {
+                max-width: none;
+            }
+        }
+
         .hud-sidebar {
             grid-area: sidebar;
             width: var(--sidebar-width);
