@@ -3,6 +3,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from radar_runtime import ConfigPathError, PointCloudRecorder, config_snapshot, resolve_config_path
 
@@ -122,9 +123,25 @@ class RecorderTests(unittest.TestCase):
             self.assertEqual([record["raw_length"] for record in records], [9, 9])
             metadata = json.loads((capture_dir / "metadata.json").read_text(encoding="utf-8"))
             self.assertEqual(metadata["active_config"]["name"], "dock.cfg")
-            self.assertEqual(metadata["recording_policy"]["sync_every_frames"], 1)
+            self.assertEqual(metadata["recording_policy"]["sync_every_frames"], 100)
             self.assertEqual(metadata["recording_status"], "completed")
             self.assertEqual(metadata["frames"], 2)
+
+    def test_default_recording_does_not_fsync_every_frame_but_syncs_on_stop(self):
+        with tempfile.TemporaryDirectory() as directory, patch("radar_runtime.os.fsync") as sync:
+            recorder = PointCloudRecorder(directory)
+            recorder.start()
+            try:
+                for frame_num in range(2):
+                    self.assertTrue(recorder.record_frame({"frame_num": frame_num, "points": []}, b"raw"))
+                deadline = time.monotonic() + 1
+                while recorder.status()["frames"] < 2 and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                self.assertEqual(recorder.status()["frames"], 2)
+                self.assertEqual(sync.call_count, 0)
+            finally:
+                recorder.stop()
+            self.assertGreater(sync.call_count, 0)
 
     def test_writer_error_stops_accepting_frames_without_blocking_stop(self):
         class BrokenRecorder(PointCloudRecorder):

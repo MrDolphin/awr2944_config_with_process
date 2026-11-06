@@ -63,7 +63,8 @@ class PointCloudRecorder:
     Frames are accepted through a bounded queue.  When storage cannot keep up,
     the recorder reports dropped frames rather than slowing or crashing the
     radar serial thread.  Each persisted frame is flushed; ``sync_every_frames``
-    controls the stronger (but slower) OS-level sync cadence.
+    controls the stronger (but slower) OS-level sync cadence. A clean stop
+    always syncs; an unclean shutdown may lose the most recent sync interval.
     """
 
     def __init__(
@@ -73,7 +74,7 @@ class PointCloudRecorder:
         clock=time.time,
         monotonic=time.monotonic,
         max_queue_size: int = 256,
-        sync_every_frames: int = 1,
+        sync_every_frames: int = 100,
     ):
         self._capture_root = Path(capture_root)
         self._clock = clock
