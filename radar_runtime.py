@@ -354,7 +354,10 @@ class PointCloudRecorder:
                 ])
             self._frames += 1
             self._points += len(points)
-            self._flush(sync=self._sync_every_frames > 0 and self._frames % self._sync_every_frames == 0)
+            sync = self._sync_every_frames > 0 and self._frames % self._sync_every_frames == 0
+        # The writer thread owns these files until stop() joins it. Disk sync must
+        # not hold the lock used by record_frame() on the serial-reading path.
+        self._flush(sync=sync)
 
     def _write_motor_sample(self, sample: Mapping[str, Any]) -> None:
         with self._lock:

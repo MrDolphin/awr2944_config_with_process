@@ -1,5 +1,6 @@
 import json
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -142,6 +143,42 @@ class RecorderTests(unittest.TestCase):
             finally:
                 recorder.stop()
             self.assertGreater(sync.call_count, 0)
+
+    def test_periodic_fsync_does_not_block_frame_enqueue(self):
+        sync_started = threading.Event()
+        release_sync = threading.Event()
+        enqueue_finished = threading.Event()
+        accepted = []
+
+        def delayed_fsync(_fd):
+            sync_started.set()
+            release_sync.wait(2)
+
+        with tempfile.TemporaryDirectory() as directory, patch("radar_runtime.os.fsync", side_effect=delayed_fsync):
+            recorder = PointCloudRecorder(directory, sync_every_frames=1)
+            capture_dir = Path(recorder.start())
+            producer = None
+            try:
+                self.assertTrue(recorder.record_frame({"frame_num": 1, "points": []}, b"first"))
+                self.assertTrue(sync_started.wait(1), "writer never reached periodic fsync")
+
+                def enqueue_next():
+                    accepted.append(recorder.record_frame({"frame_num": 2, "points": []}, b"second"))
+                    enqueue_finished.set()
+
+                producer = threading.Thread(target=enqueue_next, daemon=True)
+                producer.start()
+                enqueued_during_sync = enqueue_finished.wait(0.5)
+            finally:
+                release_sync.set()
+                if producer is not None:
+                    producer.join(2)
+                status = recorder.stop()
+
+            self.assertTrue(enqueued_during_sync, "periodic fsync blocked the serial producer")
+            self.assertEqual(accepted, [True])
+            self.assertEqual(status["frames"], 2)
+            self.assertEqual((capture_dir / "frames.tlv").read_bytes(), b"firstsecond")
 
     def test_writer_error_stops_accepting_frames_without_blocking_stop(self):
         class BrokenRecorder(PointCloudRecorder):
