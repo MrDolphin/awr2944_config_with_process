@@ -3420,6 +3420,42 @@
             return Math.max(0, Math.min(1, (residual - model.floor) / (model.ceiling - model.floor)));
         }
 
+        function buildIntensityPpiCells(spokes) {
+            // Display support, NOT an antenna beamwidth or a coverage claim.
+            // Estimate normal spacing in acquisition order (not interleaved old turns).
+            const deltas = [];
+            const byAngle = new Map();
+            let previous = null;
+            for (const spoke of spokes) {
+                if (!Number.isFinite(spoke.yaw_deg)) continue;
+                const angle = ((spoke.yaw_deg % 360) + 360) % 360;
+                if (previous !== null) {
+                    const delta = Math.abs(((angle - previous + 540) % 360) - 180);
+                    if (delta > 1e-6) deltas.push(delta);
+                }
+                previous = angle;
+                byAngle.set(angle, spoke); // latest observation wins at identical bearing
+            }
+            deltas.sort((a, b) => a - b);
+            const middle = Math.floor(deltas.length / 2);
+            const typical = deltas.length
+                ? (deltas[middle] + deltas[Math.max(0, Math.ceil(deltas.length / 2) - 1)]) / 2
+                : 0.9;
+            // At most 6 degrees per cell even when only a few bearings were sampled.
+            const normal = Math.min(6, typical);
+            const angles = [...byAngle.keys()].sort((a, b) => a - b);
+            const halfWidth = gap => gap <= normal * 1.5 + 1e-6
+                ? Math.min(3, gap / 2) : normal / 2;
+            return angles.map((angle, index) => {
+                const leftGap = angles.length > 1
+                    ? (angle - angles[(index + angles.length - 1) % angles.length] + 360) % 360 : 360;
+                const rightGap = angles.length > 1
+                    ? (angles[(index + 1) % angles.length] - angle + 360) % 360 : 360;
+                return {spoke: byAngle.get(angle), start_deg: angle - halfWidth(leftGap),
+                    end_deg: angle + halfWidth(rightGap)};
+            });
+        }
+
         function renderIntensityPpiFrame(data, changed) {
             updateRadarDisplayRange();
             lastRangeProfile = Array.isArray(data.range_profile) ? data.range_profile : [];
@@ -3440,10 +3476,10 @@
             const adaptive = document.getElementById('ppiContrastMode').value === 'adaptive';
             status.textContent = `${spokes.length} 条实测方位线 · 未采样方位留白 · ` +
                 (binSize ? `盲区 ${blindZone.toFixed(2)}m` : '米制盲区未应用') +
-                ` · ${adaptive ? '背景扣除' : '原始强度'} · 抑制 ${Math.round(threshold * 100)}% / 亮度 ${Math.round(brightness * 100)}%`;
+                ` · 有界扇形 · ${adaptive ? '背景扣除' : '原始强度'} · 抑制 ${Math.round(threshold * 100)}% / 亮度 ${Math.round(brightness * 100)}%`;
             status.title = (binSize ? '理论距离轴，未经实测标定' :
                 '距离格索引，未标定；米制盲区未应用：缺少距离格宽') +
-                '；回波对比、背景抑制和亮度仅改变显示，不是 SNR 门限；主机解包时间配准，非 RF 采集时间';
+                '；扇形为显示单元，不是实测波束宽度：正常相邻角中点分界，超过典型间隔 1.5 倍保留缺口，单元最大 6°；回波对比、背景抑制和亮度仅改变显示，不是 SNR 门限；主机解包时间配准，非 RF 采集时间';
             setPointsDisplay(`TLV2 ${spokes.length} 条方位线（非点云）`);
             document.getElementById('targetsDisplay').innerText = '强度诊断';
             const now = performance.now();
@@ -3490,27 +3526,30 @@
                 return;
             }
             const paths = Array.from({length: 16}, () => new Path2D());
-            for (const spoke of spokes) {
-                const angle = spoke.yaw_deg * Math.PI / 180;
-                const dx = Math.sin(angle);
-                const dy = -Math.cos(angle);
+            for (const cell of buildIntensityPpiCells(spokes)) {
+                const spoke = cell.spoke;
+                const start = (cell.start_deg - 90) * Math.PI / 180;
+                const end = (cell.end_deg - 90) * Math.PI / 180;
                 for (let bin = firstBin; bin <= maxBin; bin += step) {
                     const value = ppiIntensityNormalized(spoke.range_profile[bin], bin, contrast);
                     if (value <= threshold) continue;
                     const adjusted = (value - threshold) / (1 - threshold);
                     const bucket = Math.max(1, Math.min(15, Math.ceil(adjusted * 15)));
-                    const r0 = radiusPx * Math.max(0, bin - step / 2) / maxBin;
-                    const r1 = radiusPx * Math.min(maxBin, bin + step / 2) / maxBin;
-                    paths[bucket].moveTo(cx + dx * r0, cy + dy * r0);
-                    paths[bucket].lineTo(cx + dx * r1, cy + dy * r1);
+                    const scale = binSize ? binSize / axisMax : 1 / maxBin;
+                    const r0 = radiusPx * Math.max(0, bin - step / 2) * scale;
+                    const r1 = radiusPx * Math.min(maxBin, bin + step / 2) * scale;
+                    const path = paths[bucket];
+                    path.moveTo(cx + Math.cos(start) * r0, cy + Math.sin(start) * r0);
+                    path.arc(cx, cy, r1, start, end);
+                    path.arc(cx, cy, r0, end, start, true);
+                    path.closePath();
                 }
             }
             ctx.save();
-            ctx.lineWidth = 2;
             for (let bucket = 1; bucket < paths.length; bucket++) {
-                ctx.strokeStyle = `rgba(30, 255, 80, ${Math.min(0.95,
+                ctx.fillStyle = `rgba(30, 255, 80, ${Math.min(0.95,
                     (0.08 + 0.88 * bucket / 15) * brightness)})`;
-                ctx.stroke(paths[bucket]);
+                ctx.fill(paths[bucket]);
             }
             ctx.restore();
             paintBlindZone();

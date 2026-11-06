@@ -247,6 +247,82 @@ class RadarAppTests(unittest.TestCase):
     def _new_browser(self, playwright):
         return playwright.chromium.launch(headless=True, executable_path=str(CHROME_EXECUTABLE))
 
+    def test_ppi_sector_bounds_preserve_missing_angles_and_wrap(self):
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page()
+            page.goto((Path(__file__).resolve().parents[1] / "radar_app.html").as_uri())
+            result = page.evaluate("""() => {
+                const cells = angles => buildIntensityPpiCells(angles.map((yaw_deg, seq) =>
+                    ({yaw_deg, seq, range_profile: [seq]})));
+                const width = c => c.end_deg - c.start_deg;
+                return {
+                    rings: [200, 400].map(n => cells(Array.from({length:n}, (_,i)=>i*360/n))
+                        .reduce((sum,c)=>sum+width(c),0)),
+                    gap: cells([0,1.8,3.6,14.4,16.2]).map(c=>[c.start_deg,c.end_deg]),
+                    wrap: cells([358.2,0,1.8]).map(c=>[c.start_deg,c.end_deg]),
+                    reverse: cells([16.2,14.4,3.6,1.8,0]).map(c=>[c.start_deg,c.end_deg]),
+                    sparse: cells([0,18,36]).map(width),
+                    single: cells([90]).map(width),
+                    duplicate: cells([0,0,1.8]).map(c=>c.spoke.seq),
+                    empty: cells([]),
+                };
+            }""")
+            for width in result["rings"]:
+                self.assertAlmostEqual(width, 360)
+            self.assertAlmostEqual(result["gap"][2][1], 4.5)
+            self.assertAlmostEqual(result["gap"][3][0], 13.5)
+            for forward, reverse in zip(result["gap"], result["reverse"]):
+                for a, b in zip(forward, reverse):
+                    self.assertAlmostEqual(a, b)
+            self.assertAlmostEqual(result["wrap"][0][0], -0.9)
+            self.assertAlmostEqual(result["wrap"][-1][1], 359.1)
+            self.assertTrue(all(0 < w <= 6 for w in result["sparse"]))
+            self.assertTrue(0 < result["single"][0] <= 1)
+            self.assertEqual(result["duplicate"], [1, 2])
+            self.assertEqual(result["empty"], [])
+            browser.close()
+
+    def test_ppi_sector_pixels_widen_outward_without_painting_big_gap(self):
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width":1440,"height":900})
+            page.goto((Path(__file__).resolve().parents[1] / "radar_app.html").as_uri())
+            result = page.evaluate("""() => {
+                document.getElementById('f_fovRange').value = '8';
+                document.getElementById('blindZoneInput').value = '0';
+                document.getElementById('ppiContrastMode').value = 'raw';
+                document.getElementById('ppiDisplayThresholdInput').value = '0';
+                document.getElementById('ppiDisplayBrightnessInput').value = '100';
+                // Equal bright bins from 1 to 7 m, surrounded by dark background bins.
+                const profile = Array.from({length:161},(_,i)=>i>=20&&i<=140?900:100);
+                intensityPpiState.spokes = [0,6,12,30,36].map((yaw_deg,seq)=>
+                    ({seq,yaw_deg,axisM:0.05,range_profile:profile}));
+                renderIntensityPpiFrame({range_profile:profile,range_profile_bin_size_m:0.05},true);
+                const cx=canvas.width/2, cy=canvas.height/2;
+                const radius=Math.min(canvas.width,canvas.height)*0.46;
+                const pixel=(r,a)=>{
+                    const t=a*Math.PI/180;
+                    const p=ctx.getImageData(Math.round(cx+r*Math.sin(t)),
+                        Math.round(cy-r*Math.cos(t)),1,1).data;
+                    return p[1]-p[0];
+                };
+                const width=r=>{
+                    let n=0;
+                    for(let x=0;x<=30;x++){
+                        const p=ctx.getImageData(Math.round(cx-x),Math.round(cy-r),1,1).data;
+                        if(p[1]-p[0]>80)n++; else break;
+                    }
+                    return n;
+                };
+                return {inner:width(radius*0.25),outer:width(radius*0.75),
+                    cell:pixel(radius*0.7,1.5),gap:pixel(radius*0.7,21)};
+            }""")
+            self.assertGreater(result["outer"], result["inner"] * 1.7, result)
+            self.assertGreater(result["cell"], 80, result)
+            self.assertLess(result["gap"], 60, result)
+            browser.close()
+
     def test_intensity_ppi_keeps_four_hundred_measured_spokes(self):
         page_url = (Path(__file__).resolve().parents[1] / "radar_app.html").as_uri()
         with sync_playwright() as playwright:
