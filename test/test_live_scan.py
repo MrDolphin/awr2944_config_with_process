@@ -23,6 +23,63 @@ def frame(number, when, point=None):
 
 
 class LiveScanAssemblerTests(unittest.TestCase):
+    def test_coverage_counts_unique_angles_and_wrap_gap_not_painted_area(self):
+        for direction in (1, -1):
+            scan = LiveScanAssembler(direction=direction, zero_deg=0, mounting_yaw_deg=0,
+                                     mounting_roll_deg=0)
+            scan.add_motor_sample(sample(1, 0))
+            for n in range(1, 61):
+                if n not in (10, 11):
+                    source = frame(n, 1 + n * .02 - .01)
+                    source['range_profile'] = [100, 100, 100]
+                    scan.add_frame(source)
+                scan.add_motor_sample(sample(1 + n * .02, direction * n * 6 % 360))
+            coverage = scan.snapshot(now_monotonic_s=2.2)['coverage']
+            self.assertEqual(coverage['window'], 'rolling_360_deg')
+            self.assertEqual(coverage['valid_spokes'], 58)
+            self.assertEqual(coverage['unique_azimuths'], 58)
+            self.assertAlmostEqual(coverage['max_gap_deg'], 18)
+            self.assertFalse(coverage['capacity_limited'])
+            self.assertEqual(coverage['phase'], 'rolling')
+
+    def test_coverage_empty_stationary_and_stale_are_not_complete_scans(self):
+        scan = LiveScanAssembler(direction=1, zero_deg=0, mounting_yaw_deg=0,
+                                 mounting_roll_deg=0)
+        self.assertIsNone(scan.snapshot(now_monotonic_s=1)['coverage']['max_gap_deg'])
+        scan.add_motor_sample(sample(1, 359))
+        for n in (1, 2):
+            source = frame(n, 1 + n * .02 - .01)
+            source['range_profile'] = [100, 100]
+            scan.add_frame(source)
+            scan.add_motor_sample(sample(1 + n * .02, 359))
+        coverage = scan.snapshot(now_monotonic_s=1.04)['coverage']
+        self.assertEqual(coverage['valid_spokes'], 2)
+        self.assertEqual(coverage['unique_azimuths'], 1)
+        self.assertEqual(coverage['max_gap_deg'], 360)
+        self.assertEqual(coverage['phase'], 'collecting')
+        stale = scan.snapshot(now_monotonic_s=3)['coverage']
+        self.assertEqual(stale['valid_spokes'], 0)
+        self.assertIsNone(stale['max_gap_deg'])
+        self.assertEqual(stale['phase'], 'stale')
+
+    def test_coverage_reports_capacity_eviction_until_it_leaves_window(self):
+        scan = LiveScanAssembler(direction=1, zero_deg=0, mounting_yaw_deg=0,
+                                 mounting_roll_deg=0, max_profile_spokes=2)
+        scan.add_motor_sample(sample(1, 0))
+        for n in range(1, 4):
+            source = frame(n, 1 + n * .02 - .01)
+            source['range_profile'] = [100, 200]
+            scan.add_frame(source)
+            scan.add_motor_sample(sample(1 + n * .02, n * 6))
+        self.assertTrue(scan.snapshot(now_monotonic_s=1.06)['coverage']['capacity_limited'])
+        for n in range(4, 64):
+            scan.add_motor_sample(sample(1 + n * .02, n * 6 % 360))
+        coverage = scan.snapshot(now_monotonic_s=2.26)['coverage']
+        self.assertFalse(coverage['capacity_limited'])
+        self.assertEqual(coverage['valid_spokes'], 0)
+        scan.reset()
+        self.assertEqual(scan.snapshot(now_monotonic_s=3)['coverage']['phase'], 'stale')
+
     def test_default_profile_capacity_retains_four_hundred_measured_spokes(self):
         scan = LiveScanAssembler(direction=1, zero_deg=0, mounting_yaw_deg=0,
                                  mounting_roll_deg=0)

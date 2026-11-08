@@ -222,6 +222,20 @@
             text-overflow: ellipsis;
         }
 
+        #ppiCoverageStatus {
+            display: none;
+            margin-top: 5px;
+            line-height: 1.4;
+            height: 2.8em;
+            overflow: auto;
+            color: #b9dfe7;
+            overflow-wrap: anywhere;
+        }
+
+        .main-visual:has(#ppiViewSelect option[value="intensity"]:checked) #ppiCoverageStatus {
+            display: block;
+        }
+
         .ppi-status-row {
             display: flex;
             align-items: center;
@@ -286,6 +300,11 @@
             height: auto;
             max-width: 100%;
             max-height: calc(100vh - 400px);
+        }
+
+        .radar-layout:not(.camera-view-collapsed) .main-visual:has(#ppiViewSelect option[value="intensity"]:checked) #radarCanvas {
+            width: min(100%, calc(100vh - 440px));
+            max-height: calc(100vh - 440px);
         }
 
         .radar-layout.camera-view-collapsed .main-visual {
@@ -1130,6 +1149,11 @@
                 width: min(100%, calc(100vh - 420px));
                 max-height: calc(100vh - 420px);
             }
+
+            .radar-layout:not(.camera-view-collapsed) .main-visual:has(#ppiViewSelect option[value="intensity"]:checked) #radarCanvas {
+                width: min(100%, calc(100vh - 460px));
+                max-height: calc(100vh - 460px);
+            }
         }
 
         @media (max-width: 1080px) {
@@ -1441,6 +1465,7 @@
                                 <option value="raw">原始强度</option>
                             </select>
                         </div>
+                        <div id="ppiCoverageStatus" role="status">方位覆盖：等待服务端诊断；外圈短刻度表示采样位置，不是目标</div>
                     </div>
                 </div>
                 <canvas id="radarCanvas" width="800" height="800"></canvas>
@@ -3463,6 +3488,24 @@
             drawRangeProfile(lastRangeProfile);
             const spokes = intensityPpiState.spokes;
             const status = document.getElementById('intensityPpiStatus');
+            const registration = data.gimbal_scan && data.gimbal_scan.live_registration;
+            const coverage = registration && registration.coverage;
+            const coverageStatus = document.getElementById('ppiCoverageStatus');
+            if (coverage) {
+                const phase = {collecting:'首圈采集中', rolling:'滚动最近360°', stale:'编码器过期'}[coverage.phase] || '状态未知';
+                const gap = Number.isFinite(coverage.max_gap_deg) ? `${coverage.max_gap_deg.toFixed(2)}°` : '未知';
+                const rejected = Object.entries(registration.rejected_frames || {});
+                const rejectTotal = rejected.reduce((sum, [, count]) => sum + (Number(count) || 0), 0);
+                coverageStatus.textContent = `${phase} · 服务端有效线 ${coverage.valid_spokes} / 独立方位 ${coverage.unique_azimuths}` +
+                    ` · 最大角间隔 ${gap} · 累计拒绝事件 ${rejectTotal}` +
+                    (coverage.capacity_limited ? ' · 容量截断' : '') + ' · 外圈短刻度=采样位置';
+                coverageStatus.title = '有效线与角间隔基于服务端滚动窗口，网页增量传输可能暂时落后；不是完整周扫验收，也不是波束覆盖率。' +
+                    '拒绝事件自配准器重置累计，包含帧拒绝及编码器时间异常，不是本圈丢帧数。原因：' +
+                    (rejected.map(([reason,count])=>`${reason}:${count}`).join(', ') || '无');
+            } else {
+                coverageStatus.textContent = '方位覆盖诊断未提供 · 请确认服务版本及配准状态 · 外圈短刻度=采样位置';
+                coverageStatus.title = '不能从显示亮度推断是否丢帧；未提供诊断时不显示零缺口。';
+            }
             const binSize = spokes.length ? spokes[0].axisM :
                 (Number.isFinite(lastRangeProfileBinSizeM) && lastRangeProfileBinSizeM > 0
                     ? lastRangeProfileBinSizeM : null);
@@ -3490,6 +3533,19 @@
             const radiusPx = Math.min(canvas.width, canvas.height) * 0.46;
             const cx = canvas.width / 2;
             const cy = canvas.height / 2;
+            // Show observed bearings even if every echo is below display threshold.
+            // These marks sit outside the data disc and never fill missing sectors.
+            ctx.save();
+            ctx.strokeStyle = '#81b5cf';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (const spoke of spokes) {
+                const angle = (spoke.yaw_deg - 90) * Math.PI / 180;
+                ctx.moveTo(cx + Math.cos(angle) * (radiusPx + 3), cy + Math.sin(angle) * (radiusPx + 3));
+                ctx.lineTo(cx + Math.cos(angle) * (radiusPx + 7), cy + Math.sin(angle) * (radiusPx + 7));
+            }
+            ctx.stroke();
+            ctx.restore();
             const paintBlindZone = () => {
                 if (!binSize || blindZone <= 0) return;
                 const maskRadius = radiusPx * Math.min(blindZone / axisMax, 1);

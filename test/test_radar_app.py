@@ -247,6 +247,45 @@ class RadarAppTests(unittest.TestCase):
     def _new_browser(self, playwright):
         return playwright.chromium.launch(headless=True, executable_path=str(CHROME_EXECUTABLE))
 
+    def test_ppi_coverage_labels_and_dark_observation_ticks(self):
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.goto((Path(__file__).resolve().parents[1] / "radar_app.html").as_uri())
+            self.assertFalse(page.locator('#ppiCoverageStatus').is_visible())
+            page.select_option('#ppiViewSelect', 'intensity')
+            self.assertTrue(page.locator('#ppiCoverageStatus').is_visible())
+            result = page.evaluate("""() => {
+                const profile = Array(80).fill(100);
+                intensityPpiState.spokes = [10, 12].map((yaw_deg,seq)=>
+                    ({yaw_deg,seq,axisM:0.1,range_profile:profile}));
+                renderIntensityPpiFrame({range_profile:profile, gimbal_scan:{
+                    live_registration:{coverage:{phase:'collecting', valid_spokes:2,
+                        unique_azimuths:2, max_gap_deg:358, capacity_limited:true},
+                        rejected_frames:{sample_gap:3,non_monotonic_sample:1}}}},true);
+                const text = document.getElementById('ppiCoverageStatus').textContent;
+                const title = document.getElementById('ppiCoverageStatus').title;
+                const radius = Math.min(canvas.width,canvas.height)*0.46;
+                const pixel = a => {
+                    const t=(a-90)*Math.PI/180, r=radius+5;
+                    const p=ctx.getImageData(Math.round(canvas.width/2+r*Math.cos(t)),
+                        Math.round(canvas.height/2+r*Math.sin(t)),1,1).data;
+                    return p[2];
+                };
+                const observed=pixel(10), missing=pixel(20);
+                renderIntensityPpiFrame({},true);
+                return {text,title,observed,missing,
+                    unavailable:document.getElementById('ppiCoverageStatus').textContent};
+            }""")
+            self.assertIn('首圈采集中', result['text'])
+            self.assertIn('358.00°', result['text'])
+            self.assertIn('累计拒绝事件 4', result['text'])
+            self.assertIn('容量截断', result['text'])
+            self.assertIn('sample_gap:3', result['title'])
+            self.assertGreater(result['observed'], result['missing'] + 70)
+            self.assertIn('诊断未提供', result['unavailable'])
+            browser.close()
+
     def test_ppi_sector_bounds_preserve_missing_angles_and_wrap(self):
         with sync_playwright() as playwright:
             browser = self._new_browser(playwright)
@@ -1708,18 +1747,21 @@ class RadarAppTests(unittest.TestCase):
             page = browser.new_page(viewport={"width": 2048, "height": 1100})
             page.goto(page_url, wait_until="networkidle")
             page.evaluate("document.getElementById('configPanel').classList.add('collapsed')")
-            positions = page.evaluate(
-                """() => {
-                    const bottom = selector => document.querySelector(selector).getBoundingClientRect().bottom;
-                    return {
-                        workspace: bottom('.radar-layout'),
-                        profile: bottom('.profile-panel'),
-                        camera: bottom('.camera-panel')
-                    };
-                }"""
-            )
-            self.assertLessEqual(abs(positions["workspace"] - positions["profile"]), 2)
-            self.assertLessEqual(abs(positions["workspace"] - positions["camera"]), 2)
+            for mode in ('points', 'intensity'):
+                if mode == 'intensity':
+                    page.select_option('#ppiViewSelect', 'intensity')
+                positions = page.evaluate(
+                    """() => {
+                        const bottom = selector => document.querySelector(selector).getBoundingClientRect().bottom;
+                        return {
+                            workspace: bottom('.radar-layout'),
+                            profile: bottom('.profile-panel'),
+                            camera: bottom('.camera-panel')
+                        };
+                    }"""
+                )
+                self.assertLessEqual(abs(positions["workspace"] - positions["profile"]), 2, mode)
+                self.assertLessEqual(abs(positions["workspace"] - positions["camera"]), 2, mode)
             browser.close()
 
 

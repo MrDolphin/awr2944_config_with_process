@@ -83,6 +83,7 @@ class LiveScanAssembler:
             self._profiles: deque[tuple[float, dict[str, Any]]] = deque()
             self._profile_generation = uuid.uuid4().hex
             self._profile_seq = 0
+            self._profile_capacity_eviction_progress: float | None = None
             self._events: deque[dict[str, Any]] = deque()
             self._rejected: Counter[str] = Counter()
             self._registered_frames = 0
@@ -98,6 +99,7 @@ class LiveScanAssembler:
     def _clear_map(self, reason: str) -> None:
         self._registered.clear()
         self._profiles.clear()
+        self._profile_capacity_eviction_progress = None
         self._profile_generation = uuid.uuid4().hex
         self._map_points_count = 0
         self._cumulative_angle_deg = 0.0
@@ -325,7 +327,7 @@ class LiveScanAssembler:
                     "rf_time_calibrated": False,
                 }))
                 while len(self._profiles) > self._max_profile_spokes:
-                    self._profiles.popleft()
+                    self._profile_capacity_eviction_progress, _ = self._profiles.popleft()
             self._map_points_count += len(points)
             self._trim_measured_revolution()
             while (len(self._registered) > self._max_map_frames or
@@ -346,6 +348,26 @@ class LiveScanAssembler:
             if stale and (self._registered or self._profiles):
                 self._clear_map("telemetry_stale")
             points = [] if stale else [point for _, batch in self._registered for point in batch]
+            # Bearings describe retained observations, not antenna coverage or
+            # painted sector area. Include the wrap gap even during the first turn.
+            angles = sorted({round(profile['yaw_deg'] % 360.0, 6) % 360.0
+                             for _, profile in self._profiles})
+            max_gap = max(((angles[(i + 1) % len(angles)] - angle) % 360.0
+                           for i, angle in enumerate(angles)), default=None)
+            if len(angles) == 1:
+                max_gap = 360.0
+            eviction = self._profile_capacity_eviction_progress
+            coverage = {
+                "window": "rolling_360_deg",
+                "phase": "stale" if stale else (
+                    "rolling" if self._cumulative_angle_deg >= 360.0 else "collecting"),
+                "observed_travel_deg": self._cumulative_angle_deg,
+                "valid_spokes": len(self._profiles),
+                "unique_azimuths": len(angles),
+                "max_gap_deg": max_gap,
+                "capacity_limited": (eviction is not None and
+                                     self._cumulative_angle_deg - eviction < 360.0),
+            }
             return {
                 "state": "stale" if stale else "provisional",
                 "points": points,
@@ -356,6 +378,7 @@ class LiveScanAssembler:
                 "discontinuity_reason": self._discontinuity_reason,
                 "dropped_event_backlog": self._dropped_event_backlog,
                 "rejected_frames": dict(self._rejected),
+                "coverage": coverage,
                 "last_frame_status": self._last_frame_status,
                 "last_yaw_deg": self._last_yaw_deg,
                 "last_sample_age_ms": (
