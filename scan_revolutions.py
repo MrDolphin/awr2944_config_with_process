@@ -5,7 +5,12 @@ coverage. Bearings retain host-parse timing uncertainty. Rejected events have
 no trustworthy bearing and are counted separately, not assigned invented angles.
 """
 from collections import Counter
+import argparse
+import csv
+import hashlib
+import json
 import math
+from pathlib import Path
 
 
 def analyze_revolutions(events, *, direction, zero_deg=0.0,
@@ -158,3 +163,75 @@ def analyze_capture_records(frames, events, *, direction, **options):
                   unmatched_registration_events=unmatched,
                   valid_lines_meaning='registered events; use tlv2_lines for recorded TLV2 spokes')
     return result
+
+
+def write_capture_report(capture_dir, output_dir, *, max_step_deg=10.0):
+    """Read one immutable capture and create one exclusive report directory."""
+    capture = Path(capture_dir).resolve()
+    output = Path(output_dir).resolve()
+    if not capture.is_dir() or output == capture or capture in output.parents:
+        raise ValueError('input must be a capture directory; output must be outside it')
+    if output.exists():
+        raise FileExistsError(f'output already exists: {output}')
+    metadata = json.loads((capture / 'metadata.json').read_text(encoding='utf-8'))
+    config = metadata['active_config']
+    content = config['content']
+    digest = hashlib.sha256(content.encode('utf-8')).hexdigest()
+    if digest != config['sha256']:
+        raise ValueError('captured CFG SHA-256 mismatch; report not written')
+
+    def jsonl(name):
+        with (capture / name).open(encoding='utf-8') as source:
+            return [json.loads(line) for line in source if line.strip()]
+
+    frames = jsonl('frames.jsonl')
+    events = jsonl('live_registration.jsonl')
+    registration = metadata['registration']
+    result = analyze_capture_records(
+        frames, events, direction=registration['direction'],
+        zero_deg=registration.get('zero_deg', 0.0), max_step_deg=max_step_deg)
+    result['config'] = {'name': config['name'], 'sha256': digest}
+    result['capture'] = capture.name
+    result['recording'] = {
+        key: metadata.get(key) for key in ('recording_status', 'writer_error',
+                                            'dropped_frames', 'dropped_registration_events')}
+    # Never create or overwrite outputs before parsing and validating inputs.
+    output.mkdir(parents=True, exist_ok=False)
+    (output / 'report.json').write_text(
+        json.dumps(result, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    columns = ('turn_index', 'segment', 'complete', 'end_reason', 'valid_lines',
+               'matched_raw_frames', 'tlv2_lines', 'missing_tlv2',
+               'unique_azimuths', 'max_gap_deg', 'first_frame_num',
+               'last_frame_num')
+    with (output / 'report.csv').open('w', encoding='utf-8-sig', newline='') as sink:
+        writer = csv.DictWriter(sink, fieldnames=columns, extrasaction='ignore')
+        writer.writeheader()
+        writer.writerows(result['turns'])
+    lines = [f"# 逐圈诊断：{capture.name}", '',
+             f"CFG：`{config['name']}` · SHA-256 `{digest}`", '',
+             f"原始缺帧：{result['raw_missing_frames']}；原始 TLV2 帧：{result['raw_tlv2_frames']}；"
+             f"未匹配录制边缘事件：{result['unmatched_registration_events']}",
+             f"配准拒绝：{json.dumps(result['registration_rejections'], ensure_ascii=False)}", '',
+             '完整圈仅指起止零位边界被连续观测；不代表无角度缺口。',
+             '方位采用主机解包时间配准，非 RF 采集时间；本报告不是目标探测或远距性能验证。',
+             '', '| 圈 | 完整 | TLV2线 | 最大缺口(°) | 断点原因 |',
+             '| ---: | :---: | ---: | ---: | --- |']
+    for turn in result['turns']:
+        lines.append(f"| {turn['turn_index']} | {'是' if turn['complete'] else '否'} | "
+                     f"{turn['tlv2_lines']} | {turn['max_gap_deg']:.2f} | "
+                     f"{turn['end_reason']} |")
+    (output / 'report.md').write_text('\n'.join(lines) + '\n', encoding='utf-8')
+    return result
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Offline fixed-zero TLV2 revolution report')
+    parser.add_argument('capture_dir')
+    parser.add_argument('output_dir', help='new directory outside the raw capture')
+    parser.add_argument('--max-step-deg', type=float, default=10.0)
+    args = parser.parse_args()
+    try:
+        write_capture_report(args.capture_dir, args.output_dir,
+                             max_step_deg=args.max_step_deg)
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        parser.error(str(error))

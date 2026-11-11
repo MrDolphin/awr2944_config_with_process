@@ -40,4 +40,16 @@ python -m unittest discover -s test -p test_scan_revolutions.py -v
 
 对 `capture_20261109_112501_雷达图漏线分析1` 只读试算：原始缺帧 0，586 帧均有 TLV2；3 次 `angular_span` 拒绝，2 个录制边缘配准事件无法匹配原始帧。默认 10° 连续性门限会在 13.56° 缺口切断一圈，因此严格完整圈仅两圈，分别为 150、147 条经原始帧/TLV2 核验的方位线，最大间隔约 7.95°、8.05°。此结果是主机解包时间近似配准，不是 RF 时间校准或目标探测验证。
 
-下一步：增加只读采集目录 CLI，输出逐圈 JSON/CSV 和 Markdown 到新目录并拒绝覆盖；再加入 CFG 哈希和目标有/无对照。不能把当前核心的近距/室内数据解释为 200 m 性能结论。
+当时下一步为只读采集目录 CLI、CFG 哈希核验及目标有/无对照。前两项已在下节落地；目标对照尚待开发。不能把当前核心的近距/室内数据解释为 200 m 性能结论。
+
+## 采集目录报告命令（2026-11-11）
+
+`scan_revolutions.py` 现可只读 `metadata.json`、`frames.jsonl`、`live_registration.jsonl`，从采集时的 `active_config.content` 复核 SHA-256，生成逐圈 `report.json`、`report.csv`、`report.md`。输出必须是采集目录之外的**全新目录**；已存在的目录和 CFG 哈希不符会拒绝，不覆盖原始记录。示例：
+
+```powershell
+python scan_revolutions.py 'D:\hp-laptop\USV\awr2944_radar_camera_web_fusion\docs\linux\capture_20261109_112501_雷达图漏线分析1' 'D:\radar_reports\capture_20261109_112501_report'
+```
+
+默认 `--max-step-deg 10` 是离线连续性判据，可按已论证的测试条件明确指定；不能用放宽门限来伪装连续覆盖。报告区分原始帧号缺失、TLV2 存在、配准拒绝和录制边缘未匹配事件；`complete` 仅表示有两个零位边界，不代表整圈无缺口。时间基准仍是主机解包时间，非 RF 采集时间。
+
+对上述原始采集只读试跑：CFG 为 `1TX_4RX.cfg`、哈希为 `a58a96635c5b1aaf85c96fa0ecbf40c02c9181fd51b62aca63027fc3979463df`；586 帧有 TLV2、原始帧号缺口 0；严格完整圈 2 圈，分别 150/147 条 TLV2 线，最大间隔 7.95°/8.05°。这不是目标检出率、RF 时标精度或远距性能证明。CLI 测试和核心统计测试共 16 项通过；完整回归 360 项中有 20 失败、3 错误、2 跳过，均属未修改的相机标定测试所需 OpenCV/NumPy 缺失的既有基线。下一步需要对输出原子性和异常输入再加测试，然后做有/无目标对照分析。
