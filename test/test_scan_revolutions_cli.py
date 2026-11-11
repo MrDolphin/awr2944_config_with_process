@@ -1,10 +1,14 @@
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
+
+from scan_revolutions import write_capture_report
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,6 +50,7 @@ class CaptureReportTests(unittest.TestCase):
         self.assertTrue(data['turns'][0]['complete'])
         self.assertEqual(data['config']['name'], 'test.cfg')
         self.assertIn('report.csv', [p.name for p in self.output.iterdir()])
+        self.assertTrue((self.output / 'COMPLETE').is_file())
         self.assertIn('非 RF', (self.output / 'report.md').read_text(encoding='utf-8'))
         self.assertEqual(before, {p.name: p.read_bytes() for p in self.capture.iterdir()})
         second = subprocess.run(cmd, capture_output=True, text=True)
@@ -70,6 +75,49 @@ class CaptureReportTests(unittest.TestCase):
         result = subprocess.run(cmd, capture_output=True, text=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(nested.exists())
+
+    def test_render_failure_does_not_publish_partial_report(self):
+        original_write = Path.write_text
+
+        def fail_markdown(path, *args, **kwargs):
+            if path.name == 'report.md':
+                raise OSError('simulated report write failure')
+            return original_write(path, *args, **kwargs)
+
+        with patch.object(Path, 'write_text', fail_markdown):
+            with self.assertRaisesRegex(OSError, 'simulated report'):
+                write_capture_report(self.capture, self.output, max_step_deg=100)
+        self.assertFalse(self.output.exists())
+
+    def test_publication_failure_removes_only_owned_output(self):
+        original_link = os.link
+        calls = 0
+
+        def fail_second_link(source, target):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise OSError('simulated publication failure')
+            return original_link(source, target)
+
+        with patch('scan_revolutions.os.link', fail_second_link):
+            with self.assertRaisesRegex(OSError, 'simulated publication'):
+                write_capture_report(self.capture, self.output, max_step_deg=100)
+        self.assertFalse(self.output.exists())
+
+    def test_incomplete_completion_marker_is_removed(self):
+        original_write = Path.write_text
+
+        def fail_after_marker_write(path, *args, **kwargs):
+            written = original_write(path, *args, **kwargs)
+            if path.name == 'COMPLETE':
+                raise OSError('simulated marker failure')
+            return written
+
+        with patch.object(Path, 'write_text', fail_after_marker_write):
+            with self.assertRaisesRegex(OSError, 'simulated marker'):
+                write_capture_report(self.capture, self.output, max_step_deg=100)
+        self.assertFalse(self.output.exists())
 
 
 if __name__ == '__main__':

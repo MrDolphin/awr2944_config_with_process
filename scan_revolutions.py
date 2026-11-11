@@ -10,7 +10,9 @@ import csv
 import hashlib
 import json
 import math
+import os
 from pathlib import Path
+import tempfile
 
 
 def analyze_revolutions(events, *, direction, zero_deg=0.0,
@@ -195,18 +197,11 @@ def write_capture_report(capture_dir, output_dir, *, max_step_deg=10.0):
     result['recording'] = {
         key: metadata.get(key) for key in ('recording_status', 'writer_error',
                                             'dropped_frames', 'dropped_registration_events')}
-    # Never create or overwrite outputs before parsing and validating inputs.
-    output.mkdir(parents=True, exist_ok=False)
-    (output / 'report.json').write_text(
-        json.dumps(result, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    report_json = json.dumps(result, ensure_ascii=False, indent=2) + '\n'
     columns = ('turn_index', 'segment', 'complete', 'end_reason', 'valid_lines',
                'matched_raw_frames', 'tlv2_lines', 'missing_tlv2',
                'unique_azimuths', 'max_gap_deg', 'first_frame_num',
                'last_frame_num')
-    with (output / 'report.csv').open('w', encoding='utf-8-sig', newline='') as sink:
-        writer = csv.DictWriter(sink, fieldnames=columns, extrasaction='ignore')
-        writer.writeheader()
-        writer.writerows(result['turns'])
     lines = [f"# 逐圈诊断：{capture.name}", '',
              f"CFG：`{config['name']}` · SHA-256 `{digest}`", '',
              f"原始缺帧：{result['raw_missing_frames']}；原始 TLV2 帧：{result['raw_tlv2_frames']}；"
@@ -220,7 +215,32 @@ def write_capture_report(capture_dir, output_dir, *, max_step_deg=10.0):
         lines.append(f"| {turn['turn_index']} | {'是' if turn['complete'] else '否'} | "
                      f"{turn['tlv2_lines']} | {turn['max_gap_deg']:.2f} | "
                      f"{turn['end_reason']} |")
-    (output / 'report.md').write_text('\n'.join(lines) + '\n', encoding='utf-8')
+    # Render all files in a sibling staging directory first. Claim the final
+    # path exclusively; COMPLETE is the last publication step for readers.
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=f'.{output.name}.staging-',
+                                     dir=output.parent) as temporary:
+        staging = Path(temporary)
+        (staging / 'report.json').write_text(report_json, encoding='utf-8')
+        with (staging / 'report.csv').open('w', encoding='utf-8-sig', newline='') as sink:
+            writer = csv.DictWriter(sink, fieldnames=columns, extrasaction='ignore')
+            writer.writeheader()
+            writer.writerows(result['turns'])
+        (staging / 'report.md').write_text('\n'.join(lines) + '\n', encoding='utf-8')
+        output.mkdir(exist_ok=False)
+        published = []
+        try:
+            for name in ('report.json', 'report.csv', 'report.md'):
+                target = output / name
+                os.link(staging / name, target)
+                published.append(target)
+            (output / 'COMPLETE').write_text('report files published\n', encoding='utf-8')
+        except BaseException:
+            (output / 'COMPLETE').unlink(missing_ok=True)
+            for target in published:
+                target.unlink(missing_ok=True)
+            output.rmdir()  # only remove the new, empty directory we own
+            raise
     return result
 
 
