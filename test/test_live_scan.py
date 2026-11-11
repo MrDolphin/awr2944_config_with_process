@@ -23,6 +23,45 @@ def frame(number, when, point=None):
 
 
 class LiveScanAssemblerTests(unittest.TestCase):
+    def test_latest_complete_turn_is_separate_from_rolling_window_and_cumulative_rejections(self):
+        scan = LiveScanAssembler(direction=1, zero_deg=0, mounting_yaw_deg=0,
+                                 mounting_roll_deg=0)
+        scan.add_motor_sample(sample(1, 0))
+        for n in range(1, 61):
+            if n != 10:
+                source = frame(n, 1 + n * .02 - .01)
+                if n != 11:
+                    source['range_profile'] = [100, 200]
+                scan.add_frame(source)
+            scan.add_motor_sample(sample(1 + n * .02, n * 6 % 360))
+        result = scan.snapshot(now_monotonic_s=2.2)
+        turn = result['latest_complete_turn']
+        self.assertEqual(turn['valid_tlv2_spokes'], 58)
+        self.assertAlmostEqual(turn['max_gap_deg'], 18)
+        self.assertAlmostEqual(turn['max_gap_start_deg'], 51)
+        self.assertAlmostEqual(turn['max_gap_end_deg'], 69)
+        self.assertEqual(turn['raw_frame_missing'], 1)
+        self.assertEqual(turn['tlv2_missing'], 1)
+        self.assertEqual(turn['registration_rejected'], {})
+        self.assertEqual(result['coverage']['window'], 'rolling_360_deg')
+        self.assertNotEqual(result['coverage']['valid_spokes'], None)
+
+    def test_latest_complete_turn_counts_registration_rejection_without_calling_it_raw_loss(self):
+        scan = LiveScanAssembler(direction=1, zero_deg=0, mounting_yaw_deg=0,
+                                 mounting_roll_deg=0, max_span_deg=12)
+        scan.add_motor_sample(sample(1, 0))
+        for n in range(1, 61):
+            source = frame(n, 1 + n * .02 - .01)
+            source['range_profile'] = [100, 200]
+            if n == 10:
+                source['points'][0]['x'] = float('nan')
+            scan.add_frame(source)
+            scan.add_motor_sample(sample(1 + n * .02, n * 6 % 360))
+        turn = scan.snapshot(now_monotonic_s=2.2)['latest_complete_turn']
+        self.assertEqual(turn['raw_frame_missing'], 0)
+        self.assertEqual(turn['registration_rejected'], {'invalid_point': 1})
+        self.assertEqual(turn['tlv2_missing'], 0)
+
     def test_coverage_counts_unique_angles_and_wrap_gap_not_painted_area(self):
         for direction in (1, -1):
             scan = LiveScanAssembler(direction=direction, zero_deg=0, mounting_yaw_deg=0,

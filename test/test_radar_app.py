@@ -286,6 +286,33 @@ class RadarAppTests(unittest.TestCase):
             self.assertIn('诊断未提供', result['unavailable'])
             browser.close()
 
+    def test_ppi_labels_latest_complete_turn_separately_from_rolling_window(self):
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.goto((Path(__file__).resolve().parents[1] / "radar_app.html").as_uri())
+            page.select_option('#ppiViewSelect', 'intensity')
+            text = page.evaluate("""() => {
+                renderIntensityPpiFrame({gimbal_scan:{live_registration:{
+                    coverage:{phase:'rolling',valid_spokes:120,unique_azimuths:120,
+                        max_gap_deg:11,capacity_limited:false},
+                    latest_complete_turn:{valid_tlv2_spokes:150,max_gap_deg:8.05,
+                        max_gap_start_deg:353.82,max_gap_end_deg:1.87,
+                        raw_frame_missing:0,tlv2_missing:2,
+                        registration_rejected:{angular_span:3}},
+                    rejected_frames:{angular_span:17}}}},true);
+                return document.getElementById('ppiCoverageStatus').textContent;
+            }""")
+            self.assertIn('最近完整圈', text)
+            self.assertIn('150', text)
+            self.assertIn('353.82°→1.87°', text)
+            self.assertIn('原始缺帧 0', text)
+            self.assertIn('TLV2缺失 2', text)
+            self.assertIn('配准拒绝 3', text)
+            self.assertIn('滚动窗口', text)
+            self.assertIn('累计拒绝事件 17', text)
+            browser.close()
+
     def test_ppi_sector_bounds_preserve_missing_angles_and_wrap(self):
         with sync_playwright() as playwright:
             browser = self._new_browser(playwright)

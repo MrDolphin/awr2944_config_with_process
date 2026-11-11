@@ -226,7 +226,8 @@
             display: none;
             margin-top: 5px;
             line-height: 1.4;
-            height: 2.8em;
+            min-height: 2.8em;
+            max-height: 5.6em;
             overflow: auto;
             color: #b9dfe7;
             overflow-wrap: anywhere;
@@ -3496,10 +3497,19 @@
                 const gap = Number.isFinite(coverage.max_gap_deg) ? `${coverage.max_gap_deg.toFixed(2)}°` : '未知';
                 const rejected = Object.entries(registration.rejected_frames || {});
                 const rejectTotal = rejected.reduce((sum, [, count]) => sum + (Number(count) || 0), 0);
-                coverageStatus.textContent = `${phase} · 服务端有效线 ${coverage.valid_spokes} / 独立方位 ${coverage.unique_azimuths}` +
+                const turn = registration.latest_complete_turn;
+                const turnReject = turn ? Object.values(turn.registration_rejected || {})
+                    .reduce((sum, count) => sum + (Number(count) || 0), 0) : 0;
+                const turnGap = turn && Number.isFinite(turn.max_gap_deg)
+                    ? `${turn.max_gap_deg.toFixed(2)}° (${turn.max_gap_start_deg.toFixed(2)}°→${turn.max_gap_end_deg.toFixed(2)}°)`
+                    : '未知';
+                const turnText = turn
+                    ? `最近完整圈：TLV2有效线 ${turn.valid_tlv2_spokes} · 最大缺口 ${turnGap} · 原始缺帧 ${turn.raw_frame_missing} / TLV2缺失 ${turn.tlv2_missing} / 配准拒绝 ${turnReject}`
+                    : '最近完整圈：尚无连续实测一圈';
+                coverageStatus.textContent = `${turnText} · 滚动窗口：${phase} · 服务端有效线 ${coverage.valid_spokes} / 独立方位 ${coverage.unique_azimuths}` +
                     ` · 最大角间隔 ${gap} · 累计拒绝事件 ${rejectTotal}` +
                     (coverage.capacity_limited ? ' · 容量截断' : '') + ' · 外圈短刻度=采样位置';
-                coverageStatus.title = '有效线与角间隔基于服务端滚动窗口，网页增量传输可能暂时落后；不是完整周扫验收，也不是波束覆盖率。' +
+                coverageStatus.title = '最近完整圈按编码器连续行程360°统计；跨圈及主机解包时间与RF采集时间的差异尚未标定，不代表精确物理方位覆盖。有效线与角间隔基于服务端滚动窗口，网页增量传输可能暂时落后；不是完整周扫验收，也不是波束覆盖率。' +
                     '拒绝事件自配准器重置累计，包含帧拒绝及编码器时间异常，不是本圈丢帧数。原因：' +
                     (rejected.map(([reason,count])=>`${reason}:${count}`).join(', ') || '无');
             } else {

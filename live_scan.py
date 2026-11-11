@@ -95,6 +95,38 @@ class LiveScanAssembler:
             self._map_truncated = False
             self._discontinuity_reason: str | None = None
             self._dropped_event_backlog = 0
+            self._latest_complete_turn: dict[str, Any] | None = None
+            self._reset_turn_diagnostics()
+
+    def _reset_turn_diagnostics(self) -> None:
+        self._turn_start_progress = self._cumulative_angle_deg
+        self._turn_spokes: list[float] = []
+        self._turn_raw_missing = 0
+        self._turn_tlv2_missing = 0
+        self._turn_rejected: Counter[str] = Counter()
+        self._last_raw_frame_num: int | None = None
+
+    def _finish_turn_diagnostics(self) -> None:
+        angles = sorted({round(angle % 360.0, 6) for angle in self._turn_spokes})
+        gaps = [(round((angles[(i + 1) % len(angles)] - angle) % 360.0, 6),
+                 angle, angles[(i + 1) % len(angles)])
+                for i, angle in enumerate(angles)]
+        if len(angles) == 1:
+            gaps = [(360.0, angles[0], angles[0])]
+        largest = max(gaps, default=None)
+        self._latest_complete_turn = {
+            "valid_tlv2_spokes": len(self._turn_spokes),
+            "unique_azimuths": len(angles),
+            "max_gap_deg": largest[0] if largest else None,
+            "max_gap_start_deg": largest[1] if largest else None,
+            "max_gap_end_deg": largest[2] if largest else None,
+            "raw_frame_missing": self._turn_raw_missing,
+            "tlv2_missing": self._turn_tlv2_missing,
+            "registration_rejected": dict(self._turn_rejected),
+            "time_basis": "host_packet_parse_monotonic",
+            "rf_time_calibrated": False,
+        }
+        self._reset_turn_diagnostics()
 
     def _clear_map(self, reason: str) -> None:
         self._registered.clear()
@@ -106,12 +138,15 @@ class LiveScanAssembler:
         self._last_yaw_deg = None
         self._discontinuity_reason = reason
         self._map_truncated = False
+        self._reset_turn_diagnostics()
 
     def _append_event(self, event: dict[str, Any]) -> None:
         if len(self._events) >= self._max_event_backlog:
             self._events.popleft()
             self._dropped_event_backlog += 1
         self._events.append(event)
+        if event["status"] != "registered":
+            self._turn_rejected[event["status"]] += 1
 
     def _trim_measured_revolution(self) -> None:
         while (self._registered and
@@ -187,6 +222,8 @@ class LiveScanAssembler:
             self._samples.append(measured)
             self._last_sample_midpoint_s = measured.midpoint_s
             self._process_pending()
+            if self._cumulative_angle_deg - self._turn_start_progress >= 360.0:
+                self._finish_turn_diagnostics()
 
     def add_frame(self, frame: Mapping[str, Any]) -> None:
         payload = dict(frame)
@@ -194,6 +231,13 @@ class LiveScanAssembler:
         if not math.isfinite(frame_time):
             raise ValueError("frame host_monotonic_s must be finite")
         with self._lock:
+            frame_num = int(payload.get("frame_num", -1))
+            if self._last_raw_frame_num is not None and frame_num >= 0:
+                step = (frame_num - self._last_raw_frame_num) % 2**32
+                if 1 < step < 100000:
+                    self._turn_raw_missing += step - 1
+            if frame_num >= 0:
+                self._last_raw_frame_num = frame_num
             points = payload.get("points", [])
             if isinstance(points, (list, tuple)) and len(points) > min(
                     self._max_frame_points, self._max_map_points):
@@ -226,6 +270,7 @@ class LiveScanAssembler:
                 payload["range_profile"] = list(profile)
             else:
                 payload.pop("range_profile", None)
+                self._turn_tlv2_missing += 1
             self._pending.append(payload)
             while len(self._pending) > self._max_pending_frames:
                 dropped = self._pending.popleft()
@@ -326,6 +371,7 @@ class LiveScanAssembler:
                     "range_profile_bin_size_m": bin_size,
                     "rf_time_calibrated": False,
                 }))
+                self._turn_spokes.append(float(registration.yaw_deg))
                 while len(self._profiles) > self._max_profile_spokes:
                     self._profile_capacity_eviction_progress, _ = self._profiles.popleft()
             self._map_points_count += len(points)
@@ -379,6 +425,7 @@ class LiveScanAssembler:
                 "dropped_event_backlog": self._dropped_event_backlog,
                 "rejected_frames": dict(self._rejected),
                 "coverage": coverage,
+                "latest_complete_turn": self._latest_complete_turn,
                 "last_frame_status": self._last_frame_status,
                 "last_yaw_deg": self._last_yaw_deg,
                 "last_sample_age_ms": (
