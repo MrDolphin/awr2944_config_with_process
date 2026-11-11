@@ -45,6 +45,7 @@ def analyze_revolutions(events, *, direction, zero_deg=0.0,
             last_frame_num=current[-1]['frame_num'],
             first_host_monotonic_s=current[0]['time'],
             last_host_monotonic_s=current[-1]['time'],
+            event_indices=[row['event_index'] for row in current],
             start_crossing_bracket_s=start_bracket,
             end_crossing_bracket_s=end_bracket,
         ))
@@ -67,6 +68,7 @@ def analyze_revolutions(events, *, direction, zero_deg=0.0,
             continue
         phase = (direction * (yaw - zero_deg)) % 360
         row = dict(time=time, yaw_deg=yaw, frame_num=frame, phase=phase,
+                   event_index=index,
                    config=tuple(event.get(key) for key in config_keys))
         reason = None
         if previous is not None:
@@ -108,3 +110,51 @@ def analyze_revolutions(events, *, direction, zero_deg=0.0,
                 limits=dict(max_interval_s=max_interval_s, max_step_deg=max_step_deg,
                             max_possible_rpm=max_possible_rpm),
                 valid_lines_meaning='registered events; TLV2 presence not checked')
+
+
+def analyze_capture_records(frames, events, *, direction, **options):
+    """Join recorded frame identities to registered events; no inferred spokes.
+
+    Events outside the raw recording are common at its edges. Match both frame
+    number and host timestamp so a counter reuse cannot create a false match.
+    """
+    result = analyze_revolutions(events, direction=direction, **options)
+    raw = {}
+    missing = 0
+    previous = None
+    for frame in frames:
+        number = int(frame['frame_num'])
+        stamp = float(frame['host_monotonic_s'])
+        if not 0 <= number < 2**32 or not math.isfinite(stamp):
+            raise ValueError('invalid raw frame identity')
+        key = (number, stamp)
+        if key in raw:
+            raise ValueError('duplicate raw frame identity')
+        raw[key] = frame
+        if previous is not None:
+            step = (number - previous) % 2**32
+            if step == 0 or step > 2**31:
+                raise ValueError('raw frame counter discontinuity')
+            missing += step - 1
+        previous = number
+    unmatched = 0
+    for turn in result['turns']:
+        matched = tlv2 = absent = 0
+        for index in turn.pop('event_indices'):
+            event = events[index]
+            frame = raw.get((event['frame_num'], event['host_monotonic_s']))
+            if frame is None:
+                unmatched += 1
+                continue
+            matched += 1
+            if 2 in frame['tlv_types']:
+                tlv2 += 1
+            else:
+                absent += 1
+        turn.update(matched_raw_frames=matched, tlv2_lines=tlv2,
+                    missing_tlv2=absent)
+    result.update(raw_missing_frames=missing,
+                  raw_tlv2_frames=sum(2 in frame['tlv_types'] for frame in frames),
+                  unmatched_registration_events=unmatched,
+                  valid_lines_meaning='registered events; use tlv2_lines for recorded TLV2 spokes')
+    return result

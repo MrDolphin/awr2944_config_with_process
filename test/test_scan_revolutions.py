@@ -99,6 +99,48 @@ class RevolutionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.analyze([], direction=0)
 
+    def test_capture_join_separates_raw_loss_tlv2_and_registration(self):
+        from scan_revolutions import analyze_capture_records
+        events = self.samples([0, 90, 180, 270, 0])
+        events[2] = dict(frame_num=2, host_monotonic_s=0.2,
+                         status='angular_span', yaw_deg=None)
+        # Frame 3 exists but lacks TLV2; frame 4 exists and is registered.
+        frames = [dict(frame_num=i, host_monotonic_s=i * 0.1,
+                       tlv_types=([1] if i == 3 else [1, 2]))
+                  for i in (0, 1, 2, 3, 4)]
+        result = analyze_capture_records(frames, events, direction=1,
+                                         max_interval_s=0.5, max_step_deg=100)
+        self.assertEqual(result['raw_missing_frames'], 0)
+        self.assertEqual(result['raw_tlv2_frames'], 4)
+        self.assertEqual(result['registration_rejections'], {'angular_span': 1})
+        self.assertEqual(sum(t['tlv2_lines'] for t in result['turns']), 3)
+        self.assertEqual(sum(t['missing_tlv2'] for t in result['turns']), 1)
+
+    def test_capture_join_keeps_recording_edge_and_raw_gap_distinct(self):
+        from scan_revolutions import analyze_capture_records
+        events = self.samples([270, 350, 10])
+        events[0]['frame_num'] = 9  # event before recording began
+        events[1]['frame_num'] = 10
+        events[2]['frame_num'] = 12
+        frames = [dict(frame_num=i, host_monotonic_s=t, tlv_types=[2])
+                  for i, t in [(10, .1), (12, .2)]]
+        result = analyze_capture_records(frames, events, direction=1,
+                                         max_interval_s=0.5, max_step_deg=100)
+        self.assertEqual(result['raw_missing_frames'], 1)
+        self.assertEqual(result['unmatched_registration_events'], 1)
+        self.assertEqual(sum(t['tlv2_lines'] for t in result['turns']), 2)
+
+    def test_capture_join_handles_uint32_wrap_and_rejects_counter_restart(self):
+        from scan_revolutions import analyze_capture_records
+        frames = [dict(frame_num=i, host_monotonic_s=n * .1, tlv_types=[2])
+                  for n, i in enumerate((2**32 - 2, 2**32 - 1, 0, 1))]
+        result = analyze_capture_records(frames, [], direction=1)
+        self.assertEqual(result['raw_missing_frames'], 0)
+        frames[2]['frame_num'] = 3
+        frames[3]['frame_num'] = 1
+        with self.assertRaises(ValueError):
+            analyze_capture_records(frames, [], direction=1)
+
 
 if __name__ == '__main__':
     unittest.main()
