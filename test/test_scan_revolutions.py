@@ -141,6 +141,62 @@ class RevolutionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             analyze_capture_records(frames, [], direction=1)
 
+    def test_capture_max_gap_reports_position_and_separate_evidence(self):
+        from scan_revolutions import analyze_capture_records
+        base = [dict(frame_num=n, host_monotonic_s=n * .01,
+                     status='registered', yaw_deg=a)
+                for n, a in [(0, 0), (2, 90), (3, 180), (4, 270), (5, 0)]]
+        cases = [
+            ('raw_missing', [0, 2, 3, 4, 5], base, {}, 'raw_frame_missing'),
+            ('tlv2_missing', list(range(6)),
+             [base[0], dict(frame_num=1, host_monotonic_s=.01,
+                            status='registered', yaw_deg=45), *base[1:]],
+             {1: [1]}, 'tlv2_missing'),
+            ('registration_rejected', list(range(6)),
+             [base[0], dict(frame_num=1, host_monotonic_s=.01,
+                            status='rejected', reason='angular_span'), *base[1:]],
+             {}, 'registration_rejected'),
+            ('unobserved', list(range(6)), base, {}, 'unobserved'),
+        ]
+        for name, numbers, events, overrides, expected in cases:
+            with self.subTest(name=name):
+                frames = [dict(frame_num=n, host_monotonic_s=n * .01,
+                               tlv_types=overrides.get(n, [2])) for n in numbers]
+                result = analyze_capture_records(frames, events, direction=1,
+                                                 max_interval_s=.5, max_step_deg=100)
+                turn = result['turns'][0]
+                self.assertTrue(turn['complete'])
+                self.assertEqual(turn['max_gap_deg'], 90)
+                self.assertEqual((turn['max_gap_start_deg'], turn['max_gap_end_deg']), (0, 90))
+                self.assertEqual(turn['max_gap_evidence']['classification'], expected)
+                self.assertEqual(turn['max_gap_evidence']['raw_frame_missing'] > 0,
+                                 expected == 'raw_frame_missing')
+                self.assertEqual(turn['max_gap_evidence']['tlv2_missing'] > 0,
+                                 expected == 'tlv2_missing')
+                self.assertEqual(turn['max_gap_evidence']['registration_rejected'] > 0,
+                                 expected == 'registration_rejected')
+
+    def test_capture_gap_uses_tlv2_spokes_not_point_only_registered_events(self):
+        from scan_revolutions import analyze_capture_records
+        angles = [0, 45, 90, 180, 270, 0]
+        events = [dict(frame_num=i, host_monotonic_s=i * .01,
+                       status='registered', yaw_deg=a) for i, a in enumerate(angles)]
+        frames = [dict(frame_num=i, host_monotonic_s=i * .01,
+                       tlv_types=([1] if i == 1 else [2])) for i in range(6)]
+        result = analyze_capture_records(frames, events, direction=1,
+                                         max_interval_s=.5, max_step_deg=100)
+        self.assertEqual(result['turns'][0]['tlv2_lines'], 4)
+        self.assertEqual(result['turns'][0]['max_gap_deg'], 90)
+
+    def test_stationary_duplicate_bearings_do_not_break_capture_gap_report(self):
+        from scan_revolutions import analyze_capture_records
+        events = self.samples([20, 20, 20])
+        frames = [dict(frame_num=i, host_monotonic_s=i * .1, tlv_types=[2])
+                  for i in range(3)]
+        turn = analyze_capture_records(frames, events, direction=1)['turns'][0]
+        self.assertEqual(turn['max_gap_deg'], 360)
+        self.assertFalse(turn['complete'])
+
 
 if __name__ == '__main__':
     unittest.main()

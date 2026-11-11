@@ -147,7 +147,9 @@ def analyze_capture_records(frames, events, *, direction, **options):
     unmatched = 0
     for turn in result['turns']:
         matched = tlv2 = absent = 0
-        for index in turn.pop('event_indices'):
+        observed = []
+        indices = turn.pop('event_indices')
+        for index in indices:
             event = events[index]
             frame = raw.get((event['frame_num'], event['host_monotonic_s']))
             if frame is None:
@@ -156,10 +158,56 @@ def analyze_capture_records(frames, events, *, direction, **options):
             matched += 1
             if 2 in frame['tlv_types']:
                 tlv2 += 1
+                observed.append((round(float(event['yaw_deg']) % 360, 6), event))
             else:
                 absent += 1
         turn.update(matched_raw_frames=matched, tlv2_lines=tlv2,
                     missing_tlv2=absent)
+        # Only a recorded TLV2 profile is a real intensity spoke. A rejected
+        # registration has no trustworthy angle, so locate it by host time
+        # between observed endpoints rather than assigning an invented bearing.
+        observed = sorted(((round((direction * (angle - result['zero_deg'])) % 360, 6), event)
+                           for angle, event in observed), key=lambda row: row[0])
+        if not observed:
+            turn.update(max_gap_deg=None, max_gap_start_deg=None,
+                        max_gap_end_deg=None,
+                        max_gap_evidence=dict(classification='unobserved',
+                                              raw_frame_missing=0, tlv2_missing=0,
+                                              registration_rejected=0),
+                        max_gap_classification='unobserved')
+            continue
+        gaps = [(b[0] - a[0], a, b, False)
+                for a, b in zip(observed, observed[1:])]
+        gaps.append((observed[0][0] + 360 - observed[-1][0],
+                     observed[-1], observed[0], True))
+        gap, start, end, wraps = max(gaps, key=lambda item: item[0])
+        evidence = dict(raw_frame_missing=0, tlv2_missing=0,
+                        registration_rejected=0, classification='unobserved')
+        start_time = float(start[1]['host_monotonic_s'])
+        end_time = float(end[1]['host_monotonic_s'])
+        if not wraps and start_time < end_time:
+            interval_frames = [frame for frame in frames
+                               if start_time <= float(frame['host_monotonic_s']) <= end_time]
+            for left, right in zip(interval_frames, interval_frames[1:]):
+                step = (int(right['frame_num']) - int(left['frame_num'])) % 2**32
+                evidence['raw_frame_missing'] += max(0, step - 1)
+            evidence['tlv2_missing'] = sum(2 not in frame['tlv_types']
+                                           for frame in interval_frames[1:-1])
+            evidence['registration_rejected'] = sum(
+                event.get('status') != 'registered'
+                for event in events
+                if start_time < float(event.get('host_monotonic_s', -math.inf)) < end_time)
+            causes = [key for key in ('raw_frame_missing', 'tlv2_missing',
+                                      'registration_rejected') if evidence[key]]
+            evidence['classification'] = causes[0] if len(causes) == 1 else (
+                'undetermined' if causes else 'unobserved')
+        else:
+            evidence['classification'] = 'undetermined'
+        turn.update(max_gap_deg=gap, max_gap_start_deg=start[0],
+                    max_gap_end_deg=end[0], max_gap_evidence=evidence,
+                    max_gap_classification=evidence['classification'],
+                    max_gap_start_frame_num=int(start[1]['frame_num']),
+                    max_gap_end_frame_num=int(end[1]['frame_num']))
     result.update(raw_missing_frames=missing,
                   raw_tlv2_frames=sum(2 in frame['tlv_types'] for frame in frames),
                   unmatched_registration_events=unmatched,
@@ -200,20 +248,38 @@ def write_capture_report(capture_dir, output_dir, *, max_step_deg=10.0):
     report_json = json.dumps(result, ensure_ascii=False, indent=2) + '\n'
     columns = ('turn_index', 'segment', 'complete', 'end_reason', 'valid_lines',
                'matched_raw_frames', 'tlv2_lines', 'missing_tlv2',
-               'unique_azimuths', 'max_gap_deg', 'first_frame_num',
-               'last_frame_num')
+               'unique_azimuths', 'max_gap_deg', 'max_gap_start_deg',
+               'max_gap_end_deg', 'max_gap_classification',
+               'max_gap_start_frame_num',
+               'max_gap_end_frame_num', 'first_frame_num', 'last_frame_num')
     lines = [f"# 逐圈诊断：{capture.name}", '',
              f"CFG：`{config['name']}` · SHA-256 `{digest}`", '',
              f"原始缺帧：{result['raw_missing_frames']}；原始 TLV2 帧：{result['raw_tlv2_frames']}；"
              f"未匹配录制边缘事件：{result['unmatched_registration_events']}",
              f"配准拒绝：{json.dumps(result['registration_rejections'], ensure_ascii=False)}", '',
              '完整圈仅指起止零位边界被连续观测；不代表无角度缺口。',
-             '方位采用主机解包时间配准，非 RF 采集时间；本报告不是目标探测或远距性能验证。',
-             '', '| 圈 | 完整 | TLV2线 | 最大缺口(°) | 断点原因 |',
-             '| ---: | :---: | ---: | ---: | --- |']
+             '方位采用 host 主机解包时间配准，非 RF 采集时间；本报告不是目标探测或远距性能验证。',
+             '缺口归因仅依据区间内原始帧号、TLV2 与配准事件；无证据时写“未判定”。',
+             '', '| 圈 | 完整 | TLV2线 | 最大缺口(°) | 角度区间 | 证据 | 断点原因 |',
+             '| ---: | :---: | ---: | ---: | --- | --- | --- |']
+    labels = {'raw_frame_missing': '原始帧缺失', 'tlv2_missing': 'TLV2 缺失',
+              'registration_rejected': '配准拒绝', 'unobserved': '尚未采样（原因未判定）',
+              'undetermined': '未判定'}
     for turn in result['turns']:
+        gap = turn['max_gap_deg']
+        interval = (f"{turn['max_gap_start_deg']:.2f}°→{turn['max_gap_end_deg']:.2f}°"
+                    if gap is not None else '无有效 TLV2 方位线')
+        evidence = turn['max_gap_evidence']
+        detail = (f"{labels[evidence['classification']]} "
+                  f"(原始缺帧:{evidence['raw_frame_missing']} / "
+                  f"TLV2缺失:{evidence['tlv2_missing']} / "
+                  f"配准拒绝:{evidence['registration_rejected']}; "
+                  f"端点帧:{turn.get('max_gap_start_frame_num', '无')}→"
+                  f"{turn.get('max_gap_end_frame_num', '无')})")
+        gap_text = f'{gap:.2f}' if gap is not None else '—'
         lines.append(f"| {turn['turn_index']} | {'是' if turn['complete'] else '否'} | "
-                     f"{turn['tlv2_lines']} | {turn['max_gap_deg']:.2f} | "
+                     f"{turn['tlv2_lines']} | {gap_text} | "
+                     f"{interval} | {detail} | "
                      f"{turn['end_reason']} |")
     # Render all files in a sibling staging directory first. Claim the final
     # path exclusively; COMPLETE is the last publication step for readers.

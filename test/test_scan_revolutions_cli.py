@@ -119,6 +119,20 @@ class CaptureReportTests(unittest.TestCase):
                 write_capture_report(self.capture, self.output, max_step_deg=100)
         self.assertFalse(self.output.exists())
 
+    def test_report_lists_gap_interval_and_no_tlv2_turn(self):
+        frame_path = self.capture / 'frames.jsonl'
+        frames = [json.loads(line) for line in frame_path.read_text(encoding='utf-8').splitlines()]
+        frames[1]['tlv_types'] = [1]
+        frame_path.write_text(''.join(json.dumps(row) + '\n' for row in frames), encoding='utf-8')
+        result = write_capture_report(self.capture, self.output, max_step_deg=100)
+        self.assertEqual(result['turns'][0]['max_gap_evidence']['classification'], 'tlv2_missing')
+        report = (self.output / 'report.md').read_text(encoding='utf-8')
+        self.assertIn('0.00°→180.00°', report)
+        self.assertIn('TLV2 缺失', report)
+        self.assertIn('host', report)
+        header = (self.output / 'report.csv').read_text(encoding='utf-8-sig').splitlines()[0]
+        self.assertIn('max_gap_classification', header)
+
 
 if __name__ == '__main__':
     unittest.main()
