@@ -100,26 +100,55 @@ class LiveScanAssembler:
 
     def _reset_turn_diagnostics(self) -> None:
         self._turn_start_progress = self._cumulative_angle_deg
-        self._turn_spokes: list[float] = []
+        self._turn_spokes: list[tuple[float, int, float]] = []
+        self._turn_raw_frames: deque[tuple[int, float, bool]] = deque(
+            maxlen=self._max_event_backlog)
+        self._turn_decisions: deque[tuple[int, float, str]] = deque(
+            maxlen=self._max_event_backlog)
+        self._turn_evidence_truncated = False
+        self._turn_first_raw_frame_num: int | None = None
         self._turn_raw_missing = 0
         self._turn_tlv2_missing = 0
         self._turn_rejected: Counter[str] = Counter()
         self._last_raw_frame_num: int | None = None
 
     def _finish_turn_diagnostics(self) -> None:
-        angles = sorted({round(angle % 360.0, 6) for angle in self._turn_spokes})
+        # Keep the first and last observation at each bearing so consecutive
+        # frames at the same angle do not become false evidence for a gap.
+        bearings: dict[float, list[tuple[int, float]]] = {}
+        for angle, frame_num, stamp in self._turn_spokes:
+            angle = round(angle % 360.0, 6) % 360.0
+            row = (frame_num, stamp)
+            edges = bearings.setdefault(angle, [row, row])
+            edges[1] = row
+        angles = sorted(bearings)
         gaps = [(round((angles[(i + 1) % len(angles)] - angle) % 360.0, 6),
                  angle, angles[(i + 1) % len(angles)])
                 for i, angle in enumerate(angles)]
         if len(angles) == 1:
             gaps = [(360.0, angles[0], angles[0])]
         largest = max(gaps, default=None)
+        start = end = None
+        if largest:
+            start = bearings[largest[1]][int(self._direction == 1)]
+            end = bearings[largest[2]][int(self._direction == -1)]
+        earlier, later = (start, end) if self._direction == 1 else (end, start)
+        evidence = self._turn_gap_evidence(earlier, later)
         self._latest_complete_turn = {
             "valid_tlv2_spokes": len(self._turn_spokes),
             "unique_azimuths": len(angles),
             "max_gap_deg": largest[0] if largest else None,
             "max_gap_start_deg": largest[1] if largest else None,
             "max_gap_end_deg": largest[2] if largest else None,
+            "first_frame_num": self._turn_spokes[0][1] if self._turn_spokes else None,
+            "last_frame_num": self._turn_spokes[-1][1] if self._turn_spokes else None,
+            "first_raw_frame_num": self._turn_first_raw_frame_num,
+            "last_raw_frame_num": self._last_raw_frame_num,
+            "max_gap_start_frame_num": start[0] if start else None,
+            "max_gap_end_frame_num": end[0] if end else None,
+            "max_gap_start_host_monotonic_s": start[1] if start else None,
+            "max_gap_end_host_monotonic_s": end[1] if end else None,
+            "max_gap_evidence": evidence,
             "raw_frame_missing": self._turn_raw_missing,
             "tlv2_missing": self._turn_tlv2_missing,
             "registration_rejected": dict(self._turn_rejected),
@@ -127,6 +156,53 @@ class LiveScanAssembler:
             "rf_time_calibrated": False,
         }
         self._reset_turn_diagnostics()
+
+    def _turn_gap_evidence(self, start, end):
+        evidence = {
+            "raw_missing_frame_numbers": [], "raw_missing_count": 0,
+            "tlv2_missing_frame_numbers": [], "tlv2_missing_count": 0,
+            "registration_rejected_frames": [], "registration_rejected_count": 0,
+            "classification": "undetermined", "evidence_truncated": self._turn_evidence_truncated,
+            "interval_observed": False,
+        }
+        if start is None or end is None or self._turn_evidence_truncated:
+            return evidence
+        start_num, start_time = start
+        end_num, end_time = end
+        # The angular 0° boundary can lie inside a turn. Only an interval
+        # reversed in acquisition time crosses the unobserved turn seam.
+        if start_time >= end_time:
+            return evidence
+        interior = sorted((row for row in self._turn_raw_frames
+                           if start_time < row[1] < end_time), key=lambda row: row[1])
+        sequence = [start_num] + [row[0] for row in interior] + [end_num]
+        if any(not 0 <= number < 2**32 for number in sequence):
+            return evidence
+        steps = [(after - before) % 2**32 for before, after in zip(sequence, sequence[1:])]
+        if any(not 0 < step < 100000 for step in steps):
+            return evidence
+        evidence["interval_observed"] = True
+        for before, step in zip(sequence, steps):
+            evidence["raw_missing_count"] += step - 1
+            remaining = max(0, 16 - len(evidence["raw_missing_frame_numbers"]))
+            evidence["raw_missing_frame_numbers"].extend(
+                (before + offset) % 2**32
+                for offset in range(1, min(step, remaining + 1)))
+        missing_tlv2 = [row[0] for row in interior if not row[2]]
+        evidence["tlv2_missing_count"] = len(missing_tlv2)
+        evidence["tlv2_missing_frame_numbers"] = missing_tlv2[:16]
+        rejected = [{"frame_num": num, "reason": status}
+                    for num, stamp, status in self._turn_decisions
+                    if start_time < stamp < end_time and status != "registered"]
+        evidence["registration_rejected_count"] = len(rejected)
+        evidence["registration_rejected_frames"] = rejected[:16]
+        causes = [key for key, count in (
+            ("raw_frame_missing", evidence["raw_missing_count"]),
+            ("tlv2_missing", evidence["tlv2_missing_count"]),
+            ("registration_rejected", evidence["registration_rejected_count"])) if count]
+        evidence["classification"] = (causes[0] if len(causes) == 1 else
+                                      "undetermined" if causes else "unobserved")
+        return evidence
 
     def _clear_map(self, reason: str) -> None:
         self._registered.clear()
@@ -145,6 +221,10 @@ class LiveScanAssembler:
             self._events.popleft()
             self._dropped_event_backlog += 1
         self._events.append(event)
+        if len(self._turn_decisions) == self._turn_decisions.maxlen:
+            self._turn_evidence_truncated = True
+        self._turn_decisions.append((event["frame_num"], event["host_monotonic_s"],
+                                     event["status"]))
         if event["status"] != "registered":
             self._turn_rejected[event["status"]] += 1
 
@@ -193,7 +273,8 @@ class LiveScanAssembler:
             float(sample["angle_deg"]),
         )
 
-    def add_motor_sample(self, sample: Mapping[str, Any]) -> None:
+    def add_motor_sample(self, sample: Mapping[str, Any]) -> dict[str, Any] | None:
+        """Return a turn summary only on the sample that completes it."""
         measured = self._angle_sample(sample)
         if not all(math.isfinite(value) for value in (
             measured.query_started_monotonic_s,
@@ -204,7 +285,7 @@ class LiveScanAssembler:
             if self._samples and measured.midpoint_s <= self._samples[-1].midpoint_s:
                 self._rejected["non_monotonic_sample"] += 1
                 self._clear_map("non_monotonic_sample")
-                return
+                return None
             if self._samples:
                 before = self._samples[-1]
                 decision = estimate_frame_yaw(
@@ -224,6 +305,8 @@ class LiveScanAssembler:
             self._process_pending()
             if self._cumulative_angle_deg - self._turn_start_progress >= 360.0:
                 self._finish_turn_diagnostics()
+                return self._latest_complete_turn
+            return None
 
     def add_frame(self, frame: Mapping[str, Any]) -> None:
         payload = dict(frame)
@@ -232,11 +315,21 @@ class LiveScanAssembler:
             raise ValueError("frame host_monotonic_s must be finite")
         with self._lock:
             frame_num = int(payload.get("frame_num", -1))
+            profile = payload.get("range_profile")
+            has_profile = (isinstance(profile, (list, tuple)) and 0 < len(profile) <= 2048 and
+                           all(type(value) is int and 0 <= value <= 65535 for value in profile))
+            tlv_types = payload.get("tlv_types")
+            has_tlv2 = 2 in tlv_types if isinstance(tlv_types, (list, tuple)) else has_profile
+            if len(self._turn_raw_frames) == self._turn_raw_frames.maxlen:
+                self._turn_evidence_truncated = True
+            self._turn_raw_frames.append((frame_num, frame_time, has_tlv2))
             if self._last_raw_frame_num is not None and frame_num >= 0:
                 step = (frame_num - self._last_raw_frame_num) % 2**32
                 if 1 < step < 100000:
                     self._turn_raw_missing += step - 1
             if frame_num >= 0:
+                if self._turn_first_raw_frame_num is None:
+                    self._turn_first_raw_frame_num = frame_num
                 self._last_raw_frame_num = frame_num
             points = payload.get("points", [])
             if isinstance(points, (list, tuple)) and len(points) > min(
@@ -264,9 +357,7 @@ class LiveScanAssembler:
             # for the next encoder sample. Keep the validated coordinates immutable
             # from the producer's perspective until registration has finished.
             payload["points"] = [dict(point) for point in points]
-            profile = payload.get("range_profile")
-            if (isinstance(profile, (list, tuple)) and 0 < len(profile) <= 2048 and
-                    all(type(value) is int and 0 <= value <= 65535 for value in profile)):
+            if has_profile:
                 payload["range_profile"] = list(profile)
             else:
                 payload.pop("range_profile", None)
@@ -371,7 +462,8 @@ class LiveScanAssembler:
                     "range_profile_bin_size_m": bin_size,
                     "rf_time_calibrated": False,
                 }))
-                self._turn_spokes.append(float(registration.yaw_deg))
+                self._turn_spokes.append((float(registration.yaw_deg),
+                                          int(frame.get("frame_num", -1)), frame_time))
                 while len(self._profiles) > self._max_profile_spokes:
                     self._profile_capacity_eviction_progress, _ = self._profiles.popleft()
             self._map_points_count += len(points)

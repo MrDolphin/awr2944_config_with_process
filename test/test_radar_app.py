@@ -247,6 +247,53 @@ class RadarAppTests(unittest.TestCase):
     def _new_browser(self, playwright):
         return playwright.chromium.launch(headless=True, executable_path=str(CHROME_EXECUTABLE))
 
+    def test_live_intensity_ppi_updates_current_radar_frame_label(self):
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.goto((Path(__file__).resolve().parents[1] / "radar_app.html").as_uri())
+            page.select_option('#ppiViewSelect', 'intensity')
+            labels = page.evaluate("""() => {
+                const frame = number => ({frame_num:number, points:[], range_profile:[],
+                    gimbal_scan:{enabled:true,mode:'qd4310',points:[],
+                        live_registration:{state:'provisional'},intensity_ppi:{
+                            generation:'frame-label-test',oldest_seq:1,latest_seq:0,spokes:[]}}});
+                renderRadarFrame(frame(71));
+                const first = document.getElementById('frameDisplay').textContent;
+                renderRadarFrame(frame(72));
+                return [first, document.getElementById('frameDisplay').textContent];
+            }""")
+            self.assertIn('#71', labels[0])
+            self.assertIn('#72', labels[1])
+            browser.close()
+
+    def test_ppi_gap_text_names_boundary_and_evidence_frames(self):
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page(viewport={"width": 1440, "height": 900})
+            page.goto((Path(__file__).resolve().parents[1] / "radar_app.html").as_uri())
+            page.select_option('#ppiViewSelect', 'intensity')
+            text = page.evaluate("""() => {
+                renderIntensityPpiFrame({gimbal_scan:{live_registration:{
+                    coverage:{phase:'rolling',valid_spokes:58,unique_azimuths:58,
+                        max_gap_deg:18,capacity_limited:false},
+                    latest_complete_turn:{valid_tlv2_spokes:58,max_gap_deg:18,
+                        max_gap_start_deg:51,max_gap_end_deg:69,
+                        first_frame_num:1,last_frame_num:60,
+                        max_gap_start_frame_num:9,max_gap_end_frame_num:12,
+                        max_gap_evidence:{raw_missing_frame_numbers:[10],
+                            tlv2_missing_frame_numbers:[11],
+                            registration_rejected_frames:[],classification:'undetermined'},
+                        raw_frame_missing:1,tlv2_missing:1,registration_rejected:{}},
+                    rejected_frames:{}}}},true);
+                return document.getElementById('ppiCoverageStatus').textContent;
+            }""")
+            self.assertIn('端点帧 9→12', text)
+            self.assertIn('原始缺帧 10', text)
+            self.assertIn('TLV2缺失 11', text)
+            self.assertIn('未判定', text)
+            browser.close()
+
     def test_ppi_coverage_labels_and_dark_observation_ticks(self):
         with sync_playwright() as playwright:
             browser = self._new_browser(playwright)

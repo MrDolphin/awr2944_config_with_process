@@ -23,6 +23,82 @@ def frame(number, when, point=None):
 
 
 class LiveScanAssemblerTests(unittest.TestCase):
+    def test_complete_turn_gap_identifies_boundary_and_missing_evidence_frames(self):
+        scan = LiveScanAssembler(direction=1, zero_deg=0, mounting_yaw_deg=0,
+                                 mounting_roll_deg=0)
+        scan.add_motor_sample(sample(1, 0))
+        for n in range(1, 61):
+            if n != 10:
+                source = frame(n, 1 + n * .02 - .01)
+                if n != 11:
+                    source['range_profile'] = [100, 200]
+                scan.add_frame(source)
+            scan.add_motor_sample(sample(1 + n * .02, n * 6 % 360))
+        turn = scan.snapshot(now_monotonic_s=2.2)['latest_complete_turn']
+        self.assertEqual((turn.get('max_gap_start_frame_num'),
+                          turn.get('max_gap_end_frame_num')), (9, 12))
+        self.assertEqual((turn.get('first_raw_frame_num'), turn.get('last_raw_frame_num')),
+                         (1, 60))
+        self.assertAlmostEqual(turn.get('max_gap_start_host_monotonic_s', 0), 1.17)
+        self.assertAlmostEqual(turn.get('max_gap_end_host_monotonic_s', 0), 1.23)
+        evidence = turn.get('max_gap_evidence', {})
+        self.assertEqual(evidence.get('raw_missing_frame_numbers'), [10])
+        self.assertEqual(evidence.get('tlv2_missing_frame_numbers'), [11])
+        self.assertEqual(evidence.get('registration_rejected_frames'), [])
+        self.assertEqual(evidence.get('classification'), 'undetermined')
+
+    def test_complete_turn_gap_identifies_rejected_frame_without_calling_it_raw_loss(self):
+        scan = LiveScanAssembler(direction=1, zero_deg=0, mounting_yaw_deg=0,
+                                 mounting_roll_deg=0, max_span_deg=12)
+        scan.add_motor_sample(sample(1, 0))
+        for n in range(1, 61):
+            source = frame(n, 1 + n * .02 - .01)
+            source['range_profile'] = [100, 200]
+            if n == 10:
+                source['points'][0]['x'] = float('nan')
+            scan.add_frame(source)
+            scan.add_motor_sample(sample(1 + n * .02, n * 6 % 360))
+        turn = scan.snapshot(now_monotonic_s=2.2)['latest_complete_turn']
+        self.assertEqual((turn.get('max_gap_start_frame_num'),
+                          turn.get('max_gap_end_frame_num')), (9, 11))
+        evidence = turn.get('max_gap_evidence', {})
+        self.assertEqual(evidence.get('raw_missing_frame_numbers'), [])
+        self.assertEqual(evidence.get('registration_rejected_frames'),
+                         [{'frame_num': 10, 'reason': 'invalid_point'}])
+        self.assertEqual(evidence.get('classification'), 'registration_rejected')
+
+    def test_gap_across_zero_has_frame_evidence_in_both_scan_directions(self):
+        for direction in (1, -1):
+            with self.subTest(direction=direction):
+                scan = LiveScanAssembler(direction=direction, zero_deg=0,
+                                         mounting_yaw_deg=0, mounting_roll_deg=0)
+                scan.add_motor_sample(sample(1, -direction * 60 % 360))
+                for n in range(1, 61):
+                    if n != 10:
+                        source = frame(n, 1 + n * .02 - .01)
+                        source['range_profile'] = [100, 200]
+                        scan.add_frame(source)
+                    scan.add_motor_sample(sample(1 + n * .02, direction * (n * 6 - 60) % 360))
+                turn = scan.snapshot(now_monotonic_s=2.2)['latest_complete_turn']
+                evidence = turn['max_gap_evidence']
+                self.assertEqual(evidence.get('raw_missing_frame_numbers'), [10])
+                self.assertEqual(evidence.get('classification'), 'raw_frame_missing')
+
+    def test_gap_across_turn_seam_is_not_treated_as_an_observed_frame_interval(self):
+        scan = LiveScanAssembler(direction=1, zero_deg=0, mounting_yaw_deg=0,
+                                 mounting_roll_deg=0)
+        scan.add_motor_sample(sample(1, 0))
+        for n in range(1, 61):
+            if 1 < n < 60:
+                source = frame(n, 1 + n * .02 - .01)
+                source['range_profile'] = [100, 200]
+                scan.add_frame(source)
+            scan.add_motor_sample(sample(1 + n * .02, n * 6 % 360))
+        turn = scan.snapshot(now_monotonic_s=2.2)['latest_complete_turn']
+        self.assertEqual((turn['first_frame_num'], turn['last_frame_num']), (2, 59))
+        self.assertEqual((turn['max_gap_start_frame_num'], turn['max_gap_end_frame_num']), (59, 2))
+        self.assertIs(turn['max_gap_evidence'].get('interval_observed'), False)
+
     def test_latest_complete_turn_is_separate_from_rolling_window_and_cumulative_rejections(self):
         scan = LiveScanAssembler(direction=1, zero_deg=0, mounting_yaw_deg=0,
                                  mounting_roll_deg=0)

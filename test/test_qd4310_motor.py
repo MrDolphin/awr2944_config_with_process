@@ -1,4 +1,5 @@
 import importlib
+import json
 import logging
 import sys
 import tempfile
@@ -545,6 +546,36 @@ class Qd4310ServerModeTests(unittest.TestCase):
             self.assertEqual(server.gimbal_scan["config"]["registration_mounting_roll_deg"], 0)
         finally:
             self._restore_modules(old_serial, old_websockets)
+
+    def test_each_completed_turn_is_forwarded_to_the_active_recording_once(self):
+        from radar_runtime import PointCloudRecorder
+
+        server, previous_serial, previous_websockets = self._import_server()
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                recorder = PointCloudRecorder(directory, max_queue_size=1024)
+                with patch.object(server, "pointcloud_recorder", recorder):
+                    server.live_scan_assembler = server.LiveScanAssembler(
+                        direction=1, zero_deg=0, mounting_yaw_deg=0, mounting_roll_deg=0)
+                    capture = Path(recorder.start())
+                    try:
+                        for n in range(123):
+                            if n:
+                                server.add_live_radar_frame({"frame_num": n,
+                                    "host_monotonic_s": 1 + n * .02 - .01,
+                                    "points": [], "range_profile": [100, 200]})
+                            stamp = 1 + n * .02
+                            server.add_live_motor_sample({"query_started_monotonic_s": stamp,
+                                "query_completed_monotonic_s": stamp, "angle_deg": n * 6 % 360})
+                    finally:
+                        recorder.stop()
+                path = capture / "turn_diagnostics.jsonl"
+                self.assertTrue(path.is_file())
+                turns = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+                self.assertEqual([(turn["first_frame_num"], turn["last_frame_num"])
+                                  for turn in turns], [(1, 60), (61, 120)])
+        finally:
+            self._restore_modules(previous_serial, previous_websockets)
 
     def test_live_registration_decision_is_forwarded_to_recording(self):
         server, previous_serial, previous_websockets = self._import_server()

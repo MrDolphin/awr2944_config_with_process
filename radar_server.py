@@ -912,8 +912,10 @@ def configure_live_scan(config):
 def add_live_motor_sample(sample):
     assembler = live_scan_assembler
     if assembler is not None:
-        assembler.add_motor_sample(sample)
+        turn = assembler.add_motor_sample(sample)
         _record_live_registration_events(assembler)
+        if turn is not None:
+            pointcloud_recorder.record_turn_diagnostics(turn)
 
 
 def add_live_radar_frame(frame):

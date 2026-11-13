@@ -87,11 +87,13 @@ class PointCloudRecorder:
         self._points_file = None
         self._motor_file = None
         self._registration_file = None
+        self._turn_diagnostics_file = None
         self._points_writer = None
         self._frames = 0
         self._points = 0
         self._motor_samples = 0
         self._registration_events = 0
+        self._turn_diagnostics = 0
         self._last_frame: int | None = None
         self._queue: queue.Queue[tuple[str, Mapping[str, Any], bytes | None] | None] | None = None
         self._writer_thread: threading.Thread | None = None
@@ -100,6 +102,7 @@ class PointCloudRecorder:
         self._dropped_frames = 0
         self._dropped_motor_samples = 0
         self._dropped_registration_events = 0
+        self._dropped_turn_diagnostics = 0
         self._writer_error: str | None = None
         self._accepting = False
 
@@ -128,6 +131,8 @@ class PointCloudRecorder:
                 created_paths.append(capture_dir / "motor_samples.jsonl")
                 self._registration_file = (capture_dir / "live_registration.jsonl").open("w", encoding="utf-8")
                 created_paths.append(capture_dir / "live_registration.jsonl")
+                self._turn_diagnostics_file = (capture_dir / "turn_diagnostics.jsonl").open("w", encoding="utf-8")
+                created_paths.append(capture_dir / "turn_diagnostics.jsonl")
                 self._points_writer = csv.writer(self._points_file)
                 self._points_writer.writerow([
                     "record_index", "host_time_s", "frame_num", "point_index", "x_m", "y_m", "z_m", "v_mps", "snr_db", "noise_db"
@@ -142,6 +147,7 @@ class PointCloudRecorder:
                         "frames": "frames.jsonl", "raw_tlv": "frames.tlv", "points": "points.csv",
                         "motor_samples": "motor_samples.jsonl",
                         "live_registration": "live_registration.jsonl",
+                        "turn_diagnostics": "turn_diagnostics.jsonl",
                     },
                     "recording_policy": {
                         "max_queue_size": self._max_queue_size,
@@ -169,10 +175,12 @@ class PointCloudRecorder:
             self._points = 0
             self._motor_samples = 0
             self._registration_events = 0
+            self._turn_diagnostics = 0
             self._last_frame = None
             self._dropped_frames = 0
             self._dropped_motor_samples = 0
             self._dropped_registration_events = 0
+            self._dropped_turn_diagnostics = 0
             self._writer_error = None
             self._accepting = True
             self._queue = queue.Queue(maxsize=self._max_queue_size)
@@ -258,6 +266,18 @@ class PointCloudRecorder:
                 return False
             return True
 
+    def record_turn_diagnostics(self, summary: Mapping[str, Any]) -> bool:
+        """Queue one completed turn; keep summaries out of per-frame logs."""
+        with self._lock:
+            if not self._accepting or self._queue is None or self._writer_error is not None:
+                return False
+            try:
+                self._queue.put_nowait(("turn", dict(summary), None))
+            except queue.Full:
+                self._dropped_turn_diagnostics += 1
+                return False
+            return True
+
     def stop(self) -> dict[str, Any]:
         with self._lock:
             writer_queue = self._queue
@@ -289,10 +309,12 @@ class PointCloudRecorder:
                 "points": self._points,
                 "motor_samples": self._motor_samples,
                 "registration_events": self._registration_events,
+                "turn_diagnostics": self._turn_diagnostics,
                 "queued_frames": self._queue.qsize() if self._queue is not None else 0,
                 "dropped_frames": self._dropped_frames,
                 "dropped_motor_samples": self._dropped_motor_samples,
                 "dropped_registration_events": self._dropped_registration_events,
+                "dropped_turn_diagnostics": self._dropped_turn_diagnostics,
                 "writer_error": self._writer_error,
             }
 
@@ -313,6 +335,11 @@ class PointCloudRecorder:
                         self._write_motor_sample(data)
                     elif kind == "registration":
                         self._write_registration_event(data)
+                    elif kind == "turn":
+                        with self._lock:
+                            self._turn_diagnostics_file.write(json.dumps(data, ensure_ascii=False) + "\n")
+                            self._turn_diagnostics_file.flush()
+                            self._turn_diagnostics += 1
                     else:
                         raise ValueError(f"unknown capture record kind: {kind}")
             except Exception as exc:
@@ -377,7 +404,7 @@ class PointCloudRecorder:
 
     def _flush(self, *, sync: bool = False) -> None:
         for file_obj in (self._frames_file, self._raw_file, self._points_file,
-                         self._motor_file, self._registration_file):
+                         self._motor_file, self._registration_file, self._turn_diagnostics_file):
             if file_obj is not None:
                 file_obj.flush()
                 if sync:
@@ -385,11 +412,12 @@ class PointCloudRecorder:
 
     def _close_files(self) -> None:
         for file_obj in (self._frames_file, self._raw_file, self._points_file,
-                         self._motor_file, self._registration_file):
+                         self._motor_file, self._registration_file, self._turn_diagnostics_file):
             if file_obj is not None:
                 file_obj.close()
         self._frames_file = self._raw_file = self._points_file = self._motor_file = None
         self._registration_file = self._points_writer = None
+        self._turn_diagnostics_file = None
 
     def _persist_completion_status(self, status: Mapping[str, Any]) -> None:
         """Make capture quality available to later offline replay and field triage."""
@@ -401,16 +429,19 @@ class PointCloudRecorder:
             metadata.update({
                 "recording_status": "failed" if status["writer_error"] else (
                     "completed_with_drops" if status["dropped_frames"] or status["dropped_motor_samples"]
-                    or status["dropped_registration_events"] else "completed"
+                    or status["dropped_registration_events"] or status["dropped_turn_diagnostics"]
+                    else "completed"
                 ),
                 "completed_at_s": self._clock(),
                 "frames": status["frames"],
                 "points": status["points"],
                 "motor_samples": status["motor_samples"],
                 "registration_events": status["registration_events"],
+                "turn_diagnostics": status["turn_diagnostics"],
                 "dropped_frames": status["dropped_frames"],
                 "dropped_motor_samples": status["dropped_motor_samples"],
                 "dropped_registration_events": status["dropped_registration_events"],
+                "dropped_turn_diagnostics": status["dropped_turn_diagnostics"],
                 "writer_error": status["writer_error"],
             })
             temporary_path = self._metadata_path.with_suffix(".json.tmp")

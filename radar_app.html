@@ -1309,7 +1309,7 @@
         <div class="radar-layout">
             <div id="controlSidebar" class="hud-overlay hud-sidebar">
                 <div class="hud-box">
-                    <div>网络延迟 / 帧率</div>
+                    <div>最新雷达帧 / 网页更新率</div>
                     <div class="value" id="frameDisplay">DISCONNECTED</div>
                 </div>
                 <div class="hud-box" style="border-color: rgba(0,255,100,0.4); color: rgba(0,255,100,0.6);">
@@ -3503,13 +3503,37 @@
                 const turnGap = turn && Number.isFinite(turn.max_gap_deg)
                     ? `${turn.max_gap_deg.toFixed(2)}° (${turn.max_gap_start_deg.toFixed(2)}°→${turn.max_gap_end_deg.toFixed(2)}°)`
                     : '未知';
+                const turnFrames = turn && Number.isInteger(turn.first_frame_num) &&
+                    Number.isInteger(turn.last_frame_num)
+                    ? ` · TLV2帧范围 ${turn.first_frame_num}→${turn.last_frame_num}` : '';
+                const gapFrames = turn && Number.isInteger(turn.max_gap_start_frame_num) &&
+                    Number.isInteger(turn.max_gap_end_frame_num)
+                    ? ` · 端点帧 ${turn.max_gap_start_frame_num}→${turn.max_gap_end_frame_num}` : '';
+                const evidence = turn && turn.max_gap_evidence;
+                const frameList = (items, count) => {
+                    const rows = Array.isArray(items) ? items : [];
+                    const total = Number.isFinite(count) ? count : rows.length;
+                    return total ? `${rows.join(',')}${rows.length < total ? '…' : ''}` : '无';
+                };
+                const labels = {raw_frame_missing:'原始缺帧', tlv2_missing:'TLV2缺失',
+                    registration_rejected:'配准拒绝', unobserved:'未观测到区间内缺失',
+                    undetermined:'未判定'};
+                const evidenceText = evidence && evidence.interval_observed === false
+                    ? ` · 缺口区间未判定${evidence.evidence_truncated ? '（证据截断）' : '（端点间无法核对）'}`
+                    : evidence
+                    ? ` · 缺口证据 原始缺帧 ${frameList(evidence.raw_missing_frame_numbers, evidence.raw_missing_count)}` +
+                      ` / TLV2缺失 ${frameList(evidence.tlv2_missing_frame_numbers, evidence.tlv2_missing_count)}` +
+                      ` / 配准拒绝 ${frameList((evidence.registration_rejected_frames || []).map(item=>
+                          `${item.frame_num}:${item.reason}`), evidence.registration_rejected_count)}` +
+                      ` · ${labels[evidence.classification] || '未判定'}` +
+                      (evidence.evidence_truncated ? '（证据截断）' : '') : '';
                 const turnText = turn
-                    ? `最近完整圈：TLV2有效线 ${turn.valid_tlv2_spokes} · 最大缺口 ${turnGap} · 原始缺帧 ${turn.raw_frame_missing} / TLV2缺失 ${turn.tlv2_missing} / 配准拒绝 ${turnReject}`
+                    ? `最近完整圈：TLV2有效线 ${turn.valid_tlv2_spokes}${turnFrames} · 最大缺口 ${turnGap}${gapFrames}${evidenceText} · 本圈原始缺帧 ${turn.raw_frame_missing} / TLV2缺失 ${turn.tlv2_missing} / 配准拒绝 ${turnReject}`
                     : '最近完整圈：尚无连续实测一圈';
                 coverageStatus.textContent = `${turnText} · 滚动窗口：${phase} · 服务端有效线 ${coverage.valid_spokes} / 独立方位 ${coverage.unique_azimuths}` +
                     ` · 最大角间隔 ${gap} · 累计拒绝事件 ${rejectTotal}` +
                     (coverage.capacity_limited ? ' · 容量截断' : '') + ' · 外圈短刻度=采样位置';
-                coverageStatus.title = '最近完整圈按编码器连续行程360°统计；跨圈及主机解包时间与RF采集时间的差异尚未标定，不代表精确物理方位覆盖。有效线与角间隔基于服务端滚动窗口，网页增量传输可能暂时落后；不是完整周扫验收，也不是波束覆盖率。' +
+                coverageStatus.title = '最近完整圈按编码器连续行程360°统计；缺口端点帧是两侧观测边界，不代表端点帧有故障；区间内原因可能未判定。跨圈及主机解包时间与RF采集时间的差异尚未标定，不代表精确物理方位覆盖。有效线与角间隔基于服务端滚动窗口，网页增量传输可能暂时落后；不是完整周扫验收，也不是波束覆盖率。' +
                     '拒绝事件自配准器重置累计，包含帧拒绝及编码器时间异常，不是本圈丢帧数。原因：' +
                     (rejected.map(([reason,count])=>`${reason}:${count}`).join(', ') || '无');
             } else {
@@ -3657,10 +3681,6 @@
             drawGrid360();
             drawGimbalScanPoints(points);
 
-            const now = performance.now();
-            let fps = 1000 / (now - lastFrameTime);
-            lastFrameTime = now;
-            document.getElementById('frameDisplay').innerText = `#${data.frame_num} (${fps.toFixed(0)}Hz)`;
             const pointLabel = scan.mode === 'qd4310' ? '实测角度·临时' : '360合成';
             setPointsDisplay(`${(scan.points || []).length}/${points.length} (输入/显示 · ${pointLabel})`);
             document.getElementById('targetsDisplay').innerText = '扫描';
@@ -4259,6 +4279,14 @@
         }
 
         function renderRadarFrame(data) {
+            if (Number.isInteger(data.frame_num)) {
+                const now = performance.now();
+                const elapsed = now - lastFrameTime;
+                lastFrameTime = now;
+                const fps = elapsed > 0 ? 1000 / elapsed : 0;
+                document.getElementById('frameDisplay').innerText =
+                    `#${data.frame_num} (${fps.toFixed(0)}Hz)`;
+            }
             latestCalibrationRadarFrame = data;
             updateCameraPanel(data.camera_sync);
             updateCameraProjection(data.camera_projection);
@@ -4417,11 +4445,6 @@
             }
 
             // UI 数字更新
-            const now = performance.now();
-            let fps = 1000 / (now - lastFrameTime);
-            lastFrameTime = now;
-
-            document.getElementById('frameDisplay').innerText = `#${data.frame_num} (${fps.toFixed(0)}Hz)`;
             setPointsDisplay(`${rawPoints.length}/${renderPoints.length} (原始/显示 · 雷达原始点·未配准·静:${staticPoints.length}/${staticCandidates.length}/动:${dynamicPoints.length}+候:${promotedDynamicPoints.length})`);
             document.getElementById('targetsDisplay').innerText = tracker.boats.filter(b => tracker.isBoatDrawable(b)).length;
             const tlvTypes = Array.isArray(data.tlv_types) ? data.tlv_types.join(',') : '--';

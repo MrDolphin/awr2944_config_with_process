@@ -33,6 +33,28 @@ class ConfigPathTests(unittest.TestCase):
 
 
 class RecorderTests(unittest.TestCase):
+    def test_completed_turn_diagnostics_are_saved_separately_from_frame_events(self):
+        with tempfile.TemporaryDirectory() as directory:
+            recorder = PointCloudRecorder(directory)
+            capture_dir = Path(recorder.start())
+            turn = {"first_frame_num": 1, "last_frame_num": 60,
+                    "max_gap_start_frame_num": 9, "max_gap_end_frame_num": 12,
+                    "max_gap_evidence": {"raw_missing_frame_numbers": [10]}}
+            try:
+                method = getattr(recorder, "record_turn_diagnostics", None)
+                self.assertTrue(callable(method))
+                self.assertTrue(method(turn))
+                self.assertTrue(method(dict(turn, first_frame_num=61, last_frame_num=120)))
+            finally:
+                status = recorder.stop()
+            metadata = json.loads((capture_dir / "metadata.json").read_text(encoding="utf-8"))
+            path = capture_dir / metadata["files"]["turn_diagnostics"]
+            rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(rows, [turn, dict(turn, first_frame_num=61, last_frame_num=120)])
+            self.assertEqual(status["turn_diagnostics"], 2)
+            self.assertEqual(metadata["dropped_turn_diagnostics"], 0)
+            self.assertEqual(status["registration_events"], 0)
+
     def test_capture_metadata_records_requested_registration_snapshot(self):
         with tempfile.TemporaryDirectory() as directory:
             recorder = PointCloudRecorder(directory, clock=lambda: 1_700_000_000.0)
