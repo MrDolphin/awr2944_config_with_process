@@ -35,7 +35,8 @@ def analyze_revolutions(events, *, direction, zero_deg=0.0,
     start_bracket = None
     segment = 0
     config_keys = ('registration_direction', 'registration_zero_deg',
-                   'registration_mounting_yaw_deg', 'registration_mounting_roll_deg')
+                   'registration_mounting_yaw_deg', 'registration_mounting_roll_deg', 'time_basis')
+    bases = set()
 
     def finish(end_bracket=None, reason='end_of_recording'):
         if not current:
@@ -74,6 +75,7 @@ def analyze_revolutions(events, *, direction, zero_deg=0.0,
             segment += 1
             continue
         phase = (direction * (yaw - zero_deg)) % 360
+        bases.add(event.get('time_basis', 'host_packet_parse_monotonic'))
         row = dict(time=time, yaw_deg=yaw, frame_num=frame, phase=phase,
                    event_index=index,
                    config=tuple(event.get(key) for key in config_keys))
@@ -112,7 +114,9 @@ def analyze_revolutions(events, *, direction, zero_deg=0.0,
     finish()
     return dict(turns=turns, breaks=breaks,
                 registration_rejections=dict(rejections), raw_missing_frames=None,
-                time_basis='host_packet_parse_monotonic', rf_time_calibrated=False,
+                time_basis=(next(iter(bases)) if len(bases) == 1 else
+                            'mixed_or_unknown' if bases else 'host_packet_parse_monotonic'),
+                rf_time_calibrated=False,
                 direction=direction, zero_deg=zero_deg,
                 limits=dict(max_interval_s=max_interval_s, max_step_deg=max_step_deg,
                             max_possible_rpm=max_possible_rpm),
@@ -240,6 +244,12 @@ def write_capture_report(capture_dir, output_dir, *, max_step_deg=10.0):
     result = analyze_capture_records(
         frames, events, direction=registration['direction'],
         zero_deg=registration.get('zero_deg', 0.0), max_step_deg=max_step_deg)
+    if not any(event.get('status') == 'registered' for event in events):
+        result['time_basis'] = registration.get('time_basis', result['time_basis'])
+    clock_label = {
+        'host_packet_parse_monotonic': 'host 主机解包时间',
+        'frame_counter_x_cfg_period_estimate_only': '帧号 × CFG 周期（试验估计）',
+    }.get(result['time_basis'], '混合或未知时标')
     result['config'] = {'name': config['name'], 'sha256': digest}
     result['capture'] = capture.name
     result['recording'] = {
@@ -258,7 +268,7 @@ def write_capture_report(capture_dir, output_dir, *, max_step_deg=10.0):
              f"未匹配录制边缘事件：{result['unmatched_registration_events']}",
              f"配准拒绝：{json.dumps(result['registration_rejections'], ensure_ascii=False)}", '',
              '完整圈仅指起止零位边界被连续观测；不代表无角度缺口。',
-             '方位采用 host 主机解包时间配准，非 RF 采集时间；本报告不是目标探测或远距性能验证。',
+             f'方位配准时标：{clock_label}，非 RF 采集时间；按原始主机时间关联帧号与诊断事件。本报告不是目标探测或远距性能验证。',
              '缺口归因仅依据区间内原始帧号、TLV2 与配准事件；无证据时写“未判定”。',
              '', '| 圈 | 完整 | TLV2线 | 最大缺口(°) | 角度区间 | 证据 | 断点原因 |',
              '| ---: | :---: | ---: | ---: | --- | --- | --- |']

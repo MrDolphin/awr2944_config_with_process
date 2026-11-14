@@ -1,8 +1,8 @@
 """Bounded live assembly of radar frames and measured turntable angles.
 
 This module never opens hardware or estimates angle from commanded speed.  It
-only publishes a radar frame after two QD4310 status samples bracket the host
-packet-parse timestamp.  The result therefore remains provisional until the
+only publishes a radar frame after two QD4310 status samples bracket the chosen
+registration timestamp. The result remains provisional until the
 radar acquisition-to-host latency is measured in the field.
 """
 
@@ -38,6 +38,7 @@ class LiveScanAssembler:
         max_map_points: int = 6000,
         max_profile_spokes: int = 512,
         max_event_backlog: int = 2048,
+        experimental_frame_period_ms: float | None = None,
     ) -> None:
         if direction not in (-1, 1):
             raise ValueError("direction must be +1 or -1")
@@ -72,13 +73,24 @@ class LiveScanAssembler:
         self._max_map_points = int(max_map_points)
         self._max_profile_spokes = int(max_profile_spokes)
         self._max_event_backlog = int(max_event_backlog)
+        if experimental_frame_period_ms is not None and (
+                not math.isfinite(experimental_frame_period_ms) or experimental_frame_period_ms <= 0):
+            raise ValueError("experimental frame period must be positive and finite")
+        self.experimental_frame_period_ms = experimental_frame_period_ms
+        self.time_basis = ("frame_counter_x_cfg_period_estimate_only"
+                           if experimental_frame_period_ms is not None else "host_packet_parse_monotonic")
         self._lock = threading.RLock()
         self.reset()
 
     def reset(self) -> None:
         with self._lock:
             self._samples: deque[AngleSample] = deque(maxlen=2)
+            self._clock_brackets: deque[tuple[AngleSample, AngleSample, float]] = deque(maxlen=128)
             self._pending: deque[dict[str, Any]] = deque()
+            self._clock_anchor_s = None
+            self._clock_last_number = None
+            self._clock_offset_frames = 0
+            self._clock_closed_turn_s = None
             self._registered: deque[tuple[float, list[dict[str, Any]]]] = deque()
             self._profiles: deque[tuple[float, dict[str, Any]]] = deque()
             self._profile_generation = uuid.uuid4().hex
@@ -152,7 +164,8 @@ class LiveScanAssembler:
             "raw_frame_missing": self._turn_raw_missing,
             "tlv2_missing": self._turn_tlv2_missing,
             "registration_rejected": dict(self._turn_rejected),
-            "time_basis": "host_packet_parse_monotonic",
+            "time_basis": self.time_basis,
+            "experimental_frame_period_ms": self.experimental_frame_period_ms,
             "rf_time_calibrated": False,
         }
         self._reset_turn_diagnostics()
@@ -205,6 +218,8 @@ class LiveScanAssembler:
         return evidence
 
     def _clear_map(self, reason: str) -> None:
+        self._clock_brackets.clear()
+        self._clock_closed_turn_s = None
         self._registered.clear()
         self._profiles.clear()
         self._profile_capacity_eviction_progress = None
@@ -215,6 +230,42 @@ class LiveScanAssembler:
         self._discontinuity_reason = reason
         self._map_truncated = False
         self._reset_turn_diagnostics()
+
+    def _apply_frame_clock(self, payload: dict[str, Any], host_time: float) -> bool:
+        if self.experimental_frame_period_ms is None:
+            return True
+        number = payload.get("frame_num")
+        if type(number) is not int or not 0 <= number < 2**32:
+            reason = "invalid_frame_clock_counter"
+        elif number == self._clock_last_number:
+            reason = "duplicate_frame_clock_counter"
+        else:
+            reason = None
+        if reason is not None:
+            self._rejected[reason] += 1
+            self._last_frame_status = reason
+            self._append_event(self._event(payload, reason))
+            return False
+
+        estimated = host_time
+        offset = 0
+        if self._clock_last_number is not None:
+            step = (number - self._clock_last_number) % 2**32
+            offset = self._clock_offset_frames + step
+            estimated = self._clock_anchor_s + offset * (self.experimental_frame_period_ms / 1000)
+            # Do not let a bad epoch or changed cadence drift indefinitely.
+            if step > 2**31 or abs(estimated - host_time) > 0.1:
+                self._clear_map("frame_clock_reset")
+                self._latest_complete_turn = None
+                while self._pending:
+                    self._rejected["frame_clock_reset"] += 1
+                    self._append_event(self._event(self._pending.popleft(), "frame_clock_reset"))
+                offset, estimated = 0, host_time
+        if offset == 0:
+            self._clock_anchor_s = host_time
+        self._clock_last_number, self._clock_offset_frames = number, offset
+        payload["registration_monotonic_s"] = estimated
+        return True
 
     def _append_event(self, event: dict[str, Any]) -> None:
         if len(self._events) >= self._max_event_backlog:
@@ -261,7 +312,7 @@ class LiveScanAssembler:
                 "has_more": latest_seq < newest_seq,
                 "truncated": truncated,
                 "spokes": batch,
-                "time_basis": "host_packet_parse_monotonic",
+                "time_basis": self.time_basis,
                 "rf_time_calibrated": False,
             }
 
@@ -297,6 +348,8 @@ class LiveScanAssembler:
                 )
                 if decision.status == "registered":
                     self._cumulative_angle_deg += decision.angular_span_deg or 0.0
+                    if self.experimental_frame_period_ms is not None:
+                        self._clock_brackets.append((before, measured, self._cumulative_angle_deg))
                     self._trim_measured_revolution()
                 else:
                     self._clear_map(decision.status)
@@ -305,6 +358,7 @@ class LiveScanAssembler:
             self._process_pending()
             if self._cumulative_angle_deg - self._turn_start_progress >= 360.0:
                 self._finish_turn_diagnostics()
+                self._clock_closed_turn_s = measured.midpoint_s
                 return self._latest_complete_turn
             return None
 
@@ -314,6 +368,8 @@ class LiveScanAssembler:
         if not math.isfinite(frame_time):
             raise ValueError("frame host_monotonic_s must be finite")
         with self._lock:
+            if not self._apply_frame_clock(payload, frame_time):
+                return
             frame_num = int(payload.get("frame_num", -1))
             profile = payload.get("range_profile")
             has_profile = (isinstance(profile, (list, tuple)) and 0 < len(profile) <= 2048 and
@@ -387,8 +443,9 @@ class LiveScanAssembler:
         after: AngleSample | None = None,
     ) -> dict[str, Any]:
         return {
-            "frame_num": int(frame.get("frame_num", -1)),
+            "frame_num": frame["frame_num"] if type(frame.get("frame_num")) is int else -1,
             "host_monotonic_s": float(frame["host_monotonic_s"]),
+            "registration_monotonic_s": frame.get("registration_monotonic_s", frame["host_monotonic_s"]),
             "status": status,
             "yaw_deg": registration.yaw_deg if registration is not None else None,
             "sample_gap_s": registration.sample_gap_s if registration is not None else None,
@@ -404,7 +461,7 @@ class LiveScanAssembler:
             "registration_mounting_roll_deg": self._mounting_roll_deg,
             **self._quality,
             "stale_after_s": self._stale_after_s,
-            "time_basis": "host_packet_parse_monotonic",
+            "time_basis": self.time_basis,
             "rf_time_calibrated": False,
             "pose_compensated": False,
         }
@@ -412,14 +469,31 @@ class LiveScanAssembler:
     def _process_pending(self) -> None:
         if len(self._samples) < 2:
             return
-        before, after = self._samples
+        experimental = self.experimental_frame_period_ms is not None
+        if experimental and not self._clock_brackets:
+            return
+        latest_before, latest_after = self._samples
         remaining: deque[dict[str, Any]] = deque()
         while self._pending:
             frame = self._pending.popleft()
-            frame_time = float(frame["host_monotonic_s"])
-            if frame_time > after.midpoint_s:
+            host_time = float(frame["host_monotonic_s"])
+            frame_time = frame.get("registration_monotonic_s", host_time)
+            if experimental and self._clock_closed_turn_s is not None and frame_time <= self._clock_closed_turn_s:
+                reason = "frame_clock_previous_turn"
+                self._last_frame_status = reason
+                self._rejected[reason] += 1
+                self._append_event(self._event(frame, reason))
+                continue
+            if frame_time > latest_after.midpoint_s:
                 remaining.append(frame)
                 continue
+            before, after, progress_at_after = latest_before, latest_after, self._cumulative_angle_deg
+            if experimental:
+                before, after, progress_at_after = next(
+                    (bracket for bracket in reversed(self._clock_brackets)
+                     if bracket[0].midpoint_s <= frame_time <= bracket[1].midpoint_s),
+                    self._clock_brackets[0],
+                )
             registration = estimate_frame_yaw(
                 frame_time, before, after,
                 direction=self._direction,
@@ -441,7 +515,7 @@ class LiveScanAssembler:
             ) or []
             fraction = (frame_time - before.midpoint_s) / (after.midpoint_s - before.midpoint_s)
             span = registration.angular_span_deg or 0.0
-            frame_progress = self._cumulative_angle_deg - span * (1.0 - fraction)
+            frame_progress = progress_at_after - span * (1.0 - fraction)
             self._registered.append((frame_progress, points))
             profile = frame.get("range_profile")
             if profile is not None:
@@ -457,13 +531,14 @@ class LiveScanAssembler:
                     "seq": self._profile_seq,
                     "frame_num": int(frame.get("frame_num", -1)),
                     "yaw_deg": registration.yaw_deg,
-                    "host_monotonic_s": frame_time,
+                    "host_monotonic_s": host_time,
+                    "registration_monotonic_s": frame_time,
                     "range_profile": profile,
                     "range_profile_bin_size_m": bin_size,
                     "rf_time_calibrated": False,
                 }))
                 self._turn_spokes.append((float(registration.yaw_deg),
-                                          int(frame.get("frame_num", -1)), frame_time))
+                                          int(frame.get("frame_num", -1)), host_time))
                 while len(self._profiles) > self._max_profile_spokes:
                     self._profile_capacity_eviction_progress, _ = self._profiles.popleft()
             self._map_points_count += len(points)
@@ -526,6 +601,7 @@ class LiveScanAssembler:
                 ),
                 "rf_time_calibrated": False,
                 "pose_compensated": False,
-                "time_basis": "host_packet_parse_monotonic",
+                "time_basis": self.time_basis,
+                "experimental_frame_period_ms": self.experimental_frame_period_ms,
                 "azimuth_source": "qd4310_usb_status_interpolated",
             }

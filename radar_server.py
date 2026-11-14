@@ -32,6 +32,7 @@ from qd4310_motor import Qd4310Motor, list_qdrive_ports, validate_direction, val
 from live_scan import LiveScanAssembler
 from scan_registration import EncoderDirectionVerifier
 from range_profile_axis import range_profile_bin_size_m
+from tools.analyze_scan_timing import frame_period_from_metadata
 
 # 配置日志：同时输出到文件和控制台
 config_dir = os.path.dirname(os.path.abspath(__file__))
@@ -870,6 +871,10 @@ def start_pointcloud_recording(registration=None):
         })
         configure_live_scan(config)
         gimbal_scan["config"] = config
+    if snapshot["enabled"] and live_scan_assembler is not None:
+        snapshot.update(time_basis=live_scan_assembler.time_basis,
+                        experimental_frame_period_ms=live_scan_assembler.experimental_frame_period_ms,
+                        rf_time_calibrated=False)
     out_path = pointcloud_recorder.start(runtime_state["active_config"], registration=snapshot)
     _sync_recording_status()
     logger.info(f"📝 点云记录已开启: {out_path}")
@@ -888,6 +893,17 @@ def record_pointcloud_frame(frame, raw_packet=None):
 
 def _make_live_scan_assembler(config):
     """Validate registration calibration and build an inactive assembler."""
+    period = None
+    if _experimental_frame_clock_enabled():
+        try:
+            period = frame_period_from_metadata(runtime_state)
+            commands = [line.split() for line in runtime_state["active_config"]["content"].splitlines()]
+            modes = [words for words in commands if words and words[0] == "dfeDataOutputMode"]
+            frames = [words for words in commands if words and words[0] == "frameCfg"]
+            if modes != [["dfeDataOutputMode", "1"]] or len(frames[0]) != 9:
+                raise ValueError("requires this demo's standard frameCfg and dfeDataOutputMode 1")
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Experimental frame clock requires a successfully applied standard radar CFG: {exc}") from exc
     return LiveScanAssembler(
         direction=int(config["registration_direction"]),
         zero_deg=float(config["registration_zero_deg"]),
@@ -897,7 +913,12 @@ def _make_live_scan_assembler(config):
         max_query_duration_s=float(config["registration_max_query_duration_s"]),
         max_span_deg=float(config["registration_max_span_deg"]),
         stale_after_s=float(config["registration_stale_after_s"]),
+        experimental_frame_period_ms=period,
     )
+
+
+def _experimental_frame_clock_enabled():
+    return os.environ.get("RADAR_EXPERIMENTAL_FRAME_CLOCK") == "1"
 
 
 def configure_live_scan(config):
@@ -1408,9 +1429,18 @@ async def handle_client(websocket):
                         await websocket.send(json.dumps(result))
                     
                     elif ctype == "apply_config":
-                        result = config_manager.apply(
-                            cmd.get("filename"), cmd.get("content"), runtime_state["cfg_port"], send_config_to_radar
-                        )
+                        if _experimental_frame_clock_enabled() and (
+                                gimbal_scan["enabled"] or pointcloud_recorder.status()["enabled"]):
+                            result = {"success": False, "message":
+                                      "Stop motor scan and recording before applying CFG with experimental frame clock"}
+                        else:
+                            if _experimental_frame_clock_enabled():
+                                configure_live_scan(None)
+                                # A partial CFG failure can leave the radar cadence unknown.
+                                runtime_state["active_config"] = {"name": None, "sha256": None, "content": None}
+                            result = config_manager.apply(
+                                cmd.get("filename"), cmd.get("content"), runtime_state["cfg_port"], send_config_to_radar
+                            )
                         if result["success"]:
                             runtime_state["active_config"] = result.pop("active_config")
                         result["type"] = "apply_status"

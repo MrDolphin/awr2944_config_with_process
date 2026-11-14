@@ -1,4 +1,5 @@
 import math
+import inspect
 import unittest
 
 from live_scan import LiveScanAssembler
@@ -23,6 +24,66 @@ def frame(number, when, point=None):
 
 
 class LiveScanAssemblerTests(unittest.TestCase):
+    def test_experimental_clock_smooths_burst_without_rewriting_raw_frame_times(self):
+        options = dict(direction=1, zero_deg=0, mounting_yaw_deg=0, mounting_roll_deg=0)
+        self.assertIn('experimental_frame_period_ms', inspect.signature(LiveScanAssembler).parameters)
+        scan = LiveScanAssembler(**options, experimental_frame_period_ms=10)
+        scan.add_motor_sample(sample(1.00, 0))
+        scan.add_motor_sample(sample(1.04, 7.2))
+        scan.add_motor_sample(sample(1.06, 10.8))
+        for num, stamp in [(100, 1.045), (101, 1.061), (103, 1.062)]:
+            scan.add_frame(dict(frame(num, stamp), range_profile=[100]))
+        scan.add_motor_sample(sample(1.08, 14.4))
+        events = scan.drain_events()
+        self.assertEqual([e['frame_num'] for e in events], [100, 101, 103])
+        self.assertEqual([e['status'] for e in events], ['registered'] * 3)
+        self.assertEqual([e['host_monotonic_s'] for e in events], [1.045, 1.061, 1.062])
+        for event, expected in zip(events, (1.045, 1.055, 1.075)):
+            self.assertAlmostEqual(event['registration_monotonic_s'], expected)
+            self.assertFalse(event['rf_time_calibrated'])
+        self.assertAlmostEqual(events[2]['yaw_deg'] - events[1]['yaw_deg'], 3.6)
+
+    def test_experimental_clock_reset_clears_old_spokes_and_rejects_queued_frame(self):
+        self.assertIn('experimental_frame_period_ms', inspect.signature(LiveScanAssembler).parameters)
+        scan = LiveScanAssembler(direction=1, zero_deg=0, mounting_yaw_deg=0,
+                                 mounting_roll_deg=0, experimental_frame_period_ms=10)
+        scan.add_motor_sample(sample(1.00, 0))
+        scan.add_motor_sample(sample(1.02, 3.6))
+        scan.add_frame(dict(frame(100, 1.01), range_profile=[100]))
+        scan.add_frame(dict(frame(102, 1.021), range_profile=[100]))
+        generation = scan.profile_delta(None, None)['generation']
+        scan.add_frame(dict(frame(1, 1.025), range_profile=[100]))
+        scan.add_motor_sample(sample(1.04, 7.2))
+        events = scan.drain_events()
+        self.assertEqual([(e['frame_num'], e['status']) for e in events],
+                         [(100, 'registered'), (102, 'frame_clock_reset'), (1, 'registered')])
+        profiles = scan.profile_delta(None, None)
+        self.assertNotEqual(profiles['generation'], generation)
+        self.assertEqual([spoke['frame_num'] for spoke in profiles['spokes']], [1])
+
+    def test_delayed_burst_uses_older_measured_bracket_not_latest_bracket(self):
+        scan = LiveScanAssembler(direction=1, zero_deg=0, mounting_yaw_deg=0,
+                                 mounting_roll_deg=0, experimental_frame_period_ms=10)
+        for n in range(4):
+            scan.add_motor_sample(sample(1 + n * .02, n * 3.6))
+            if n == 1:
+                scan.add_frame(dict(frame(100, 1.01), range_profile=[100]))
+        scan.add_frame(dict(frame(101, 1.061), range_profile=[100]))
+        event = scan.drain_events()[-1]
+        self.assertEqual(event['status'], 'registered')
+        self.assertAlmostEqual(event['yaw_deg'], 3.6)
+        self.assertEqual(event['after_sample_midpoint_s'], 1.04)
+
+    def test_delayed_frame_is_not_assigned_to_an_already_closed_turn(self):
+        scan = LiveScanAssembler(direction=1, zero_deg=0, mounting_yaw_deg=0,
+                                 mounting_roll_deg=0, experimental_frame_period_ms=20)
+        for n in range(61):
+            scan.add_motor_sample(sample(1 + n * .02, n * 6 % 360))
+            if 1 <= n < 60:
+                scan.add_frame(dict(frame(n, 1 + n * .02 - .01), range_profile=[100]))
+        scan.add_frame(dict(frame(60, 2.201), range_profile=[100]))
+        self.assertEqual(scan.drain_events()[-1]['status'], 'frame_clock_previous_turn')
+
     def test_complete_turn_gap_identifies_boundary_and_missing_evidence_frames(self):
         scan = LiveScanAssembler(direction=1, zero_deg=0, mounting_yaw_deg=0,
                                  mounting_roll_deg=0)

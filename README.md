@@ -61,6 +61,14 @@ python3 -m serial.tools.list_ports -v
 
 首次验收请由操作员在可随时断电的台架上进行：断开雷达平台负载或确保转台安全，输入 1 rpm，点击“启动电机”，观察方向和转速，再点击“停止电机”并确认实际停转。服务端启动时发送 `enable` 和 `ctrl speed <rpm>`；停止时发送 `ctrl speed 0` 和 `disable`。这两条停止指令尚需按当前电机固件在实机确认；网页断开或软件退出不能替代硬件急停。界面的“每帧理论转角”只按指令转速估算，未作为实测编码器角度参与点云旋转。
 
+### TLV2 PPI：试验用帧号时标
+
+默认仍用主机解包时标。要做台架 A/B 对照，由现场操作员确认停止转台与录制后，在使用本仓库 systemd 模板的树莓派 `/etc/default/radar-camera` 新增一行 `RADAR_EXPERIMENTAL_FRAME_CLOCK=1`（保留原有 `RADAR_CAMERA_ARGS`），再执行 `sudo systemctl restart radar.service`。刷新网页，在网页下发同一份已验证的标准 CFG（单条 `frameCfg`、`dfeDataOutputMode 1`），确认成功后再开启逐帧配准并按正常受控流程采集。服务重启后需要重新在网页下发 CFG；试验开启时，运行或录制中拒绝通过网页换 CFG。
+
+TLV2 PPI 应显示“试验时标：帧号 × CFG 周期 …（非 RF 时间）”。试验只改编码器配准选用的时间，原始解包时间仍用于记录和原始帧匹配；实测编码器的插值与拒绝门限保持不变。断帧不补线，已结束圈的迟到帧不回填。用同 CFG、同转速分别记录两组，比较 `turn_diagnostics.jsonl` 中各圈有效线数、最大缺口和拒绝原因；缺口变窄不等于绝对方位准确。该模式未标定 RF/编码器延迟，不用于正式导航。
+
+**回退：** 确认停转并结束录制后，把 `RADAR_EXPERIMENTAL_FRAME_CLOCK` 改回 `0`（或删除该行），重启 `radar.service`；不需要回退 Git 或改雷达 CFG。
+
 ## 船载平面海面仿真 V0.1
 
 V0.1 用于验证 1 m 安装高度、固定向下俯角和 AWR2944PEVM 近似方向图对平面海面覆盖及相对功率的影响。它使用单位 `sigma0`、双程方向图和 `R^-4` 权重，不是经过造浪池或海试校准的绝对海杂波模型，也不包含动态波浪、ADC、Range-Doppler、AoA 或 CFAR。

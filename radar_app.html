@@ -3490,6 +3490,10 @@
             const spokes = intensityPpiState.spokes;
             const status = document.getElementById('intensityPpiStatus');
             const registration = data.gimbal_scan && data.gimbal_scan.live_registration;
+            const experimentalClock = registration?.time_basis === 'frame_counter_x_cfg_period_estimate_only';
+            const clockLabel = experimentalClock
+                ? `试验时标：帧号 × CFG 周期 ${registration.experimental_frame_period_ms} ms（非 RF 时间）`
+                : '主机解包时间配准，非 RF 采集时间';
             const coverage = registration && registration.coverage;
             const coverageStatus = document.getElementById('ppiCoverageStatus');
             if (coverage) {
@@ -3532,7 +3536,8 @@
                     : '最近完整圈：尚无连续实测一圈';
                 coverageStatus.textContent = `${turnText} · 滚动窗口：${phase} · 服务端有效线 ${coverage.valid_spokes} / 独立方位 ${coverage.unique_azimuths}` +
                     ` · 最大角间隔 ${gap} · 累计拒绝事件 ${rejectTotal}` +
-                    (coverage.capacity_limited ? ' · 容量截断' : '') + ' · 外圈短刻度=采样位置';
+                    (coverage.capacity_limited ? ' · 容量截断' : '') + ' · 外圈短刻度=采样位置' +
+                    (experimentalClock ? ` · ${clockLabel}` : '');
                 coverageStatus.title = '最近完整圈按编码器连续行程360°统计；缺口端点帧是两侧观测边界，不代表端点帧有故障；区间内原因可能未判定。跨圈及主机解包时间与RF采集时间的差异尚未标定，不代表精确物理方位覆盖。有效线与角间隔基于服务端滚动窗口，网页增量传输可能暂时落后；不是完整周扫验收，也不是波束覆盖率。' +
                     '拒绝事件自配准器重置累计，包含帧拒绝及编码器时间异常，不是本圈丢帧数。原因：' +
                     (rejected.map(([reason,count])=>`${reason}:${count}`).join(', ') || '无');
@@ -3556,7 +3561,7 @@
                 ` · 有界扇形 · ${adaptive ? '背景扣除' : '原始强度'} · 抑制 ${Math.round(threshold * 100)}% / 亮度 ${Math.round(brightness * 100)}%`;
             status.title = (binSize ? '理论距离轴，未经实测标定' :
                 '距离格索引，未标定；米制盲区未应用：缺少距离格宽') +
-                '；扇形为显示单元，不是实测波束宽度：正常相邻角中点分界，超过典型间隔 1.5 倍保留缺口，单元最大 6°；回波对比、背景抑制和亮度仅改变显示，不是 SNR 门限；主机解包时间配准，非 RF 采集时间';
+                '；扇形为显示单元，不是实测波束宽度：正常相邻角中点分界，超过典型间隔 1.5 倍保留缺口，单元最大 6°；回波对比、背景抑制和亮度仅改变显示，不是 SNR 门限；' + clockLabel;
             setPointsDisplay(`TLV2 ${spokes.length} 条方位线（非点云）`);
             document.getElementById('targetsDisplay').innerText = '强度诊断';
             const now = performance.now();

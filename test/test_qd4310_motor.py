@@ -668,6 +668,26 @@ class Qd4310ServerModeTests(unittest.TestCase):
         finally:
             self._restore_modules(previous_serial, previous_websockets)
 
+    def test_experimental_registration_clock_requires_explicit_opt_in_and_active_frame_cfg(self):
+        server, previous_serial, previous_websockets = self._import_server()
+        try:
+            config = dict(server.gimbal_scan['config'], live_registration_enabled=True)
+            with patch.dict(server.os.environ, {'RADAR_EXPERIMENTAL_FRAME_CLOCK': '0'}):
+                server.configure_live_scan(config)
+                self.assertEqual(server.get_live_scan_snapshot()['time_basis'], 'host_packet_parse_monotonic')
+            with patch.dict(server.os.environ, {'RADAR_EXPERIMENTAL_FRAME_CLOCK': '1'}):
+                with self.assertRaisesRegex(ValueError, 'CFG'):
+                    server.configure_live_scan(config)
+                with patch.dict(server.runtime_state, {'active_config': {
+                    'content': 'dfeDataOutputMode 1\nframeCfg 0 0 16 0 656 10 1 0\nsensorStart\n'}}):
+                    server.configure_live_scan(config)
+                    status = server.get_live_scan_snapshot()
+                    self.assertEqual(status['time_basis'], 'frame_counter_x_cfg_period_estimate_only')
+                    self.assertEqual(status['experimental_frame_period_ms'], 10)
+                    self.assertFalse(status['rf_time_calibrated'])
+        finally:
+            self._restore_modules(previous_serial, previous_websockets)
+
     def test_live_registration_requires_explicit_opt_in_and_valid_calibration(self):
         server, previous_serial, previous_websockets = self._import_server()
         try:

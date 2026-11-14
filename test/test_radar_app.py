@@ -267,6 +267,22 @@ class RadarAppTests(unittest.TestCase):
             self.assertIn('#72', labels[1])
             browser.close()
 
+    def test_ppi_labels_experimental_clock_as_not_rf_time(self):
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page()
+            page.goto((Path(__file__).resolve().parents[1] / 'radar_app.html').as_uri())
+            page.select_option('#ppiViewSelect', 'intensity')
+            text = page.evaluate("""() => {
+                renderIntensityPpiFrame({gimbal_scan:{live_registration:{
+                    time_basis:'frame_counter_x_cfg_period_estimate_only',
+                    experimental_frame_period_ms:10,
+                    coverage:{phase:'collecting',valid_spokes:0,unique_azimuths:0}}}}, true);
+                return document.getElementById('ppiCoverageStatus').textContent;
+            }""")
+            self.assertIn('试验时标：帧号 × CFG 周期 10 ms（非 RF 时间）', text)
+            browser.close()
+
     def test_ppi_gap_text_names_boundary_and_evidence_frames(self):
         with sync_playwright() as playwright:
             browser = self._new_browser(playwright)

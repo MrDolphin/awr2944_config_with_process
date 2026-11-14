@@ -68,6 +68,16 @@ class CaptureReportTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(self.output.exists())
 
+    def test_experimental_capture_report_labels_the_recorded_bearings(self):
+        mode = 'frame_counter_x_cfg_period_estimate_only'
+        path = self.capture / 'live_registration.jsonl'
+        rows = [dict(json.loads(line), time_basis=mode)
+                for line in path.read_text(encoding='utf-8').splitlines()]
+        path.write_text(''.join(json.dumps(row) + '\n' for row in rows), encoding='utf-8')
+        result = write_capture_report(self.capture, self.output, max_step_deg=100)
+        self.assertEqual(result['time_basis'], mode)
+        self.assertIn('帧号 × CFG 周期', (self.output / 'report.md').read_text(encoding='utf-8'))
+
     def test_output_inside_capture_is_refused(self):
         nested = self.capture / 'report'
         cmd = [sys.executable, str(ROOT / 'scan_revolutions.py'),
