@@ -9,14 +9,18 @@ from __future__ import annotations
 import argparse
 from bisect import bisect_right
 from collections import Counter
+import hashlib
 import json
 import math
 from pathlib import Path
 import statistics
+import struct
 
+from live_scan import LiveScanAssembler
 from scan_registration import AngleSample, estimate_frame_yaw
 from scan_revolutions import analyze_revolutions
 from tools.analyze_scan_timing import analyze_records, frame_period_from_metadata
+from tools.register_scan_capture import MAGIC_WORD, extract_range_profile
 
 
 def _counter_indices(frames):
@@ -142,9 +146,112 @@ def compare_registered_turns(frames, motor_samples, *, period_ms,
                                          time_basis='frame_counter_x_cfg_period_estimate_only'))
 
 
+def compare_live_turns(frames, motor_samples, *, period_ms, direction,
+                       zero_deg=0.0, mounting_yaw_deg=0.0):
+    """Replay the live assembler using recorded parse/query completion order."""
+    frames, motor_samples = list(frames), list(motor_samples)
+    observed = analyze_records(frames)
+    _counter_indices(frames)
+    _encoder_samples(motor_samples)
+    if any(row.get('enabled', True) is not True for row in motor_samples):
+        raise ValueError('live replay requires one enabled scan session')
+    if any(type(row.get('range_profile_valid')) is not bool for row in frames):
+        raise ValueError('live replay requires explicit TLV2 payload validity')
+    stream = sorted(
+        [(float(row['host_monotonic_s']), 1, row) for row in frames]
+        + [(float(row['query_completed_monotonic_s']), 0, row)
+           for row in motor_samples], key=lambda item: item[:2])
+    tlv2_ids = {(int(row['frame_num']), float(row['host_monotonic_s']))
+               for row in frames if row['range_profile_valid']}
+    report = dict(raw_frames=len(frames),
+                  raw_missing_frames=observed['missing_frame_numbers'],
+                  tlv2_frames=len(tlv2_ids),
+                  invalid_tlv2_frames=sum(2 in row.get('tlv_types', [])
+                                          and not row['range_profile_valid'] for row in frames),
+                  frame_period_ms_from_cfg=period_ms,
+                  comparison_note='Live assembler replay; host parse/query completion '
+                  'approximates input order. Valid TLV2 availability only; not pixel or RF validation.')
+    for label, period in [('host_parse', None), ('counter_estimate', period_ms)]:
+        scan = LiveScanAssembler(direction=direction, zero_deg=zero_deg,
+                                 mounting_yaw_deg=mounting_yaw_deg,
+                                 mounting_roll_deg=0,
+                                 experimental_frame_period_ms=period)
+        turns, statuses = [], Counter()
+        registered_tlv2 = 0
+        for stamp, kind, row in stream:
+            if kind == 0:
+                turn = scan.add_motor_sample(row)
+                if turn is not None:
+                    turns.append(dict(turn, completed_at_monotonic_s=stamp))
+            else:
+                number = int(row['frame_num'])
+                scan.add_frame(dict(frame_num=number, host_monotonic_s=stamp,
+                                    tlv_types=row.get('tlv_types', []),
+                                    range_profile=[0] if (number, stamp) in tlv2_ids else None))
+            for event in scan.drain_events():
+                statuses[event['status']] += 1
+                if (event['status'] == 'registered' and
+                        (event['frame_num'], event['host_monotonic_s']) in tlv2_ids):
+                    registered_tlv2 += 1
+        pending = len(frames) - sum(statuses.values())
+        if pending:
+            statuses['unresolved_at_capture_end'] = pending
+        report[label] = dict(time_basis=scan.time_basis, rf_time_calibrated=False,
+                             complete_turns=turns, frame_status_counts=dict(statuses),
+                             registered_tlv2_lines=registered_tlv2)
+    return report
+
+
+def verify_live_replay_profiles(frames, raw):
+    """Join the binary packets to their index; invalid TLV2 cannot create a spoke."""
+    checked = []
+    for frame in frames:
+        offset, length = frame.get('raw_offset'), frame.get('raw_length')
+        if (type(offset) is not int or type(length) is not int or
+                offset < 0 or not 40 <= length <= 2**20):
+            raise ValueError('live replay found an invalid raw packet offset or length')
+        raw.seek(offset)
+        packet = raw.read(length)
+        if (len(packet) != length or packet[:8] != MAGIC_WORD
+                or struct.unpack_from('<I', packet, 12)[0] != length
+                or struct.unpack_from('<I', packet, 20)[0] != frame['frame_num']):
+            raise ValueError(f'raw packet identity disagrees with index at offset {offset}')
+        try:
+            profile = extract_range_profile(packet)
+        except ValueError:
+            if 2 not in frame.get('tlv_types', []):
+                raise
+            profile = None
+        if profile is not None and 2 not in frame.get('tlv_types', []):
+            raise ValueError(f'raw TLV2 is missing from the index at offset {offset}')
+        checked.append(dict(frame, range_profile_valid=bool(profile and len(profile) <= 2048)))
+    return checked
+
+
+def validate_live_replay_capture(metadata, *, frame_count, sample_count):
+    """Require intact replay inputs, without rejecting actual radar counter gaps."""
+    if metadata.get('recording_status') != 'completed' or metadata.get('writer_error'):
+        raise ValueError('live replay requires a completed recording without a writer error')
+    for label, count in [('frames', frame_count), ('motor_samples', sample_count)]:
+        if metadata.get(label) != count or metadata.get(f'dropped_{label}') != 0:
+            raise ValueError(f'live replay requires intact {label} matching metadata')
+    registration = metadata.get('registration') or {}
+    if registration.get('enabled') is not True or registration.get('motor_active') is not True:
+        raise ValueError('live replay requires registration and motor active at record start')
+    if registration.get('encoder_direction_verified') is not True:
+        raise ValueError('live replay requires verified encoder direction at record start')
+    config = metadata.get('active_config') or {}
+    content = config.get('content')
+    if (not isinstance(content, str) or
+            config.get('sha256') != hashlib.sha256(content.encode('utf-8')).hexdigest()):
+        raise ValueError('live replay requires the original active CFG snapshot and matching SHA-256')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('capture_dir', type=Path)
+    parser.add_argument('--live-assembler', action='store_true',
+                        help='Replay both production assembler modes in arrival order')
     args = parser.parse_args()
     capture = args.capture_dir
     metadata = json.loads((capture / 'metadata.json').read_text(encoding='utf-8'))
@@ -153,13 +260,22 @@ def main():
         with (capture / name).open(encoding='utf-8') as source:
             return [json.loads(line) for line in source if line.strip()]
 
-    registration = metadata['registration']
-    result = compare_registered_turns(
-        jsonl('frames.jsonl'), jsonl('motor_samples.jsonl'),
-        period_ms=frame_period_from_metadata(metadata),
-        direction=registration['direction'],
-        zero_deg=registration.get('zero_deg', 0.0),
-        mounting_yaw_deg=registration.get('mounting_yaw_deg', 0.0))
+    try:
+        frames, samples = jsonl('frames.jsonl'), jsonl('motor_samples.jsonl')
+        if args.live_assembler:
+            validate_live_replay_capture(metadata, frame_count=len(frames),
+                                         sample_count=len(samples))
+            with (capture / 'frames.tlv').open('rb') as raw:
+                frames = verify_live_replay_profiles(frames, raw)
+        registration = metadata['registration']
+        compare = compare_live_turns if args.live_assembler else compare_registered_turns
+        result = compare(
+            frames, samples, period_ms=frame_period_from_metadata(metadata),
+            direction=registration['direction'],
+            zero_deg=registration.get('zero_deg', 0.0),
+            mounting_yaw_deg=registration.get('mounting_yaw_deg', 0.0))
+    except (OSError, ValueError, KeyError) as error:
+        parser.error(str(error))
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
