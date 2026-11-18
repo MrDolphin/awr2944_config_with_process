@@ -147,7 +147,7 @@ def compare_registered_turns(frames, motor_samples, *, period_ms,
 
 
 def compare_live_turns(frames, motor_samples, *, period_ms, direction,
-                       zero_deg=0.0, mounting_yaw_deg=0.0):
+                       zero_deg=0.0, mounting_yaw_deg=0.0, include_frame_offsets=False):
     """Replay the live assembler using recorded parse/query completion order."""
     frames, motor_samples = list(frames), list(motor_samples)
     observed = analyze_records(frames)
@@ -171,13 +171,14 @@ def compare_live_turns(frames, motor_samples, *, period_ms, direction,
                   frame_period_ms_from_cfg=period_ms,
                   comparison_note='Live assembler replay; host parse/query completion '
                   'approximates input order. Valid TLV2 availability only; not pixel or RF validation.')
+    yaws = {}
     for label, period in [('host_parse', None), ('counter_estimate', period_ms)]:
         scan = LiveScanAssembler(direction=direction, zero_deg=zero_deg,
                                  mounting_yaw_deg=mounting_yaw_deg,
                                  mounting_roll_deg=0,
                                  experimental_frame_period_ms=period)
         turns, statuses = [], Counter()
-        registered_tlv2 = 0
+        registered_tlv2 = {}
         for stamp, kind, row in stream:
             if kind == 0:
                 turn = scan.add_motor_sample(row)
@@ -190,15 +191,44 @@ def compare_live_turns(frames, motor_samples, *, period_ms, direction,
                                     range_profile=[0] if (number, stamp) in tlv2_ids else None))
             for event in scan.drain_events():
                 statuses[event['status']] += 1
-                if (event['status'] == 'registered' and
-                        (event['frame_num'], event['host_monotonic_s']) in tlv2_ids):
-                    registered_tlv2 += 1
+                key = event['frame_num'], event['host_monotonic_s']
+                if event['status'] == 'registered' and key in tlv2_ids:
+                    registered_tlv2[key] = event['yaw_deg']
         pending = len(frames) - sum(statuses.values())
         if pending:
             statuses['unresolved_at_capture_end'] = pending
         report[label] = dict(time_basis=scan.time_basis, rf_time_calibrated=False,
                              complete_turns=turns, frame_status_counts=dict(statuses),
-                             registered_tlv2_lines=registered_tlv2)
+                             registered_tlv2_lines=len(registered_tlv2))
+        yaws[label] = registered_tlv2
+    host, counter = yaws['host_parse'], yaws['counter_estimate']
+    matched = host.keys() & counter.keys()
+    rows, deltas = [], []
+    for key in sorted(matched, key=lambda key: key[1]):
+        delta = (counter[key] - host[key] + 180) % 360 - 180
+        deltas.append(delta)
+        if include_frame_offsets:
+            rows.append(dict(frame_num=key[0], host_monotonic_s=key[1],
+                             host_yaw_deg=host[key], counter_yaw_deg=counter[key],
+                             delta_deg=delta))
+    center = statistics.median(deltas) if deltas else None
+    absolute = sorted(map(abs, deltas))
+    summary = dict(
+        matched_tlv2_frames=len(matched),
+        host_only_tlv2_frames=len(host) - len(matched),
+        counter_only_tlv2_frames=len(counter) - len(matched),
+        neither_tlv2_frames=len(tlv2_ids - (host.keys() | counter.keys())),
+        median_delta_deg=center,
+        min_delta_deg=min(deltas, default=None), max_delta_deg=max(deltas, default=None),
+        p95_abs_delta_deg=absolute[math.ceil(.95 * len(absolute)) - 1] if absolute else None,
+        max_abs_delta_deg=absolute[-1] if absolute else None,
+        median_abs_deviation_deg=(statistics.median(abs(delta - center) for delta in deltas)
+                                  if deltas else None),
+        comparison_note='Counter yaw minus host yaw for the same TLV2 frame, wrapped '
+                        'to [-180, 180). Relative reassignment, not absolute bearing error.')
+    if include_frame_offsets:
+        summary['frames'] = rows
+    report['relative_yaw'] = summary
     return report
 
 
@@ -252,7 +282,11 @@ def main():
     parser.add_argument('capture_dir', type=Path)
     parser.add_argument('--live-assembler', action='store_true',
                         help='Replay both production assembler modes in arrival order')
+    parser.add_argument('--per-frame', action='store_true',
+                        help='Include matched frame yaw rows; requires --live-assembler')
     args = parser.parse_args()
+    if args.per_frame and not args.live_assembler:
+        parser.error('--per-frame requires --live-assembler')
     capture = args.capture_dir
     metadata = json.loads((capture / 'metadata.json').read_text(encoding='utf-8'))
 
@@ -273,7 +307,8 @@ def main():
             frames, samples, period_ms=frame_period_from_metadata(metadata),
             direction=registration['direction'],
             zero_deg=registration.get('zero_deg', 0.0),
-            mounting_yaw_deg=registration.get('mounting_yaw_deg', 0.0))
+            mounting_yaw_deg=registration.get('mounting_yaw_deg', 0.0),
+            **({'include_frame_offsets': args.per_frame} if args.live_assembler else {}))
     except (OSError, ValueError, KeyError) as error:
         parser.error(str(error))
     print(json.dumps(result, ensure_ascii=False, indent=2))

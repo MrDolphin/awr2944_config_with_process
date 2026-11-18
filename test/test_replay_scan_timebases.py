@@ -10,6 +10,36 @@ from tools.replay_scan_timebases import (
 
 
 class ReplayScanTimebasesTests(unittest.TestCase):
+    def test_relative_yaw_uses_the_original_frame_and_wraps_at_zero(self):
+        frames = [dict(frame_num=i, host_monotonic_s=stamp, tlv_types=[2],
+                       range_profile_valid=True)
+                  for i, stamp in enumerate((.01, .045, .08))]
+        samples = [dict(query_started_monotonic_s=i * .01 - .0001,
+                        query_completed_monotonic_s=i * .01 + .0001,
+                        angle_deg=(354 + i * 1.8) % 360) for i in range(7)]
+        result = compare_live_turns(frames, samples, period_ms=10,
+                                    direction=1, include_frame_offsets=True)
+        offset = result['relative_yaw']
+        self.assertEqual(offset['matched_tlv2_frames'], 2)
+        self.assertEqual(offset['counter_only_tlv2_frames'], 1)
+        self.assertEqual(offset['host_only_tlv2_frames'], 0)
+        row = offset['frames'][1]
+        self.assertEqual((row['frame_num'], row['host_monotonic_s']), (1, .045))
+        self.assertAlmostEqual(row['host_yaw_deg'], 2.1)
+        self.assertAlmostEqual(row['counter_yaw_deg'], 357.6)
+        self.assertAlmostEqual(row['delta_deg'], -4.5)
+
+    def test_empty_overlap_does_not_claim_zero_shift(self):
+        frames = [dict(frame_num=i, host_monotonic_s=i * .01, tlv_types=[2],
+                       range_profile_valid=True) for i in range(2)]
+        samples = [dict(query_started_monotonic_s=stamp, query_completed_monotonic_s=stamp,
+                        angle_deg=0) for stamp in (.1, .2)]
+        offset = compare_live_turns(frames, samples, period_ms=10,
+                                    direction=1)['relative_yaw']
+        self.assertEqual(offset['neither_tlv2_frames'], 2)
+        self.assertIsNone(offset['median_delta_deg'])
+        self.assertNotIn('frames', offset)
+
     def test_live_replay_requires_intact_capture_logs_and_cfg_snapshot(self):
         content = 'frameCfg 0 0 16 0 656 10 1 0'
         metadata = dict(
