@@ -547,6 +547,44 @@ class Qd4310ServerModeTests(unittest.TestCase):
         finally:
             self._restore_modules(old_serial, old_websockets)
 
+    def test_actual_map_reset_is_persisted_once_without_polluting_frame_events(self):
+        from radar_runtime import PointCloudRecorder
+
+        server, previous_serial, previous_websockets = self._import_server()
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                recorder = PointCloudRecorder(directory)
+                with patch.object(server, "pointcloud_recorder", recorder):
+                    server.live_scan_assembler = server.LiveScanAssembler(
+                        direction=1, zero_deg=0, mounting_yaw_deg=0, mounting_roll_deg=0)
+                    capture = Path(recorder.start())
+                    try:
+                        server.add_live_motor_sample(dict(query_started_monotonic_s=1.,
+                            query_completed_monotonic_s=1., angle_deg=0.))
+                        server.add_live_radar_frame(dict(frame_num=9, host_monotonic_s=1.01,
+                            points=[], range_profile=[100]))
+                        server.add_live_motor_sample(dict(query_started_monotonic_s=1.02,
+                            query_completed_monotonic_s=1.02, angle_deg=3.6))
+                        with patch.object(server.time, 'monotonic', return_value=3.):
+                            server.get_live_scan_snapshot()
+                            server.get_live_scan_snapshot()
+                    finally:
+                        recorder.stop()
+                path = capture / 'map_resets.jsonl'
+                self.assertTrue(path.is_file())
+                rows = [json.loads(line) for line in path.read_text(encoding='utf-8').splitlines()]
+                self.assertEqual(len(rows), 1)
+                self.assertEqual(rows[0]['reason'], 'telemetry_stale')
+                self.assertEqual(rows[0]['host_monotonic_s'], 3.)
+                self.assertEqual(rows[0]['last_seen_frame_num'], 9)
+                self.assertIsNone(rows[0]['trigger_frame_num'])
+                meta = json.loads((capture / 'metadata.json').read_text(encoding='utf-8'))
+                self.assertEqual(meta['map_resets'], 1)
+                self.assertEqual(meta['dropped_map_resets'], 0)
+                self.assertEqual(meta['registration_events'], 1)
+        finally:
+            self._restore_modules(previous_serial, previous_websockets)
+
     def test_each_completed_turn_is_forwarded_to_the_active_recording_once(self):
         from radar_runtime import PointCloudRecorder
 

@@ -24,6 +24,51 @@ def frame(number, when, point=None):
 
 
 class LiveScanAssemblerTests(unittest.TestCase):
+    def test_short_bad_interval_preserves_map_and_ages_out_old_spokes(self):
+        for period in (None, 10):
+            with self.subTest(period=period):
+                scan = LiveScanAssembler(direction=1, zero_deg=0, mounting_yaw_deg=0,
+                                         mounting_roll_deg=0, experimental_frame_period_ms=period)
+                scan.add_motor_sample(sample(1.0, 0))
+                for n in range(1, 211):
+                    scan.add_frame(dict(frame(n, 1 + n * .01 - .005), range_profile=[100]))
+                    if n <= 200 or n >= 207:
+                        scan.add_motor_sample(sample(1 + n * .01, n * 1.8 % 360))
+                    if n == 200:
+                        generation = scan.profile_delta(None, 0)['generation']
+                retained = scan.profile_delta(None, 0, max_spokes=512)
+                self.assertEqual(retained['generation'], generation)
+                self.assertGreater(len(retained['spokes']), 180)
+                self.assertEqual(scan.snapshot(now_monotonic_s=3.10)['coverage']['phase'], 'rolling')
+                self.assertEqual([event['frame_num'] for event in scan.drain_events()
+                                  if event['status'] == 'angular_span'], list(range(201, 208)))
+                for n in range(211, 412):
+                    scan.add_frame(dict(frame(n, 1 + n * .01 - .005), range_profile=[100]))
+                    scan.add_motor_sample(sample(1 + n * .01, n * 1.8 % 360))
+                self.assertTrue(all(row['frame_num'] > 210 for row in
+                                    scan.profile_delta(None, 0, max_spokes=512)['spokes']))
+
+    def test_clock_reset_evidence_survives_successful_registration(self):
+        scan = LiveScanAssembler(direction=1, zero_deg=0, mounting_yaw_deg=0,
+                                 mounting_roll_deg=0, experimental_frame_period_ms=10)
+        scan.add_motor_sample(sample(1.00, 0))
+        scan.add_frame(dict(frame(100, 1.01), range_profile=[100]))
+        scan.add_motor_sample(sample(1.02, 3.6))
+        generation = scan.profile_delta(None, 0)['generation']
+        scan.add_frame(dict(frame(1, 1.025), range_profile=[100]))
+        scan.add_motor_sample(sample(1.04, 7.2))
+        status = scan.snapshot(now_monotonic_s=1.04)
+        event = status.get('last_map_reset') or {}
+        self.assertEqual(status.get('map_reset_count'), 1)
+        self.assertEqual(event.get('reason'), 'frame_clock_reset')
+        self.assertEqual(event['trigger_frame_num'], 1)
+        self.assertEqual(event['host_monotonic_s'], 1.025)
+        self.assertEqual(event['previous_generation'], generation)
+        self.assertNotEqual(event['generation'], generation)
+        self.assertEqual(scan.drain_map_resets(), [event])
+        self.assertEqual(scan.drain_map_resets(), [])
+        self.assertEqual(scan.snapshot(now_monotonic_s=1.04)['last_map_reset'], event)
+
     def test_experimental_clock_smooths_burst_without_rewriting_raw_frame_times(self):
         options = dict(direction=1, zero_deg=0, mounting_yaw_deg=0, mounting_roll_deg=0)
         self.assertIn('experimental_frame_period_ms', inspect.signature(LiveScanAssembler).parameters)
@@ -305,7 +350,7 @@ class LiveScanAssemblerTests(unittest.TestCase):
         second = scan.profile_delta(first["generation"], first["latest_seq"], max_spokes=2)
         self.assertEqual([spoke["frame_num"] for spoke in second["spokes"]], [3])
         self.assertFalse(second["has_more"])
-        scan.add_motor_sample(sample(1.20, 40))
+        scan.add_motor_sample(sample(1.36, 60))
         cleared = scan.profile_delta(first["generation"], second["latest_seq"])
         self.assertNotEqual(cleared["generation"], first["generation"])
         self.assertEqual(cleared["spokes"], [])
@@ -429,8 +474,8 @@ class LiveScanAssemblerTests(unittest.TestCase):
         scan.add_motor_sample(sample(1.04, 6))
         self.assertEqual(len(scan.snapshot(now_monotonic_s=1.05)["points"]), 1)
         scan.add_frame(frame(2, 1.14))
-        scan.add_motor_sample(sample(1.24, 42))
-        result = scan.snapshot(now_monotonic_s=1.25)
+        scan.add_motor_sample(sample(1.34, 60))
+        result = scan.snapshot(now_monotonic_s=1.35)
         self.assertEqual(result["points"], [])
         self.assertEqual(result["last_frame_status"], "sample_gap")
         self.assertEqual(result["discontinuity_reason"], "sample_gap")

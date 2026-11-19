@@ -924,7 +924,11 @@ def _experimental_frame_clock_enabled():
 def configure_live_scan(config):
     """Replace the optional measured-angle assembler without opening hardware."""
     global live_scan_assembler
+    previous = live_scan_assembler
     live_scan_assembler = None
+    if previous is not None:
+        previous.invalidate_map("registration_reconfigured", now_monotonic_s=time.monotonic())
+        _record_live_map_resets(previous)
     if not config or not config.get("live_registration_enabled"):
         return
     live_scan_assembler = _make_live_scan_assembler(config)
@@ -947,8 +951,14 @@ def add_live_radar_frame(frame):
 
 
 def _record_live_registration_events(assembler):
+    _record_live_map_resets(assembler)
     for event in assembler.drain_events():
         pointcloud_recorder.record_registration_event(event)
+
+
+def _record_live_map_resets(assembler):
+    for event in assembler.drain_map_resets():
+        pointcloud_recorder.record_map_reset(event)
 
 
 def get_live_scan_snapshot():
@@ -959,7 +969,9 @@ def get_live_scan_snapshot():
             "pending_frames": 0, "rejected_frames": {},
             "rf_time_calibrated": False, "pose_compensated": False,
         }
-    return assembler.snapshot(now_monotonic_s=time.monotonic())
+    snapshot = assembler.snapshot(now_monotonic_s=time.monotonic())
+    _record_live_map_resets(assembler)
+    return snapshot
 
 
 def get_live_profile_delta(generation, after_seq):

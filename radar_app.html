@@ -3501,6 +3501,14 @@
                 const gap = Number.isFinite(coverage.max_gap_deg) ? `${coverage.max_gap_deg.toFixed(2)}°` : '未知';
                 const rejected = Object.entries(registration.rejected_frames || {});
                 const rejectTotal = rejected.reduce((sum, [, count]) => sum + (Number(count) || 0), 0);
+                const reset = registration.last_map_reset;
+                const resetFrame = Number.isInteger(reset?.trigger_frame_num)
+                    ? `触发帧 #${reset.trigger_frame_num}`
+                    : Number.isInteger(reset?.last_seen_frame_num)
+                    ? `最近接收帧 #${reset.last_seen_frame_num}（非触发帧）` : '无触发帧';
+                const resetText = Number.isInteger(registration.map_reset_count)
+                    ? `整图重置 ${registration.map_reset_count} 次` +
+                      (reset ? ` · 最近：${reset.reason} / ${resetFrame}` : '') + ' · ' : '';
                 const turn = registration.latest_complete_turn;
                 const turnReject = turn ? Object.values(turn.registration_rejected || {})
                     .reduce((sum, count) => sum + (Number(count) || 0), 0) : 0;
@@ -3534,7 +3542,7 @@
                 const turnText = turn
                     ? `最近完整圈：TLV2有效线 ${turn.valid_tlv2_spokes}${turnFrames} · 最大缺口 ${turnGap}${gapFrames}${evidenceText} · 本圈原始缺帧 ${turn.raw_frame_missing} / TLV2缺失 ${turn.tlv2_missing} / 配准拒绝 ${turnReject}`
                     : '最近完整圈：尚无连续实测一圈';
-                coverageStatus.textContent = `${turnText} · 滚动窗口：${phase} · 服务端有效线 ${coverage.valid_spokes} / 独立方位 ${coverage.unique_azimuths}` +
+                coverageStatus.textContent = resetText + `${turnText} · 滚动窗口：${phase} · 服务端有效线 ${coverage.valid_spokes} / 独立方位 ${coverage.unique_azimuths}` +
                     ` · 最大角间隔 ${gap} · 累计拒绝事件 ${rejectTotal}` +
                     (coverage.capacity_limited ? ' · 容量截断' : '') + ' · 外圈短刻度=采样位置' +
                     (experimentalClock ? ` · ${clockLabel}` : '');

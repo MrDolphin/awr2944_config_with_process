@@ -106,6 +106,10 @@ class LiveScanAssembler:
             self._map_points_count = 0
             self._map_truncated = False
             self._discontinuity_reason: str | None = None
+            self._last_seen_frame_num: int | None = None
+            self._last_map_reset: dict[str, Any] | None = None
+            self._map_reset_count = 0
+            self._map_resets: deque[dict[str, Any]] = deque(maxlen=self._max_event_backlog)
             self._dropped_event_backlog = 0
             self._latest_complete_turn: dict[str, Any] | None = None
             self._reset_turn_diagnostics()
@@ -217,19 +221,42 @@ class LiveScanAssembler:
                                       "undetermined" if causes else "unobserved")
         return evidence
 
-    def _clear_map(self, reason: str) -> None:
+    def _clear_map(self, reason: str, stamp: float, *, trigger_frame_num: int | None = None) -> None:
+        previous_generation = self._profile_generation
         self._clock_brackets.clear()
         self._clock_closed_turn_s = None
         self._registered.clear()
         self._profiles.clear()
         self._profile_capacity_eviction_progress = None
         self._profile_generation = uuid.uuid4().hex
+        self._map_reset_count += 1
+        self._last_map_reset = {
+            "reason": reason, "host_monotonic_s": stamp,
+            "trigger_frame_num": trigger_frame_num,
+            "last_seen_frame_num": self._last_seen_frame_num,
+            "previous_generation": previous_generation, "generation": self._profile_generation,
+            "time_basis": self.time_basis,
+        }
+        self._map_resets.append(self._last_map_reset)
         self._map_points_count = 0
         self._cumulative_angle_deg = 0.0
         self._last_yaw_deg = None
         self._discontinuity_reason = reason
         self._map_truncated = False
         self._reset_turn_diagnostics()
+
+    def drain_map_resets(self) -> list[dict[str, Any]]:
+        """Drain reset notifications without changing the most recent snapshot."""
+        with self._lock:
+            events = list(self._map_resets)
+            self._map_resets.clear()
+            return events
+
+    def invalidate_map(self, reason: str, *, now_monotonic_s: float) -> None:
+        """Log explicit configuration replacement only if a sweep is present."""
+        with self._lock:
+            if self._registered or self._profiles:
+                self._clear_map(reason, now_monotonic_s)
 
     def _apply_frame_clock(self, payload: dict[str, Any], host_time: float) -> bool:
         if self.experimental_frame_period_ms is None:
@@ -255,7 +282,7 @@ class LiveScanAssembler:
             estimated = self._clock_anchor_s + offset * (self.experimental_frame_period_ms / 1000)
             # Do not let a bad epoch or changed cadence drift indefinitely.
             if step > 2**31 or abs(estimated - host_time) > 0.1:
-                self._clear_map("frame_clock_reset")
+                self._clear_map("frame_clock_reset", host_time, trigger_frame_num=number)
                 self._latest_complete_turn = None
                 while self._pending:
                     self._rejected["frame_clock_reset"] += 1
@@ -335,7 +362,7 @@ class LiveScanAssembler:
         with self._lock:
             if self._samples and measured.midpoint_s <= self._samples[-1].midpoint_s:
                 self._rejected["non_monotonic_sample"] += 1
-                self._clear_map("non_monotonic_sample")
+                self._clear_map("non_monotonic_sample", measured.query_completed_monotonic_s)
                 return None
             if self._samples:
                 before = self._samples[-1]
@@ -346,13 +373,24 @@ class LiveScanAssembler:
                     mounting_yaw_deg=self._mounting_yaw_deg,
                     **self._quality,
                 )
-                if decision.status == "registered":
-                    self._cumulative_angle_deg += decision.angular_span_deg or 0.0
+                travel = decision.angular_span_deg if decision.status == "registered" else None
+                if decision.status in ("angular_span", "sample_gap"):
+                    dt = measured.midpoint_s - before.midpoint_s
+                    span = (self._direction * (measured.angle_deg - before.angle_deg)) % 360
+                    max_travel = dt * self._quality["max_possible_rpm"] * 6
+                    if (dt <= self._stale_after_s and span <= max_travel < 180
+                            and max(before.query_duration_s, measured.query_duration_s)
+                            <= self._quality["max_query_duration_s"]):
+                        # Endpoint travel advances expiry only. This bracket
+                        # still fails the unchanged per-frame yaw quality gates.
+                        travel = span
+                if travel is not None:
+                    self._cumulative_angle_deg += travel
                     if self.experimental_frame_period_ms is not None:
                         self._clock_brackets.append((before, measured, self._cumulative_angle_deg))
                     self._trim_measured_revolution()
                 else:
-                    self._clear_map(decision.status)
+                    self._clear_map(decision.status, measured.query_completed_monotonic_s)
             self._samples.append(measured)
             self._last_sample_midpoint_s = measured.midpoint_s
             self._process_pending()
@@ -371,6 +409,8 @@ class LiveScanAssembler:
             if not self._apply_frame_clock(payload, frame_time):
                 return
             frame_num = int(payload.get("frame_num", -1))
+            if frame_num >= 0:
+                self._last_seen_frame_num = frame_num
             profile = payload.get("range_profile")
             has_profile = (isinstance(profile, (list, tuple)) and 0 < len(profile) <= 2048 and
                            all(type(value) is int and 0 <= value <= 65535 for value in profile))
@@ -559,7 +599,7 @@ class LiveScanAssembler:
             stale = (self._last_sample_midpoint_s is None or
                      now - self._last_sample_midpoint_s > self._stale_after_s)
             if stale and (self._registered or self._profiles):
-                self._clear_map("telemetry_stale")
+                self._clear_map("telemetry_stale", now)
             points = [] if stale else [point for _, batch in self._registered for point in batch]
             # Bearings describe retained observations, not antenna coverage or
             # painted sector area. Include the wrap gap even during the first turn.
@@ -589,6 +629,8 @@ class LiveScanAssembler:
                 "map_frames": len(self._registered),
                 "map_truncated": self._map_truncated,
                 "discontinuity_reason": self._discontinuity_reason,
+                "map_reset_count": self._map_reset_count,
+                "last_map_reset": self._last_map_reset,
                 "dropped_event_backlog": self._dropped_event_backlog,
                 "rejected_frames": dict(self._rejected),
                 "coverage": coverage,

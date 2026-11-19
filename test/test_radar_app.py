@@ -283,6 +283,23 @@ class RadarAppTests(unittest.TestCase):
             self.assertIn('试验时标：帧号 × CFG 周期 10 ms（非 RF 时间）', text)
             browser.close()
 
+    def test_ppi_retains_latest_map_reset_evidence_after_recovery(self):
+        with sync_playwright() as playwright:
+            browser = self._new_browser(playwright)
+            page = browser.new_page()
+            page.goto((Path(__file__).resolve().parents[1] / 'radar_app.html').as_uri())
+            text = page.evaluate("""() => {
+                renderIntensityPpiFrame({gimbal_scan:{live_registration:{
+                    discontinuity_reason:null, map_reset_count:2,
+                    last_map_reset:{reason:'frame_clock_reset',trigger_frame_num:42,host_monotonic_s:5},
+                    coverage:{phase:'rolling',valid_spokes:200,unique_azimuths:200}}}}, true);
+                return document.getElementById('ppiCoverageStatus').textContent;
+            }""")
+            self.assertIn('整图重置 2 次', text)
+            self.assertIn('frame_clock_reset', text)
+            self.assertIn('触发帧 #42', text)
+            browser.close()
+
     def test_ppi_gap_text_names_boundary_and_evidence_frames(self):
         with sync_playwright() as playwright:
             browser = self._new_browser(playwright)

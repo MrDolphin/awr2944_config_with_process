@@ -69,6 +69,8 @@ TLV2 PPI 应显示“试验时标：帧号 × CFG 周期 …（非 RF 时间）�
 
 **回退：** 确认停转并结束录制后，把 `RADAR_EXPERIMENTAL_FRAME_CLOCK` 改回 `0`（或删除该行），重启 `radar.service`；不需要回退 Git 或改雷达 CFG。
 
+**局部缺口与整图重置：** 编码器区间超限但两端能确认方向和未回绕的角行程时，受影响的帧仍被拒绝；端点行程只用于淘汰一圈以前的观测，不用于补画缺口。真正的整图重置会单独写入采集目录的 `map_resets.jsonl`，不混入逐帧配准事件。核对 `metadata.json` 的 `map_resets` 和 `dropped_map_resets`。事件时间为主机单调时间；没有雷达帧直接触发时，`trigger_frame_num` 为空，`last_seen_frame_num` 仅供关联。网页计数以当前配准会话为范围。
+
 ## 船载平面海面仿真 V0.1
 
 V0.1 用于验证 1 m 安装高度、固定向下俯角和 AWR2944PEVM 近似方向图对平面海面覆盖及相对功率的影响。它使用单位 `sigma0`、双程方向图和 `R^-4` 权重，不是经过造浪池或海试校准的绝对海杂波模型，也不包含动态波浪、ADC、Range-Doppler、AoA 或 CFAR。
